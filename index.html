@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>路书制作工具</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>路书制作工具</h1>
+            <div class="toolbar">
+                <button id="addMarkerBtn" class="btn">添加标记点</button>
+                <button id="connectMarkersBtn" class="btn">连接标记点</button>
+                <button id="exportBtn" class="btn">导出路书</button>
+                <button id="importBtn" class="btn">导入路书</button>
+                <button id="exportImageBtn" class="btn">导出图片</button>
+                <input type="file" id="importFile" accept=".json" style="display: none;">
+            </div>
+        </header>
+
+        <main>
+            <div id="mapContainer" style="height: 100%; width: 100%;"></div>
+            <div class="sidebar">
+                <h3>标记点列表</h3>
+                <div id="markerList"></div>
+            </div>
+            <div class="detail-panel" id="detailPanel" style="display: none;">
+                <div class="detail-header">
+                    <h3 id="detailTitle">标记点详情</h3>
+                    <button class="close-btn" id="closeDetailBtn">&times;</button>
+                </div>
+                <div class="detail-content">
+                    <div class="form-group">
+                        <label>名称:</label>
+                        <input type="text" id="markerNameInput" placeholder="输入标记点名称">
+                    </div>
+                    <div class="form-group">
+                        <label>时间:</label>
+                        <input type="datetime-local" id="markerDateInput">
+                    </div>
+                    <div class="form-group">
+                        <label>坐标:</label>
+                        <div id="markerCoords"></div>
+                    </div>
+                    <div class="form-group">
+                        <label>标注内容:</label>
+                        <textarea id="markerLabelsInput" rows="3" placeholder="输入标注内容，多个标注用分号隔开"></textarea>
+                    </div>
+                    <div class="detail-actions">
+                        <button id="saveMarkerBtn" class="btn btn-primary">保存</button>
+                        <button id="deleteMarkerBtn" class="btn btn-danger">删除</button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- 连接标记点模态框 -->
+    <div id="connectModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h3>连接标记点</h3>
+            <div class="form-group">
+                <label>选择起始标记点:</label>
+                <select id="startMarker"></select>
+            </div>
+            <div class="form-group">
+                <label>选择目标标记点:</label>
+                <select id="endMarker"></select>
+            </div>
+            <div class="form-group">
+                <label>选择交通方式:</label>
+                <select id="transportType">
+                    <option value="car">🚗 汽车</option>
+                    <option value="train">🚄 火车</option>
+                    <option value="plane">✈️ 飞机</option>
+                    <option value="walk">🚶 步行</option>
+                </select>
+            </div>
+            <button id="confirmConnect" class="btn">确认连接</button>
+        </div>
+    </div>
+
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
