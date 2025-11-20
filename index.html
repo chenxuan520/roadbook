@@ -16,42 +16,101 @@
                 <button id="connectMarkersBtn" class="btn">连接标记点</button>
                 <button id="exportBtn" class="btn">导出路书</button>
                 <button id="importBtn" class="btn">导入路书</button>
-                <button id="exportImageBtn" class="btn">导出图片</button>
                 <input type="file" id="importFile" accept=".json" style="display: none;">
             </div>
         </header>
 
         <main>
             <div id="mapContainer" style="height: 100%; width: 100%;"></div>
-            <div class="sidebar">
-                <h3>标记点列表</h3>
-                <div id="markerList"></div>
-            </div>
-            <div class="detail-panel" id="detailPanel" style="display: none;">
-                <div class="detail-header">
-                    <h3 id="detailTitle">标记点详情</h3>
-                    <button class="close-btn" id="closeDetailBtn">&times;</button>
+            <div class="right-panel">
+                <!-- 标记点列表 -->
+                <div class="sidebar" id="markerListPanel">
+                    <h3>标记点列表</h3>
+                    <div id="markerList"></div>
                 </div>
-                <div class="detail-content">
-                    <div class="form-group">
-                        <label>名称:</label>
-                        <input type="text" id="markerNameInput" placeholder="输入标记点名称">
+                <!-- 标记点详情面板 -->
+                <div class="detail-panel" id="markerDetailPanel" style="display: none;">
+                    <div class="detail-header">
+                        <h3 id="detailTitle">标记点详情</h3>
+                        <button class="close-btn" id="closeMarkerDetailBtn">&times;</button>
                     </div>
-                    <div class="form-group">
-                        <label>时间:</label>
-                        <input type="datetime-local" id="markerDateInput">
+                    <div class="detail-content">
+                        <div class="form-group">
+                            <label>名称:</label>
+                            <input type="text" id="markerNameInput" placeholder="输入标记点名称">
+                        </div>
+                        <div class="form-group">
+                            <label>时间:</label>
+                            <input type="datetime-local" id="markerDateInput">
+                        </div>
+                        <div class="form-group">
+                            <label>坐标:</label>
+                            <div id="markerCoords"></div>
+                        </div>
+                        <div class="form-group">
+                            <label>标记点图标:</label>
+                            <div style="display: flex; gap: 10px; align-items: center;">
+                                <div id="currentIconPreview" style="width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 20px; border: 2px solid #667eea;"></div>
+                                <button type="button" id="changeIconBtn" class="btn" style="margin: 0;">更换图标</button>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>标注内容:</label>
+                            <textarea id="markerLabelsInput" rows="3" placeholder="输入标注内容，多个标注用分号隔开"></textarea>
+                        </div>
+                        <div class="detail-actions">
+                            <button id="saveMarkerBtn" class="btn btn-primary">保存</button>
+                            <button id="deleteMarkerBtn" class="btn btn-danger">删除</button>
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label>坐标:</label>
-                        <div id="markerCoords"></div>
+                </div>
+                <!-- 连接线详情面板 -->
+                <div class="detail-panel" id="connectionDetailPanel" style="display: none;">
+                    <div class="detail-header">
+                        <h3 id="detailTitle">连接线详情</h3>
+                        <button class="close-btn" id="closeConnectionDetailBtn">&times;</button>
                     </div>
-                    <div class="form-group">
-                        <label>标注内容:</label>
-                        <textarea id="markerLabelsInput" rows="3" placeholder="输入标注内容，多个标注用分号隔开"></textarea>
-                    </div>
-                    <div class="detail-actions">
-                        <button id="saveMarkerBtn" class="btn btn-primary">保存</button>
-                        <button id="deleteMarkerBtn" class="btn btn-danger">删除</button>
+                    <div class="detail-content">
+                        <div class="form-group">
+                            <label>时间:</label>
+                            <input type="datetime-local" id="connectionDateInput">
+                        </div>
+                        <div class="form-group">
+                            <label>连接信息:</label>
+                            <div id="connectionInfo"></div>
+                        </div>
+                        <div class="form-group">
+                            <label>交通方式:</label>
+                            <div class="transport-buttons">
+                                <button type="button" class="transport-btn" data-transport="car">
+                                    <span class="icon">🚗</span>
+                                    <span class="label">汽车</span>
+                                </button>
+                                <button type="button" class="transport-btn" data-transport="train">
+                                    <span class="icon">🚄</span>
+                                    <span class="label">火车</span>
+                                </button>
+                                <button type="button" class="transport-btn" data-transport="subway">
+                                    <span class="icon">🚇</span>
+                                    <span class="label">地铁</span>
+                                </button>
+                                <button type="button" class="transport-btn" data-transport="plane">
+                                    <span class="icon">✈️</span>
+                                    <span class="label">飞机</span>
+                                </button>
+                                <button type="button" class="transport-btn" data-transport="walk">
+                                    <span class="icon">🚶</span>
+                                    <span class="label">步行</span>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>标注内容:</label>
+                            <textarea id="connectionLabelsInput" rows="3" placeholder="输入连接线标注内容"></textarea>
+                        </div>
+                        <div class="detail-actions">
+                            <button id="saveConnectionBtn" class="btn btn-primary">保存</button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -73,14 +132,146 @@
             </div>
             <div class="form-group">
                 <label>选择交通方式:</label>
-                <select id="transportType">
-                    <option value="car">🚗 汽车</option>
-                    <option value="train">🚄 火车</option>
-                    <option value="plane">✈️ 飞机</option>
-                    <option value="walk">🚶 步行</option>
-                </select>
+                <div class="transport-buttons">
+                    <button type="button" class="transport-btn active" data-transport="car">
+                        <span class="icon">🚗</span>
+                        <span class="label">汽车</span>
+                    </button>
+                    <button type="button" class="transport-btn" data-transport="train">
+                        <span class="icon">🚄</span>
+                        <span class="label">火车</span>
+                    </button>
+                    <button type="button" class="transport-btn" data-transport="subway">
+                        <span class="icon">🚇</span>
+                        <span class="label">地铁</span>
+                    </button>
+                    <button type="button" class="transport-btn" data-transport="plane">
+                        <span class="icon">✈️</span>
+                        <span class="label">飞机</span>
+                    </button>
+                    <button type="button" class="transport-btn" data-transport="walk">
+                        <span class="icon">🚶</span>
+                        <span class="label">步行</span>
+                    </button>
+                </div>
+                <input type="hidden" id="transportType" value="car">
             </div>
             <button id="confirmConnect" class="btn">确认连接</button>
+        </div>
+    </div>
+
+    <!-- 标记点图标选择模态框 -->
+    <div id="iconModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="app.closeModals()">&times;</span>
+            <h3>选择标记点图标</h3>
+            <div class="icon-section">
+                <h4>数字</h4>
+                <div class="icon-grid">
+                    <div class="icon-option" data-icon="0">
+                        <div class="icon-preview" style="background-color: #667eea;">0</div>
+                        <span>0</span>
+                    </div>
+                    <div class="icon-option" data-icon="1">
+                        <div class="icon-preview" style="background-color: #667eea;">1</div>
+                        <span>1</span>
+                    </div>
+                    <div class="icon-option" data-icon="2">
+                        <div class="icon-preview" style="background-color: #667eea;">2</div>
+                        <span>2</span>
+                    </div>
+                    <div class="icon-option" data-icon="3">
+                        <div class="icon-preview" style="background-color: #667eea;">3</div>
+                        <span>3</span>
+                    </div>
+                    <div class="icon-option" data-icon="4">
+                        <div class="icon-preview" style="background-color: #667eea;">4</div>
+                        <span>4</span>
+                    </div>
+                    <div class="icon-option" data-icon="5">
+                        <div class="icon-preview" style="background-color: #667eea;">5</div>
+                        <span>5</span>
+                    </div>
+                    <div class="icon-option" data-icon="6">
+                        <div class="icon-preview" style="background-color: #667eea;">6</div>
+                        <span>6</span>
+                    </div>
+                    <div class="icon-option" data-icon="7">
+                        <div class="icon-preview" style="background-color: #667eea;">7</div>
+                        <span>7</span>
+                    </div>
+                    <div class="icon-option" data-icon="8">
+                        <div class="icon-preview" style="background-color: #667eea;">8</div>
+                        <span>8</span>
+                    </div>
+                    <div class="icon-option" data-icon="9">
+                        <div class="icon-preview" style="background-color: #667eea;">9</div>
+                        <span>9</span>
+                    </div>
+                </div>
+            </div>
+            <div class="icon-section">
+                <h4>图标</h4>
+                <div class="icon-grid">
+                    <div class="icon-option" data-icon="📍">
+                        <div class="icon-preview" style="background-color: #667eea;">📍</div>
+                        <span>标记</span>
+                    </div>
+                    <div class="icon-option" data-icon="🏠">
+                        <div class="icon-preview" style="background-color: #FF5722;">🏠</div>
+                        <span>家</span>
+                    </div>
+                    <div class="icon-option" data-icon="🏨">
+                        <div class="icon-preview" style="background-color: #2196F3;">🏨</div>
+                        <span>酒店</span>
+                    </div>
+                    <div class="icon-option" data-icon="🍽️">
+                        <div class="icon-preview" style="background-color: #4CAF50;">🍽️</div>
+                        <span>餐厅</span>
+                    </div>
+                    <div class="icon-option" data-icon="🏞️">
+                        <div class="icon-preview" style="background-color: #FF9800;">🏞️</div>
+                        <span>景点</span>
+                    </div>
+                    <div class="icon-option" data-icon="🛍️">
+                        <div class="icon-preview" style="background-color: #9C27B0;">🛍️</div>
+                        <span>购物</span>
+                    </div>
+                    <div class="icon-option" data-icon="🚉">
+                        <div class="icon-preview" style="background-color: #607D8B;">🚉</div>
+                        <span>交通</span>
+                    </div>
+                    <div class="icon-option" data-icon="🌳">
+                        <div class="icon-preview" style="background-color: #8BC34A;">🌳</div>
+                        <span>公园</span>
+                    </div>
+                    <div class="icon-option" data-icon="⛰️">
+                        <div class="icon-preview" style="background-color: #795548;">⛰️</div>
+                        <span>山峰</span>
+                    </div>
+                    <div class="icon-option" data-icon="🏖️">
+                        <div class="icon-preview" style="background-color: #00BCD4;">🏖️</div>
+                        <span>海滩</span>
+                    </div>
+                    <div class="icon-option" data-icon="📷">
+                        <div class="icon-preview" style="background-color: #FF5722;">📷</div>
+                        <span>拍照</span>
+                    </div>
+                    <div class="icon-option" data-icon="☕">
+                        <div class="icon-preview" style="background-color: #795548;">☕</div>
+                        <span>咖啡</span>
+                    </div>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>自定义图标 (可选):</label>
+                <input type="text" id="customIcon" placeholder="输入emoji或文字，如：🎯 或 A">
+            </div>
+            <div class="form-group">
+                <label>图标颜色:</label>
+                <input type="color" id="iconColor" value="#667eea">
+            </div>
+            <button id="confirmIcon" class="btn">确认选择</button>
         </div>
     </div>
 

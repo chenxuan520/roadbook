@@ -74,6 +74,12 @@ main {
     overflow: hidden;
 }
 
+.right-panel {
+    width: 350px;
+    position: relative;
+    overflow: hidden;
+}
+
 #mapContainer {
     flex: 1;
     position: relative;
@@ -82,20 +88,28 @@ main {
 }
 
 .sidebar {
-    width: 300px;
+    width: 100%;
+    height: 100%;
     background: white;
     border-left: 1px solid #ddd;
     padding: 1rem;
     overflow-y: auto;
+    position: absolute;
+    top: 0;
+    left: 0;
 }
 
 .detail-panel {
-    width: 350px;
+    width: 100%;
+    height: 100%;
     background: white;
     border-left: 1px solid #ddd;
     padding: 0;
     overflow-y: auto;
     box-shadow: -2px 0 10px rgba(0,0,0,0.1);
+    position: absolute;
+    top: 0;
+    left: 0;
 }
 
 .detail-header {
@@ -424,4 +438,159 @@ main {
         font-size: 0.8rem;
         padding: 0.4rem 0.8rem;
     }
+}
+
+/* 图标选择模态框样式 */
+#iconModal .modal-content {
+    max-height: 80vh;
+    overflow-y: auto;
+    margin: 5% auto;
+}
+
+.icon-section {
+    margin-bottom: 20px;
+}
+
+.icon-section h4 {
+    margin-bottom: 10px;
+    color: #333;
+    font-size: 16px;
+}
+
+.icon-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 15px;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    max-height: 150px;
+    overflow-y: auto;
+}
+
+@media (max-width: 768px) {
+    .icon-grid {
+        grid-template-columns: repeat(3, 1fr);
+        max-height: 120px;
+    }
+}
+
+.icon-option {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 12px;
+    border: 2px solid #dee2e6;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background: white;
+}
+
+.icon-option:hover {
+    border-color: #667eea;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.icon-option.selected {
+    border-color: #667eea;
+    background: rgba(102, 126, 234, 0.1);
+}
+
+.icon-preview {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 20px;
+    margin-bottom: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+
+.icon-option span {
+    font-size: 12px;
+    color: #666;
+    text-align: center;
+}
+
+.icon-option.selected span {
+    color: #667eea;
+    font-weight: bold;
+}
+
+/* 自定义图标输入框 */
+#customIcon {
+    text-align: center;
+    font-size: 18px;
+}
+
+/* 确认选择按钮样式 */
+#confirmIcon {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: #000 !important; /* 黑色文字 */
+    border: none;
+    font-weight: bold;
+    margin-top: 15px;
+}
+
+#confirmIcon:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+
+/* 颜色选择器 */
+input[type="color"] {
+    width: 100%;
+    height: 40px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+/* 交通方式切换按钮 */
+.transport-buttons {
+    display: flex;
+    gap: 10px;
+    margin: 15px 0;
+    flex-wrap: wrap;
+}
+
+.transport-btn {
+    flex: 1;
+    min-width: 80px;
+    padding: 10px;
+    border: 2px solid #dee2e6;
+    border-radius: 8px;
+    background: white;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-align: center;
+    font-size: 14px;
+}
+
+.transport-btn:hover {
+    border-color: #667eea;
+    transform: translateY(-1px);
+}
+
+.transport-btn.active {
+    border-color: #667eea;
+    background: rgba(102, 126, 234, 0.1);
+    color: #667eea;
+    font-weight: bold;
+}
+
+.transport-btn .icon {
+    display: block;
+    font-size: 20px;
+    margin-bottom: 4px;
+}
+
+.transport-btn .label {
+    display: block;
+    font-size: 12px;
 }
