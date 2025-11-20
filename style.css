@@ -20,6 +20,7 @@ header {
     color: white;
     padding: 1rem;
     box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    position: relative; /* 添加相对定位以提供定位上下文 */
 }
 
 header h1 {
@@ -28,9 +29,98 @@ header h1 {
     font-size: 1.8rem;
 }
 
+.search-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.search-box {
+    position: relative;
+}
+
+.search-box input {
+    width: 250px;
+    padding: 0.5rem;
+    border: 2px solid rgba(255,255,255,0.5);
+    border-radius: 25px;
+    background: rgba(255,255,255,0.2);
+    color: white;
+    font-size: 0.9rem;
+    backdrop-filter: blur(10px);
+}
+
+.search-box input::placeholder {
+    color: rgba(255,255,255,0.7);
+}
+
+.search-box button {
+    padding: 0.5rem 1rem;
+    border: 2px solid rgba(255,255,255,0.5);
+    border-left: none;
+    border-radius: 0 25px 25px 0;
+    background: linear-gradient(135deg, rgba(255,255,255,0.3), rgba(255,255,255,0.15));
+    color: white;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 600;
+    backdrop-filter: blur(10px);
+}
+
+.search-box button:hover {
+    background: linear-gradient(135deg, rgba(255,255,255,0.4), rgba(255,255,255,0.25));
+}
+
+/* 搜索结果下拉框样式 */
+.search-results {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 250px; /* 匹配搜索框宽度 */
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+    z-index: 1000;
+    max-height: 300px;
+    overflow-y: auto;
+    margin-top: 0.5rem; /* 给一点间距 */
+}
+
+.search-results ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.search-results li {
+    padding: 12px 15px;
+    cursor: pointer;
+    border-bottom: 1px solid #eee;
+    transition: background-color 0.2s;
+}
+
+.search-results li:hover {
+    background-color: #f5f5f5;
+}
+
+.search-results li:last-child {
+    border-bottom: none;
+}
+
+.search-results li .result-title {
+    font-weight: bold;
+    color: #333;
+}
+
+.search-results li .result-address {
+    font-size: 0.9em;
+    color: #666;
+    margin-top: 4px;
+}
+
 .toolbar {
     display: flex;
-    justify-content: center;
     gap: 0.5rem;
     flex-wrap: wrap;
 }

@@ -11,6 +11,15 @@ class RoadbookApp {
             icon: '📍',
             color: '#667eea'
         };
+        this.searchMarker = null;  // 搜索结果标记点
+        this.searchTimeout = null; // 搜索延时定时器
+        this.searchPopupTimeout = null; // 搜索弹窗定时器
+        this.tooltip = null; // 连接线工具提示
+        this.connectionLabelTooltip = null; // 连接线标注工具提示
+        this.markerTooltip = null; // 标记点工具提示
+        this.searchResults = null; // 搜索结果对象
+        this.currentMarker = null; // 当前选中的标记点
+        this.currentConnection = null; // 当前选中的连接线
 
         this.init();
     }
@@ -18,22 +27,42 @@ class RoadbookApp {
     init() {
         this.initMap();
         this.bindEvents();
+        this.loadFromLocalStorage(); // 初始化时加载本地缓存
+        this.updateMapModeButton(); // 设置地图模式按钮的初始文本
     }
 
     initMap() {
-        // 使用OpenStreetMap初始化Leaflet地图
+        // 初始化地图，使用OpenStreetMap作为默认图层
         this.map = L.map('mapContainer').setView([39.90923, 116.397428], 10); // 北京天安门
 
-        // 添加OpenStreetMap图层
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap contributors',
-            maxZoom: 19
-        }).addTo(this.map);
+        // 定义地图图层
+        this.mapLayers = {
+            osm: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors',
+                maxZoom: 19
+            }),
+            satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                attribution: 'Tiles © Esri',
+                maxZoom: 19
+            })
+        };
+
+        // 当前图层
+        this.currentLayer = 'osm';
+        this.mapLayers[this.currentLayer].addTo(this.map);
 
         // 添加地图点击事件
         this.map.on('click', (e) => {
             if (this.currentMode === 'addMarker') {
                 this.addMarker(e.latlng);
+            }
+        });
+
+        // 添加地图右键点击事件，用于取消添加标记点状态
+        this.map.on('contextmenu', (e) => {
+            e.preventDefault(); // 防止默认右键菜单
+            if (this.currentMode === 'addMarker') {
+                this.setMode('view'); // 取消添加标记点状态
             }
         });
     }
@@ -78,6 +107,59 @@ class RoadbookApp {
             });
         }
 
+        const mapModeBtn = document.getElementById('mapModeBtn');
+        if (mapModeBtn) {
+            mapModeBtn.addEventListener('click', () => {
+                this.switchMapMode();
+            });
+        }
+
+        const clearCacheBtn = document.getElementById('clearCacheBtn');
+        if (clearCacheBtn) {
+            clearCacheBtn.addEventListener('click', () => {
+                this.clearCache();
+            });
+        }
+
+        // 搜索功能
+        const searchInput = document.getElementById('searchInput');
+        if (searchInput) {
+            searchInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    this.searchLocation(searchInput.value);
+                }
+            });
+
+            // 实时搜索功能（在用户输入时显示结果）
+            searchInput.addEventListener('input', (e) => {
+                const query = e.target.value.trim();
+                if (query) {
+                    // 延迟搜索，避免频繁请求
+                    clearTimeout(this.searchTimeout);
+                    this.searchTimeout = setTimeout(() => {
+                        this.searchLocation(query);
+                    }, 300);
+                } else {
+                    // 如果输入为空，隐藏搜索结果
+                    const searchResults = document.getElementById('searchResults');
+                    if (searchResults) {
+                        searchResults.style.display = 'none';
+                    }
+                }
+            });
+        }
+
+        // 点击页面其他地方隐藏搜索结果
+        document.addEventListener('click', (e) => {
+            const searchResults = document.getElementById('searchResults');
+            const searchBox = document.querySelector('.search-box');
+            if (searchResults && searchBox &&
+                !searchBox.contains(e.target) &&
+                !searchResults.contains(e.target)) {
+                searchResults.style.display = 'none';
+            }
+        });
+
         // 标记点详情面板中的图标更换按钮事件
         const changeIconBtn = document.getElementById('changeIconBtn');
         if (changeIconBtn) {
@@ -111,7 +193,7 @@ class RoadbookApp {
 
         // 连接线详情面板中的交通方式按钮事件
         document.querySelectorAll('.transport-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
+            btn.addEventListener('click', () => {
                 // 只有在连接线详情面板中才处理交通方式切换
                 if (this.currentConnection) {
                     document.querySelectorAll('.transport-btn').forEach(b => b.classList.remove('active'));
@@ -126,7 +208,7 @@ class RoadbookApp {
 
         // 图标选项点击事件
         document.querySelectorAll('.icon-option').forEach(option => {
-            option.addEventListener('click', (e) => {
+            option.addEventListener('click', () => {
                 document.querySelectorAll('.icon-option').forEach(opt => opt.classList.remove('selected'));
                 option.classList.add('selected');
             });
@@ -134,7 +216,7 @@ class RoadbookApp {
 
         // 交通方式按钮点击事件
         document.querySelectorAll('.transport-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
+            btn.addEventListener('click', () => {
                 document.querySelectorAll('.transport-btn').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
                 
@@ -162,7 +244,7 @@ class RoadbookApp {
 
         // 图标选项点击事件
         document.querySelectorAll('.icon-option').forEach(option => {
-            option.addEventListener('click', (e) => {
+            option.addEventListener('click', () => {
                 document.querySelectorAll('.icon-option').forEach(opt => opt.classList.remove('selected'));
                 option.classList.add('selected');
             });
@@ -170,7 +252,7 @@ class RoadbookApp {
 
         // 交通方式按钮点击事件
         document.querySelectorAll('.transport-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
+            btn.addEventListener('click', () => {
                 document.querySelectorAll('.transport-btn').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
                 
@@ -203,6 +285,13 @@ class RoadbookApp {
             });
         }
 
+        const deleteConnectionBtn = document.getElementById('deleteConnectionBtn');
+        if (deleteConnectionBtn) {
+            deleteConnectionBtn.addEventListener('click', () => {
+                this.deleteCurrentConnection();
+            });
+        }
+
         const deleteMarkerBtn = document.getElementById('deleteMarkerBtn');
         if (deleteMarkerBtn) {
             deleteMarkerBtn.addEventListener('click', () => {
@@ -216,6 +305,38 @@ class RoadbookApp {
                 this.closeModals();
             }
         });
+    }
+
+    updateMapModeButton() {
+        // 更新按钮文本
+        const mapModeBtn = document.getElementById('mapModeBtn');
+        const layerNames = {
+            osm: '切换地图',
+            satellite: '卫星图'
+        };
+
+        if (mapModeBtn) {
+            mapModeBtn.textContent = layerNames[this.currentLayer] || '切换地图';
+        }
+    }
+
+    switchMapMode() {
+        // 移除当前图层
+        this.map.removeLayer(this.mapLayers[this.currentLayer]);
+
+        // 循环切换到下一个图层
+        const layerKeys = Object.keys(this.mapLayers);
+        const currentIndex = layerKeys.indexOf(this.currentLayer);
+        const nextIndex = (currentIndex + 1) % layerKeys.length;
+        this.currentLayer = layerKeys[nextIndex];
+
+        // 添加新的图层
+        this.mapLayers[this.currentLayer].addTo(this.map);
+
+        // 更新按钮文本
+        this.updateMapModeButton();
+
+        console.log('地图模式已切换到:', this.currentLayer);
     }
 
     setMode(mode) {
@@ -243,7 +364,7 @@ class RoadbookApp {
             icon: String(this.markers.length + 1), // 使用数字作为默认图标
             color: '#667eea'
         };
-        
+
         const icon = this.createMarkerIcon(defaultIcon, this.markers.length + 1);
 
         const marker = L.marker([latlng.lat, latlng.lng], {
@@ -253,7 +374,7 @@ class RoadbookApp {
         }).addTo(this.map);
 
         const markerData = {
-            id: markerId,
+            id: markerId, // 不可见不可编辑的唯一ID
             marker: marker,
             position: [latlng.lat, latlng.lng],
             title: `标记点${this.markers.length + 1}`,
@@ -273,7 +394,8 @@ class RoadbookApp {
         });
 
         // 添加右键菜单事件
-        marker.on('contextmenu', () => {
+        marker.on('contextmenu', (e) => {
+            e.preventDefault(); // 防止默认右键菜单
             this.showMarkerContextMenu(markerData);
         });
 
@@ -310,7 +432,13 @@ class RoadbookApp {
             this.updateMarkerList();
 
             console.log(`标记点"${markerData.title}"坐标已更新: ${newPos.lat.toFixed(6)}, ${newPos.lng.toFixed(6)}`);
+
+            // 保存到本地存储
+            this.saveToLocalStorage();
         });
+
+        // 保存到本地存储
+        this.saveToLocalStorage();
     }
 
     showIconModal() {
@@ -517,8 +645,8 @@ class RoadbookApp {
 
         const connection = {
             id: Date.now(),
-            start: startMarker,
-            end: endMarker,
+            startId: startMarker.id, // 使用ID引用开始标记点
+            endId: endMarker.id,     // 使用ID引用结束标记点
             transportType: transportType,
             polyline: polyline,
             endCircle: endCircle,
@@ -526,8 +654,9 @@ class RoadbookApp {
             arrowHead: arrowHead, // 添加箭头
             dateTime: this.getCurrentLocalDateTime(),
             label: '',
-            startTitle: startMarker.title,
-            endTitle: endMarker.title
+            duration: 0, // 新增：连接耗时（分钟）
+            startTitle: startMarker.title, // 保存创建时的标题，用于显示
+            endTitle: endMarker.title      // 保存创建时的标题，用于显示
         };
 
         // 添加连接线事件 - 使用箭头函数确保this上下文正确
@@ -552,6 +681,9 @@ class RoadbookApp {
         this.connections.push(connection);
         this.closeModals();
 
+        // 保存到本地存储
+        this.saveToLocalStorage();
+
         console.log('连接线创建成功，连接数:', this.connections.length);
     }
 
@@ -566,7 +698,7 @@ class RoadbookApp {
         return colors[type] || '#666';
     }
 
-    createMarkerIcon(iconConfig, number) {
+    createMarkerIcon(iconConfig, _number) {
         const icon = iconConfig.icon || '📍';
         const color = iconConfig.color || '#667eea';
         
@@ -719,9 +851,19 @@ class RoadbookApp {
     }
 
     showConnectionTooltip(connection, latlng) {
+        // 通过ID获取当前的起始点和终点对象，确保显示最新的标题
+        const startMarker = this.markers.find(m => m.id === connection.startId);
+        const endMarker = this.markers.find(m => m.id === connection.endId);
+
+        const startTitle = startMarker ? startMarker.title : connection.startTitle;
+        const endTitle = endMarker ? endMarker.title : connection.endTitle;
+
         let tooltipContent = `<div style="background: rgba(0,0,0,0.8); color: white; padding: 8px; border-radius: 4px; font-size: 12px;">`;
-        tooltipContent += `<div><strong>${connection.startTitle} → ${connection.endTitle}</strong></div>`;
+        tooltipContent += `<div><strong>${startTitle} → ${endTitle}</strong></div>`;
         tooltipContent += `<div>${this.getTransportIcon(connection.transportType)} ${this.getTransportTypeName(connection.transportType)}</div>`;
+        if (connection.duration > 0) {
+            tooltipContent += `<div>耗时: ${connection.duration} 小时</div>`;
+        }
         if (connection.dateTime) {
             tooltipContent += `<div>时间: ${connection.dateTime}</div>`;
         }
@@ -807,7 +949,6 @@ class RoadbookApp {
 
         // 设置日期时间
         if (connectionData.dateTime) {
-            const date = new Date(connectionData.dateTime);
             const dateString = this.getLocalDateTimeForInput(connectionData.dateTime);
             const markerDateInput = document.getElementById('markerDateInput');
             if (markerDateInput) {
@@ -825,11 +966,24 @@ class RoadbookApp {
             markerDateInput.style.display = 'block';
         }
 
-        // 显示连接信息
+        // 显示连接信息，使用当前标记点的标题而不是保存时的标题
         const markerCoords = document.getElementById('markerCoords');
         if (markerCoords) {
+            // 通过ID找到当前的标记点对象，获取最新的标题
+            const startMarker = this.markers.find(m => m.id === connectionData.startId);
+            const endMarker = this.markers.find(m => m.id === connectionData.endId);
+
+            const startTitle = startMarker ? startMarker.title : connectionData.startTitle;
+            const endTitle = endMarker ? endMarker.title : connectionData.endTitle;
+
             markerCoords.textContent =
-                `${connectionData.startTitle} → ${connectionData.endTitle} (${this.getTransportIcon(connectionData.transportType)} ${this.getTransportTypeName(connectionData.transportType)})`;
+                `${startTitle} → ${endTitle} (${this.getTransportIcon(connectionData.transportType)} ${this.getTransportTypeName(connectionData.transportType)})`;
+        }
+
+        // 设置耗时
+        const durationInput = document.getElementById('connectionDuration');
+        if (durationInput) {
+            durationInput.value = connectionData.duration || 0;
         }
 
         // 显示标注内容
@@ -848,6 +1002,34 @@ class RoadbookApp {
                 btn.classList.add('active');
             }
         });
+
+        // 填充起始点和终点选择框
+        const startSelect = document.getElementById('connectionStartMarker');
+        const endSelect = document.getElementById('connectionEndMarker');
+
+        if (startSelect && endSelect) {
+            startSelect.innerHTML = '';
+            endSelect.innerHTML = '';
+
+            this.markers.forEach((marker, index) => {
+                const optionStart = new Option(marker.title, index);
+                const optionEnd = new Option(marker.title, index);
+
+                // 通过ID查找当前连接的起始点和终点，并高亮
+                const startMarker = this.markers.find(m => m.id === connectionData.startId);
+                const endMarker = this.markers.find(m => m.id === connectionData.endId);
+
+                if (startMarker && marker.id === startMarker.id) {
+                    optionStart.selected = true;
+                }
+                if (endMarker && marker.id === endMarker.id) {
+                    optionEnd.selected = true;
+                }
+
+                startSelect.add(optionStart);
+                endSelect.add(optionEnd);
+            });
+        }
 
         // 隐藏标记点详情面板，显示连接线详情面板
         const markerDetailPanel = document.getElementById('markerDetailPanel');
@@ -951,18 +1133,22 @@ class RoadbookApp {
 
     updateConnections() {
         this.connections.forEach(conn => {
-            if (!conn.start || !conn.end || !conn.start.position || !conn.end.position) {
+            // 通过ID获取当前的起始点和终点对象
+            const startMarker = this.markers.find(m => m.id === conn.startId);
+            const endMarker = this.markers.find(m => m.id === conn.endId);
+
+            if (!startMarker || !endMarker || !startMarker.position || !endMarker.position) {
                 console.warn('连接线数据不完整:', conn);
                 return;
             }
 
-            const startLat = parseFloat(conn.start.position[0]);
-            const startLng = parseFloat(conn.start.position[1]);
-            const endLat = parseFloat(conn.end.position[0]);
-            const endLng = parseFloat(conn.end.position[1]);
+            const startLat = parseFloat(startMarker.position[0]);
+            const startLng = parseFloat(startMarker.position[1]);
+            const endLat = parseFloat(endMarker.position[0]);
+            const endLng = parseFloat(endMarker.position[1]);
 
             if (isNaN(startLat) || isNaN(startLng) || isNaN(endLat) || isNaN(endLng)) {
-                console.error('连接线坐标无效:', conn.start.position, conn.end.position);
+                console.error('连接线坐标无效:', startMarker.position, endMarker.position);
                 return;
             }
 
@@ -986,7 +1172,7 @@ class RoadbookApp {
 
             // 更新箭头位置
             if (conn.arrowHead) {
-                const newArrow = this.createArrowHead([startLat, startLng], [endLat, endLng], conn.transportType);
+                const newArrow = this.createArrowHead(startMarker.position, endMarker.position, conn.transportType);
                 conn.arrowHead.remove();
                 conn.arrowHead = newArrow;
                 conn.arrowHead.addTo(this.map);
@@ -998,6 +1184,201 @@ class RoadbookApp {
         this.labels.forEach(labelData => {
             labelData.label.setLatLng([labelData.marker.position[0], labelData.marker.position[1]]);
         });
+    }
+
+    // 保存到本地存储
+    saveToLocalStorage() {
+        const data = {
+            version: 'localStorage-v1.0',
+            saveTime: new Date().toISOString(),
+            markers: this.markers.map((m, index) => ({
+                id: m.id,
+                position: m.position,
+                title: m.title,
+                labels: m.labels, // 现在labels是字符串数组，直接导出
+                createdAt: m.createdAt,
+                dateTime: m.dateTime,
+                markerIndex: index, // 添加索引信息，便于导入时重建
+                icon: m.icon // 导出图标信息
+            })),
+            connections: this.connections.map(c => {
+                // 通过ID获取实际的标记点对象（为了兼容性）
+                const startMarker = this.markers.find(m => m.id === c.startId);
+                const endMarker = this.markers.find(m => m.id === c.endId);
+
+                return {
+                    id: c.id,
+                    startId: c.startId, // 使用ID而不是索引
+                    endId: c.endId,     // 使用ID而不是索引
+                    transportType: c.transportType,
+                    dateTime: c.dateTime,
+                    label: c.label,
+                    duration: c.duration || 0, // 保存耗时信息
+                    startTitle: startMarker ? startMarker.title : c.startTitle,
+                    endTitle: endMarker ? endMarker.title : c.endTitle
+                };
+            }),
+            labels: this.labels.map(l => ({
+                markerIndex: this.markers.indexOf(l.marker),
+                content: l.content
+            }))
+        };
+
+        try {
+            localStorage.setItem('roadbookData', JSON.stringify(data));
+            console.log('路书数据已保存到本地存储');
+        } catch (error) {
+            console.error('保存到本地存储失败:', error);
+        }
+    }
+
+    // 从本地存储加载数据
+    loadFromLocalStorage() {
+        try {
+            const savedData = localStorage.getItem('roadbookData');
+            if (savedData) {
+                const data = JSON.parse(savedData);
+                console.log('从本地存储加载路书数据');
+
+                // 直接加载本地缓存数据，不显示导入提示
+                this.loadRoadbook(data, false);
+            } else {
+                console.log('没有找到本地缓存数据');
+            }
+        } catch (error) {
+            console.error('从本地存储加载数据失败:', error);
+        }
+    }
+
+    // 搜索地点
+    searchLocation(query) {
+        if (!query.trim()) {
+            // 隐藏搜索结果下拉框
+            const searchResults = document.getElementById('searchResults');
+            if (searchResults) {
+                searchResults.style.display = 'none';
+            }
+            return;
+        }
+
+        // 使用Nominatim API进行地理编码
+        const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=10`;
+
+        fetch(url)
+            .then(response => response.json())
+            .then(data => {
+                if (data && data.length > 0) {
+                    this.showSearchResults(data);
+                } else {
+                    // 没有找到结果，显示提示
+                    const searchResults = document.getElementById('searchResults');
+                    if (searchResults) {
+                        const resultsList = document.getElementById('resultsList');
+                        if (resultsList) {
+                            resultsList.innerHTML = '<li style="padding: 12px 15px; color: #999; cursor: default;">未找到相关地点，请尝试其他关键词</li>';
+                        }
+                        searchResults.style.display = 'block';
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('搜索地点时出错:', error);
+                // 显示错误信息
+                const searchResults = document.getElementById('searchResults');
+                if (searchResults) {
+                    const resultsList = document.getElementById('resultsList');
+                    if (resultsList) {
+                        resultsList.innerHTML = '<li style="padding: 12px 15px; color: #999; cursor: default;">搜索失败，请检查网络连接</li>';
+                    }
+                    searchResults.style.display = 'block';
+                }
+            });
+    }
+
+    // 显示搜索结果下拉框
+    showSearchResults(results) {
+        const searchResults = document.getElementById('searchResults');
+        const resultsList = document.getElementById('resultsList');
+
+        if (!searchResults || !resultsList) return;
+
+        // 清空现有结果
+        resultsList.innerHTML = '';
+
+        // 添加搜索结果到列表
+        results.forEach((result) => {
+            const li = document.createElement('li');
+            li.innerHTML = `
+                <div class="result-title">${result.display_name}</div>
+                <div class="result-address">${result.type || result.class || '地点'}</div>
+            `;
+
+            // 添加点击事件
+            li.addEventListener('click', () => {
+                this.selectSearchResult(result);
+            });
+
+            resultsList.appendChild(li);
+        });
+
+        // 显示搜索结果下拉框
+        searchResults.style.display = 'block';
+    }
+
+    // 选择搜索结果
+    selectSearchResult(result) {
+        const lat = parseFloat(result.lat);
+        const lon = parseFloat(result.lon);
+
+        if (!isNaN(lat) && !isNaN(lon)) {
+            // 聚焦到搜索结果位置
+            this.map.setView([lat, lon], 15); // 缩放级别15适合城市级别
+
+            // 在搜索结果位置添加一个临时标记点来显示结果
+            if (this.searchMarker) {
+                this.map.removeLayer(this.searchMarker);
+            }
+
+            this.searchMarker = L.marker([lat, lon])
+                .addTo(this.map)
+                .bindPopup(result.display_name)
+                .openPopup();
+
+            // 3秒后自动关闭弹窗
+            if (this.searchPopupTimeout) {
+                clearTimeout(this.searchPopupTimeout);
+            }
+            this.searchPopupTimeout = setTimeout(() => {
+                if (this.searchMarker) {
+                    this.map.closePopup(this.searchMarker.getPopup());
+                }
+                this.searchPopupTimeout = null;
+            }, 3000);
+
+            // 隐藏搜索结果下拉框
+            const searchResults = document.getElementById('searchResults');
+            if (searchResults) {
+                searchResults.style.display = 'none';
+            }
+
+            console.log(`已选择搜索结果: ${result.display_name} (${lat}, ${lon})`);
+        } else {
+            alert('未能获取有效的地理位置信息');
+        }
+    }
+
+    clearCache() {
+        if (confirm('确定要清除本地缓存吗？此操作将删除所有已保存的数据，无法恢复。')) {
+            try {
+                localStorage.removeItem('roadbookData');
+                // 清除当前数据
+                this.clearAll();
+                alert('本地缓存已清除！');
+            } catch (error) {
+                console.error('清除本地缓存失败:', error);
+                alert('清除本地缓存失败！');
+            }
+        }
     }
 
     exportRoadbook() {
@@ -1014,16 +1395,23 @@ class RoadbookApp {
                 markerIndex: index, // 添加索引信息，便于导入时重建
                 icon: m.icon // 导出图标信息
             })),
-            connections: this.connections.map(c => ({
-                id: c.id,
-                startIndex: this.markers.indexOf(c.start),
-                endIndex: this.markers.indexOf(c.end),
-                transportType: c.transportType,
-                dateTime: c.dateTime,
-                label: c.label,
-                startTitle: c.startTitle,
-                endTitle: c.endTitle
-            })),
+            connections: this.connections.map(c => {
+                // 通过ID获取实际的标记点对象（为了兼容性）
+                const startMarker = this.markers.find(m => m.id === c.startId);
+                const endMarker = this.markers.find(m => m.id === c.endId);
+
+                return {
+                    id: c.id,
+                    startId: c.startId, // 使用ID而不是索引
+                    endId: c.endId,     // 使用ID而不是索引
+                    transportType: c.transportType,
+                    dateTime: c.dateTime,
+                    label: c.label,
+                    duration: c.duration || 0, // 保存耗时信息
+                    startTitle: startMarker ? startMarker.title : c.startTitle,
+                    endTitle: endMarker ? endMarker.title : c.endTitle
+                };
+            }),
             labels: this.labels.map(l => ({
                 markerIndex: this.markers.indexOf(l.marker),
                 content: l.content
@@ -1049,7 +1437,7 @@ class RoadbookApp {
         reader.onload = (e) => {
             try {
                 const data = JSON.parse(e.target.result);
-                this.loadRoadbook(data);
+                this.loadRoadbook(data, true); // 明确指定这是手动导入
             } catch (error) {
                 alert('文件格式错误！');
             }
@@ -1057,7 +1445,7 @@ class RoadbookApp {
         reader.readAsText(file);
     }
 
-    loadRoadbook(data) {
+    loadRoadbook(data, isImport = true) {
         // 清除现有数据
         this.clearAll();
 
@@ -1096,7 +1484,8 @@ class RoadbookApp {
                 this.showMarkerDetail(markerObj);
             });
 
-            marker.on('contextmenu', () => {
+            marker.on('contextmenu', (e) => {
+                e.preventDefault(); // 防止默认右键菜单
                 this.showMarkerContextMenu(markerObj);
             });
 
@@ -1111,33 +1500,41 @@ class RoadbookApp {
             marker.on('dragend', (e) => {
                 const newPos = e.target.getLatLng();
                 markerObj.position = [newPos.lat, newPos.lng];
-                
+
                 // 更新连接线
                 this.updateConnections();
-                
+
                 // 更新标注位置
                 this.updateLabels();
-                
+
                 // 如果当前标记点正在详情面板中显示，更新坐标显示
                 if (this.currentMarker === markerObj) {
                     const markerCoords = document.getElementById('markerCoords');
                     if (markerCoords) {
-                        markerCoords.textContent = 
+                        markerCoords.textContent =
                             `${newPos.lng.toFixed(6)}, ${newPos.lat.toFixed(6)}`;
                     }
                 }
-                
+
                 // 更新标记点列表中的坐标显示
                 this.updateMarkerList();
-                
+
                 console.log(`导入的标记点"${markerObj.title}"坐标已更新: ${newPos.lat.toFixed(6)}, ${newPos.lng.toFixed(6)}`);
             });
         });
 
         // 加载连接线
         data.connections.forEach(connData => {
-            const startMarker = this.markers[connData.startIndex];
-            const endMarker = this.markers[connData.endIndex];
+            // 对于老版本的数据，使用startIndex和endIndex
+            let startMarker, endMarker;
+            if (connData.startIndex !== undefined && connData.endIndex !== undefined) {
+                startMarker = this.markers[connData.startIndex];
+                endMarker = this.markers[connData.endIndex];
+            } else if (connData.startId !== undefined && connData.endId !== undefined) {
+                // 对于新版本的数据，使用ID查找
+                startMarker = this.markers.find(m => m.id === connData.startId);
+                endMarker = this.markers.find(m => m.id === connData.endId);
+            }
 
             if (!startMarker || !endMarker) {
                 console.warn('无法找到连接的起始或结束标记点', connData);
@@ -1195,8 +1592,8 @@ class RoadbookApp {
 
             const connection = {
                 id: connData.id,
-                start: startMarker,
-                end: endMarker,
+                startId: startMarker.id, // 使用ID而不是对象引用
+                endId: endMarker.id,     // 使用ID而不是对象引用
                 transportType: connData.transportType,
                 polyline: polyline,
                 endCircle: endCircle,
@@ -1204,6 +1601,7 @@ class RoadbookApp {
                 arrowHead: arrowHead,
                 dateTime: connData.dateTime || this.getCurrentLocalDateTime(),
                 label: connData.label || '',
+                duration: connData.duration || 0, // 加载耗时信息
                 startTitle: connData.startTitle || startMarker.title,
                 endTitle: connData.endTitle || endMarker.title
             };
@@ -1247,7 +1645,14 @@ class RoadbookApp {
 
         const markerCount = this.markers.length;
         const connectionCount = this.connections.length;
-        alert(`路书导入成功！\n标记点: ${markerCount} 个\n连接线: ${connectionCount} 条`);
+
+        // 保存到本地存储
+        this.saveToLocalStorage();
+
+        // 只在手动导入文件时显示提示
+        if (isImport) {
+            alert(`路书导入成功！\n标记点: ${markerCount} 个\n连接线: ${connectionCount} 条`);
+        }
     }
 
     // 为标记点创建标注的辅助方法
@@ -1301,14 +1706,36 @@ class RoadbookApp {
         }
     }
 
+    removeConnection(connection) {
+        if (!connection) return;
+
+        // 从地图上移除
+        connection.polyline.remove();
+        if (connection.endCircle) {
+            connection.endCircle.remove();
+        }
+        if (connection.iconMarker) {
+            connection.iconMarker.remove();
+        }
+        if (connection.arrowHead) {
+            connection.arrowHead.remove();
+        }
+
+        // 从数组中移除
+        this.connections = this.connections.filter(conn => conn !== connection);
+
+        // 保存到本地存储
+        this.saveToLocalStorage();
+    }
+
     removeMarker(markerData) {
         // 删除标记点
         markerData.marker.remove();
         // 标注不再直接显示，无需删除
 
-        // 删除相关连接
+        // 删除相关连接 - 使用ID进行匹配，而不是对象引用
         this.connections = this.connections.filter(conn => {
-            if (conn.start === markerData || conn.end === markerData) {
+            if (conn.startId === markerData.id || conn.endId === markerData.id) {
                 conn.polyline.remove();
                 if (conn.endCircle) {
                     conn.endCircle.remove();
@@ -1329,6 +1756,9 @@ class RoadbookApp {
         this.labels = this.labels.filter(l => l.marker !== markerData);
 
         this.updateMarkerList();
+
+        // 保存到本地存储
+        this.saveToLocalStorage();
     }
 
     showMarkerDetail(markerData) {
@@ -1429,22 +1859,69 @@ class RoadbookApp {
 
     updateConnectionVisual(connection) {
         if (!connection || !connection.polyline) return;
-        
-        // 直接更新线的颜色样式
+
+        // 通过ID获取当前的起始点和终点对象
+        const startMarker = this.markers.find(m => m.id === connection.startId);
+        const endMarker = this.markers.find(m => m.id === connection.endId);
+
+        if (!startMarker || !endMarker) {
+            console.error('连接线的起始点或终点不存在:', connection.startId, connection.endId);
+            return;
+        }
+
+        // 更新连接线的坐标
+        const startLat = parseFloat(startMarker.position[0]);
+        const startLng = parseFloat(startMarker.position[1]);
+        const endLat = parseFloat(endMarker.position[0]);
+        const endLng = parseFloat(endMarker.position[1]);
+
+        if (isNaN(startLat) || isNaN(startLng) || isNaN(endLat) || isNaN(endLng)) {
+            console.error('连接线坐标无效:', startMarker.position, endMarker.position);
+            return;
+        }
+
+        // 更新连接线坐标
+        const newPath = [
+            [startLat, startLng],
+            [endLat, endLng]
+        ];
+        connection.polyline.setLatLngs(newPath);
+
+        // 更新终点圆点位置
+        if (connection.endCircle) {
+            connection.endCircle.setLatLng([endLat, endLng]);
+        }
+
+        // 更新图标位置（中点）
+        if (connection.iconMarker) {
+            const midLat = (startLat + endLat) / 2;
+            const midLng = (startLng + endLng) / 2;
+            connection.iconMarker.setLatLng([midLat, midLng]);
+        }
+
+        // 更新箭头
+        if (connection.arrowHead) {
+            const newArrow = this.createArrowHead(startMarker.position, endMarker.position, connection.transportType);
+            connection.arrowHead.remove();
+            connection.arrowHead = newArrow;
+            connection.arrowHead.addTo(this.map);
+        }
+
+        // 更新线的颜色样式
         const color = this.getTransportColor(connection.transportType);
         connection.polyline.setStyle({
             color: color,
             weight: 6,
             opacity: 1.0
         });
-        
+
         // 更新终点圆点颜色
         if (connection.endCircle) {
             connection.endCircle.setStyle({
                 fillColor: color
             });
         }
-        
+
         // 更新图标
         if (connection.iconMarker) {
             const icon = this.getTransportIcon(connection.transportType);
@@ -1455,63 +1932,94 @@ class RoadbookApp {
                 iconAnchor: [15, 15]
             }));
         }
-        
-        // 更新箭头颜色
-        if (connection.arrowHead) {
-            // 重新创建箭头来更新颜色
-            const startMarker = connection.start;
-            const endMarker = connection.end;
-            if (startMarker && endMarker) {
-                const newArrow = this.createArrowHead(startMarker.position, endMarker.position, connection.transportType);
-                connection.arrowHead.remove();
-                connection.arrowHead = newArrow;
-                connection.arrowHead.addTo(this.map);
-            }
-        }
-        
+
         // 更新详情面板中的显示
         if (this.currentConnection === connection) {
             const markerCoords = document.getElementById('markerCoords');
             if (markerCoords) {
-                markerCoords.textContent = `${connection.startTitle} → ${connection.endTitle} (${this.getTransportIcon(connection.transportType)} ${this.getTransportTypeName(connection.transportType)})`;
+                markerCoords.textContent = `${startMarker.title} → ${endMarker.title} (${this.getTransportIcon(connection.transportType)} ${this.getTransportTypeName(connection.transportType)})`;
             }
         }
     }
 
     saveConnectionDetail() {
         if (!this.currentConnection) return;
-        
+
         // 保存连接线详情
         const dateTimeInput = document.getElementById('connectionDateInput');
         if (dateTimeInput && dateTimeInput.value) {
             this.currentConnection.dateTime = dateTimeInput.value;
         }
-        
+
         // 获取当前选中的交通方式
         const activeTransportBtn = document.querySelector('.transport-btn.active');
         if (activeTransportBtn) {
             this.currentConnection.transportType = activeTransportBtn.dataset.transport;
         }
-        
+
         // 保存标注内容
         const labelsInput = document.getElementById('connectionLabelsInput');
         if (labelsInput) {
             this.currentConnection.label = labelsInput.value.trim();
         }
-        
+
+        // 保存耗时信息
+        const durationInput = document.getElementById('connectionDuration');
+        if (durationInput && durationInput.value !== '') {
+            this.currentConnection.duration = parseInt(durationInput.value) || 0;
+        }
+
+        // 检查起始点和终点是否被更改
+        const startSelect = document.getElementById('connectionStartMarker');
+        const endSelect = document.getElementById('connectionEndMarker');
+
+        if (startSelect && endSelect) {
+            const newStartIndex = parseInt(startSelect.value);
+            const newEndIndex = parseInt(endSelect.value);
+
+            const newStartMarker = this.markers[newStartIndex];
+            const newEndMarker = this.markers[newEndIndex];
+
+            // 如果起始点或终点被更改
+            const oldStartMarker = this.markers.find(m => m.id === this.currentConnection.startId);
+            const oldEndMarker = this.markers.find(m => m.id === this.currentConnection.endId);
+
+            if ((oldStartMarker && oldStartMarker.id !== newStartMarker.id) ||
+                (oldEndMarker && oldEndMarker.id !== newEndMarker.id)) {
+
+                // 保存旧的起始点和终点信息，用于显示
+                const oldStartTitle = oldStartMarker ? oldStartMarker.title : this.currentConnection.startTitle;
+                const oldEndTitle = oldEndMarker ? oldEndMarker.title : this.currentConnection.endTitle;
+
+                // 更新连接线的起始点和终点ID
+                this.currentConnection.startId = newStartMarker.id;
+                this.currentConnection.endId = newEndMarker.id;
+                this.currentConnection.startTitle = newStartMarker.title;
+                this.currentConnection.endTitle = newEndMarker.title;
+
+                // 更新连接线在地图上的显示
+                this.updateConnectionVisual(this.currentConnection);
+
+                console.log(`连接线更新: ${oldStartTitle} → ${oldEndTitle} 改为 ${newStartMarker.title} → ${newEndMarker.title}`);
+            }
+        }
+
         // 更新地图上的连接线显示
         this.updateConnectionVisual(this.currentConnection);
-        
+
         // 更新连接线列表
         this.updateMarkerList();
-        
+
         console.log('连接线详情已保存:', this.currentConnection);
-        
+
         // 关闭详情面板
         this.hideConnectionDetail();
-        
+
         // 显示成功消息
         alert('连接线详情已保存！');
+
+        // 保存到本地存储
+        this.saveToLocalStorage();
     }
 
     saveMarkerDetail() {
@@ -1550,6 +2058,9 @@ class RoadbookApp {
         }
 
         this.hideMarkerDetail();
+
+        // 保存到本地存储
+        this.saveToLocalStorage();
     }
 
     deleteCurrentMarker() {
@@ -1558,6 +2069,15 @@ class RoadbookApp {
         if (confirm(`确定要删除标记点"${this.currentMarker.title}"吗？`)) {
             this.removeMarker(this.currentMarker);
             this.hideMarkerDetail();
+        }
+    }
+
+    deleteCurrentConnection() {
+        if (!this.currentConnection) return;
+
+        if (confirm(`确定要删除连接线"${this.currentConnection.startTitle} → ${this.currentConnection.endTitle}"吗？`)) {
+            this.removeConnection(this.currentConnection);
+            this.hideConnectionDetail();
         }
     }
 

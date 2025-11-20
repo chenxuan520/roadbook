@@ -11,12 +11,23 @@
     <div class="container">
         <header>
             <h1>路书制作工具</h1>
-            <div class="toolbar">
-                <button id="addMarkerBtn" class="btn">添加标记点</button>
-                <button id="connectMarkersBtn" class="btn">连接标记点</button>
-                <button id="exportBtn" class="btn">导出路书</button>
-                <button id="importBtn" class="btn">导入路书</button>
-                <input type="file" id="importFile" accept=".json" style="display: none;">
+            <div class="search-toolbar">
+                <div class="search-box">
+                    <input type="text" id="searchInput" placeholder="搜索地点...">
+                    <!-- 搜索结果下拉框 -->
+                    <div id="searchResults" class="search-results" style="display: none;">
+                        <ul id="resultsList"></ul>
+                    </div>
+                </div>
+                <div class="toolbar">
+                    <button id="addMarkerBtn" class="btn">添加标记点</button>
+                    <button id="connectMarkersBtn" class="btn">连接标记点</button>
+                    <button id="exportBtn" class="btn">导出路书</button>
+                    <button id="importBtn" class="btn">导入路书</button>
+                    <button id="clearCacheBtn" class="btn">清除缓存</button>
+                    <button id="mapModeBtn" class="btn">切换地图</button>
+                    <input type="file" id="importFile" accept=".json" style="display: none;">
+                </div>
             </div>
         </header>
 
@@ -76,8 +87,16 @@
                             <input type="datetime-local" id="connectionDateInput">
                         </div>
                         <div class="form-group">
-                            <label>连接信息:</label>
-                            <div id="connectionInfo"></div>
+                            <label>耗时 (小时):</label>
+                            <input type="number" id="connectionDuration" min="0" step="0.1" placeholder="请输入连接耗时（小时）">
+                        </div>
+                        <div class="form-group">
+                            <label>起始标记点:</label>
+                            <select id="connectionStartMarker"></select>
+                        </div>
+                        <div class="form-group">
+                            <label>目标标记点:</label>
+                            <select id="connectionEndMarker"></select>
                         </div>
                         <div class="form-group">
                             <label>交通方式:</label>
@@ -110,6 +129,7 @@
                         </div>
                         <div class="detail-actions">
                             <button id="saveConnectionBtn" class="btn btn-primary">保存</button>
+                            <button id="deleteConnectionBtn" class="btn btn-danger">删除</button>
                         </div>
                     </div>
                 </div>
