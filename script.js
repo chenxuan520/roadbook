@@ -14,6 +14,7 @@ class RoadbookApp {
         this.searchMarker = null;  // 搜索结果标记点
         this.searchTimeout = null; // 搜索延时定时器
         this.searchPopupTimeout = null; // 搜索弹窗定时器
+        this.currentSearchMethod = 'auto'; // 当前搜索方式：auto, nominatim, overpass, photon
         this.tooltip = null; // 连接线工具提示
         this.connectionLabelTooltip = null; // 连接线标注工具提示
         this.markerTooltip = null; // 标记点工具提示
@@ -211,6 +212,15 @@ class RoadbookApp {
                         searchResults.style.display = 'none';
                     }
                 }
+            });
+        }
+
+        // 搜索方式选择事件
+        const searchMethodSelect = document.getElementById('searchMethodSelect');
+        if (searchMethodSelect) {
+            searchMethodSelect.addEventListener('change', (e) => {
+                this.currentSearchMethod = e.target.value;
+                console.log(`搜索方式已切换为: ${this.currentSearchMethod}`);
             });
         }
 
@@ -1338,23 +1348,55 @@ class RoadbookApp {
             return;
         }
 
-        // 检查当前地图是否支持搜索
-        const currentMapConfig = this.mapSearchConfig[this.currentLayer];
-        if (!currentMapConfig || !currentMapConfig.searchable) {
-            // 显示地图不支持搜索的提示
-            const searchResults = document.getElementById('searchResults');
-            if (searchResults) {
-                const resultsList = document.getElementById('resultsList');
-                if (resultsList) {
-                    resultsList.innerHTML = `<li style="padding: 12px 15px; color: #999; cursor: default;">当前地图(${currentMapConfig.name})不支持地点搜索，请切换到OpenStreetMap</li>`;
+        // 使用当前选择的搜索方法
+        let searchConfig;
+
+        if (this.currentSearchMethod === 'auto') {
+            // 自动模式：检查当前地图是否支持搜索
+            const currentMapConfig = this.mapSearchConfig[this.currentLayer];
+            if (!currentMapConfig || !currentMapConfig.searchable) {
+                // 显示地图不支持搜索的提示
+                const searchResults = document.getElementById('searchResults');
+                if (searchResults) {
+                    const resultsList = document.getElementById('resultsList');
+                    if (resultsList) {
+                        resultsList.innerHTML = `<li style="padding: 12px 15px; color: #999; cursor: default;">当前地图(${currentMapConfig.name})不支持地点搜索</li>`;
+                    }
+                    searchResults.style.display = 'block';
                 }
-                searchResults.style.display = 'block';
+                return;
             }
-            return;
+            searchConfig = currentMapConfig;
+        } else if (this.currentSearchMethod === 'nominatim') {
+            // Nominatim搜索模式
+            searchConfig = {
+                searchable: true,
+                searchUrl: 'https://nominatim.openstreetmap.org/search',
+                params: {
+                    format: 'json',
+                    limit: 10
+                },
+                parser: 'nominatim'
+            };
+        } else if (this.currentSearchMethod === 'overpass') {
+            // Overpass搜索模式
+            searchConfig = {
+                searchable: true,
+                searchUrl: 'https://overpass-api.de/api/interpreter',
+                parser: 'overpass'
+            };
+        } else if (this.currentSearchMethod === 'photon') {
+            // Photon搜索模式（原Google搜索）
+            searchConfig = {
+                searchable: true,
+                searchUrl: 'https://photon.komoot.io/api/',
+                params: {
+                    limit: 10
+                },
+                parser: 'photon'
+            };
         }
 
-        // 使用当前地图配置的搜索服务
-        const searchConfig = currentMapConfig;
         let url, searchPromise;
 
         if (searchConfig.parser === 'overpass') {

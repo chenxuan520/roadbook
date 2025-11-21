@@ -51,6 +51,35 @@ header h1 {
     backdrop-filter: blur(10px);
 }
 
+/* 搜索方式选择下拉框 - 照抄地图选择下拉框样式 */
+#searchMethodSelect {
+    background: linear-gradient(135deg, rgba(255,255,255,0.3), rgba(255,255,255,0.15)) !important;
+    color: #fff !important;
+    border: 2px solid rgba(255,255,255,0.5) !important;
+    padding: 0.6rem 1.2rem !important;
+    border-radius: 25px !important;
+    font-size: 0.9rem !important;
+    font-weight: 600 !important;
+    cursor: pointer !important;
+    margin-left: 0.5rem !important;
+    backdrop-filter: blur(10px) !important;
+    transition: all 0.3s ease !important;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2) !important;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.5) !important;
+    margin: 2px !important;
+}
+
+#searchMethodSelect:hover {
+    background: linear-gradient(135deg, rgba(255,255,255,0.4), rgba(255,255,255,0.25)) !important;
+    transform: translateY(-2px) !important;
+    box-shadow: 0 6px 16px rgba(0,0,0,0.25) !important;
+}
+
+#searchMethodSelect:active {
+    transform: translateY(0) !important;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.2) !important;
+}
+
 .search-box input::placeholder {
     color: rgba(255,255,255,0.7);
 }
@@ -81,7 +110,7 @@ header h1 {
     background: white;
     border-radius: 8px;
     box-shadow: 0 4px 16px rgba(0,0,0,0.2);
-    z-index: 1000;
+    z-index: 1001; /* 提高层级，确保在地图控件之上 */
     max-height: 300px;
     overflow-y: auto;
     margin-top: 0.5rem; /* 给一点间距 */
@@ -508,6 +537,38 @@ main {
     will-change: transform;
 }
 
+/* 调整Leaflet地图控件位置，避免遮挡搜索结果 */
+.leaflet-control-zoom {
+    margin-top: 80px !important; /* 增加顶部边距，避免与搜索框重叠 */
+}
+
+.leaflet-control-container {
+    z-index: 1000; /* 确保地图控件在搜索结果之下 */
+}
+
+/* 搜索结果动画效果 */
+.search-results {
+    animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* 搜索结果项悬停效果增强 */
+.search-results li:hover {
+    background-color: #f0f8ff;
+    border-left: 3px solid #667eea;
+    padding-left: 12px;
+}
+
 @media (max-width: 768px) {
     main {
         flex-direction: column;
@@ -562,6 +623,17 @@ main {
     .icon-grid {
         grid-template-columns: repeat(3, 1fr);
         max-height: 120px;
+    }
+
+    /* 移动端优化搜索结果位置 */
+    .search-results {
+        width: 100%; /* 在移动端使用全宽 */
+        max-width: 300px; /* 但不超过300px */
+    }
+
+    /* 移动端调整地图控件位置 */
+    .leaflet-control-zoom {
+        margin-top: 120px !important; /* 移动端需要更大的间距 */
     }
 }
 
