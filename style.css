@@ -69,6 +69,30 @@ header h1 {
     margin: 2px !important;
 }
 
+/* 地图源选择下拉框 - 与搜索方式选择下拉框保持一致 */
+#mapSourceSelect {
+    background: linear-gradient(135deg, rgba(255,255,255,0.3), rgba(255,255,255,0.15)) !important;
+    color: #fff !important;
+    border: 2px solid rgba(255,255,255,0.5) !important;
+    padding: 0.6rem 1.2rem !important;
+    border-radius: 25px !important;
+    font-size: 0.9rem !important;
+    font-weight: 600 !important;
+    cursor: pointer !important;
+    backdrop-filter: blur(10px) !important;
+    transition: all 0.3s ease !important;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2) !important;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.5) !important;
+    margin: 2px !important;
+}
+
+/* 为下拉框选项设置黑色文字以确保可读性 */
+#searchMethodSelect option,
+#mapSourceSelect option {
+    color: #000 !important;
+    background: white !important;
+}
+
 #searchMethodSelect:hover {
     background: linear-gradient(135deg, rgba(255,255,255,0.4), rgba(255,255,255,0.25)) !important;
     transform: translateY(-2px) !important;

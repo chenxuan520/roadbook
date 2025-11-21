@@ -179,6 +179,8 @@ class RoadbookApp {
         if (mapSourceSelect) {
             mapSourceSelect.addEventListener('change', (e) => {
                 this.switchMapSource(e.target.value);
+                // 保存到本地存储以确保刷新后状态保持
+                this.saveToLocalStorage();
             });
         }
 
@@ -223,6 +225,8 @@ class RoadbookApp {
             searchMethodSelect.addEventListener('change', (e) => {
                 this.currentSearchMethod = e.target.value;
                 console.log(`搜索方式已切换为: ${this.currentSearchMethod}`);
+                // 保存到本地存储以确保刷新后状态保持
+                this.saveToLocalStorage();
             });
         }
 
@@ -1506,6 +1510,9 @@ class RoadbookApp {
 
         // 绑定退出筛选模式的事件
         this.bindFilterExitEvents();
+
+        // 自动调整视窗以聚焦到筛选后的元素
+        this.autoFitMapViewAfterFilter();
     }
 
     // 显示筛选模式提示
@@ -1596,6 +1603,11 @@ class RoadbookApp {
         document.querySelectorAll('.btn').forEach(btn => {
             btn.removeEventListener('click', this.exitFilterModeClickHandler, true);
         });
+
+        // 退出筛选模式后自动调整视窗以显示所有元素
+        setTimeout(() => {
+            this.autoFitMapView();
+        }, 100); // 稍微延时以确保所有元素都已重新添加到地图
     }
 
     // 处理调整视窗按钮点击事件
@@ -1752,6 +1764,8 @@ class RoadbookApp {
         const data = {
             version: 'localStorage-v2.0',
             saveTime: new Date().toISOString(),
+            currentLayer: this.currentLayer, // 保存当前地图源
+            currentSearchMethod: this.currentSearchMethod, // 保存当前搜索方式
             markers: this.markers.map((m) => ({
                 id: m.id,
                 position: m.position,
@@ -1822,13 +1836,48 @@ class RoadbookApp {
 
                 // 直接加载本地缓存数据，不显示导入提示
                 this.loadRoadbook(data, false);
-                
+
+                // 恢复地图源和搜索方式（如果存在）
+                if (data.currentLayer) {
+                    this.switchMapSource(data.currentLayer);
+                }
+
+                if (data.currentSearchMethod) {
+                    this.currentSearchMethod = data.currentSearchMethod;
+                }
+
+                // 确保UI下拉框显示正确的值
+                setTimeout(() => {
+                    const mapSourceSelect = document.getElementById('mapSourceSelect');
+                    if (mapSourceSelect) {
+                        mapSourceSelect.value = data.currentLayer || this.currentLayer || 'osm';
+                    }
+
+                    const searchMethodSelect = document.getElementById('searchMethodSelect');
+                    if (searchMethodSelect) {
+                        searchMethodSelect.value = data.currentSearchMethod || this.currentSearchMethod || 'auto';
+                    }
+                }, 0); // 立即执行，确保UI更新
+
                 // 延迟执行自动调整视窗，确保所有元素都已渲染
                 setTimeout(() => {
                     this.autoFitMapView();
                 }, 500);
             } else {
                 console.log('没有找到本地缓存数据');
+
+                // 确保UI下拉框显示默认值
+                setTimeout(() => {
+                    const mapSourceSelect = document.getElementById('mapSourceSelect');
+                    if (mapSourceSelect) {
+                        mapSourceSelect.value = this.currentLayer || 'osm';
+                    }
+
+                    const searchMethodSelect = document.getElementById('searchMethodSelect');
+                    if (searchMethodSelect) {
+                        searchMethodSelect.value = this.currentSearchMethod || 'auto';
+                    }
+                }, 0); // 立即执行，确保UI更新
             }
         } catch (error) {
             console.error('从本地存储加载数据失败:', error);
@@ -2179,6 +2228,8 @@ class RoadbookApp {
         const data = {
             version: '2.0',
             exportTime: new Date().toISOString(),
+            currentLayer: this.currentLayer, // 导出当前地图源
+            currentSearchMethod: this.currentSearchMethod, // 导出当前搜索方式
             markers: this.markers.map((m) => ({
                 id: m.id,
                 position: m.position,
@@ -2230,7 +2281,29 @@ class RoadbookApp {
         reader.onload = (e) => {
             try {
                 const data = JSON.parse(e.target.result);
+
+                // 调用loadRoadbook方法加载数据
                 this.loadRoadbook(data, true); // 明确指定这是手动导入
+
+                // 确保UI下拉框显示正确的值（导入后）
+                setTimeout(() => {
+                    if (data.currentLayer) {
+                        this.switchMapSource(data.currentLayer);
+                        const mapSourceSelect = document.getElementById('mapSourceSelect');
+                        if (mapSourceSelect) {
+                            mapSourceSelect.value = data.currentLayer;
+                        }
+                    }
+
+                    if (data.currentSearchMethod) {
+                        this.currentSearchMethod = data.currentSearchMethod;
+                        const searchMethodSelect = document.getElementById('searchMethodSelect');
+                        if (searchMethodSelect) {
+                            searchMethodSelect.value = data.currentSearchMethod;
+                        }
+                    }
+                }, 100); // 稍微延时以确保数据加载完成
+
             } catch (error) {
                 alert('文件格式错误！');
             }
@@ -2437,14 +2510,6 @@ class RoadbookApp {
 
         this.updateMarkerList();
 
-        // 定位到第一个标记点的位置
-        if (this.markers.length > 0) {
-            const firstMarker = this.markers[0];
-            const position = firstMarker.position;
-            this.map.setView([position[0], position[1]], 12);
-            console.log(`导入后定位到第一个标记点: ${firstMarker.title} (${position[0]}, ${position[1]})`);
-        }
-
         const markerCount = this.markers.length;
         const connectionCount = this.connections.length;
 
@@ -2456,7 +2521,7 @@ class RoadbookApp {
             alert(`路书导入成功！\n标记点: ${markerCount} 个\n连接线: ${connectionCount} 条`);
         }
 
-        // 自动调整视窗以包含所有元素
+        // 自动调整视窗以包含所有元素（取代定位到第一个标记点）
         this.autoFitMapView();
     }
 
@@ -2576,6 +2641,106 @@ class RoadbookApp {
             
         } catch (error) {
             console.error('自动调整视窗时出错:', error);
+        }
+    }
+
+    // 筛选后自动调整地图视窗以包含筛选后的元素
+    autoFitMapViewAfterFilter() {
+        if (!this.filterMode || !this.filteredDate) {
+            console.log('不在筛选模式，使用常规自动调整视窗');
+            this.autoFitMapView();
+            return;
+        }
+
+        console.log('筛选模式下自动调整地图视窗，日期:', this.filteredDate);
+
+        try {
+            // 创建边界对象
+            const bounds = L.latLngBounds();
+            let hasValidPoints = false;
+
+            // 添加筛选日期内的标记点坐标到边界
+            this.markers.forEach(marker => {
+                const markerDates = this.getMarkerAllDates(marker);
+                if (markerDates.includes(this.filteredDate)) {
+                    if (marker.position && marker.position.length >= 2) {
+                        const lat = parseFloat(marker.position[0]);
+                        const lng = parseFloat(marker.position[1]);
+                        if (!isNaN(lat) && !isNaN(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+                            bounds.extend([lat, lng]);
+                            hasValidPoints = true;
+                            console.log(`添加筛选后标记点到边界: [${lat}, ${lng}]`);
+                        } else {
+                            console.warn(`无效的筛选后标记点坐标: [${lat}, ${lng}]`);
+                        }
+                    }
+                }
+            });
+
+            // 添加筛选日期内的连接线坐标到边界
+            this.connections.forEach(connection => {
+                const connectionDate = this.getDateKey(connection.dateTime);
+                if (connectionDate === this.filteredDate && connection.polyline) {
+                    try {
+                        const latlngs = connection.polyline.getLatLngs();
+                        if (Array.isArray(latlngs) && latlngs.length > 0) {
+                            latlngs.forEach(latlng => {
+                                if (latlng && typeof latlng.lat === 'number' && typeof latlng.lng === 'number') {
+                                    const lat = parseFloat(latlng.lat);
+                                    const lng = parseFloat(latlng.lng);
+                                    if (!isNaN(lat) && !isNaN(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+                                        bounds.extend([lat, lng]);
+                                        hasValidPoints = true;
+                                        console.log(`添加筛选后连接线点到边界: [${lat}, ${lng}]`);
+                                    }
+                                }
+                            });
+                        }
+                    } catch (err) {
+                        console.warn('获取筛选后连接线坐标失败:', err);
+                    }
+                }
+            });
+
+            // 检查是否有有效的点
+            if (!hasValidPoints) {
+                console.warn('筛选后没有找到有效的坐标点');
+
+                // 如果筛选后没有点，可以保持当前视图或提供提示
+                return;
+            }
+
+            // 检查边界是否有效
+            if (bounds.isValid()) {
+                // 计算合适的padding
+                const basePadding = 50;
+
+                console.log(`筛选后调整地图视窗到边界，使用padding: ${basePadding}px`);
+
+                // 延迟执行以确保所有元素都已渲染
+                setTimeout(() => {
+                    try {
+                        this.map.fitBounds(bounds, {
+                            padding: [basePadding, basePadding],
+                            maxZoom: 16, // 最大缩放级别，避免过度放大
+                            minZoom: 3,  // 最小缩放级别，避免缩放过小
+                            animate: true,
+                            duration: 1.5, // 动画持续时间1.5秒
+                            easeLinearity: 0.25
+                        });
+
+                        console.log('筛选后地图视窗调整完成');
+                    } catch (err) {
+                        console.error('筛选后调整视窗时出错:', err);
+                    }
+                }, 400); // 400毫秒延迟，确保DOM完全更新
+
+            } else {
+                console.warn('筛选后边界无效，无法调整视窗');
+            }
+
+        } catch (error) {
+            console.error('筛选后自动调整视窗时出错:', error);
         }
     }
 
