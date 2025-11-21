@@ -21,6 +21,8 @@ class RoadbookApp {
         this.searchResults = null; // 搜索结果对象
         this.currentMarker = null; // 当前选中的标记点
         this.currentConnection = null; // 当前选中的连接线
+        this.filterMode = false; // 是否处于筛选模式
+        this.filteredDate = null; // 当前筛选的日期
 
         this.init();
     }
@@ -374,6 +376,14 @@ class RoadbookApp {
             });
         }
 
+        // 添加时间点按钮事件
+        const addDateTimeBtn = document.getElementById('addDateTimeBtn');
+        if (addDateTimeBtn) {
+            addDateTimeBtn.addEventListener('click', () => {
+                this.addMarkerDateTime();
+            });
+        }
+
         // 点击模态框外部关闭
         window.addEventListener('click', (e) => {
             if (e.target.classList.contains('modal')) {
@@ -468,7 +478,8 @@ class RoadbookApp {
             labels: [], // 存储标注文本，不直接显示
             icon: defaultIcon, // 保存图标信息
             createdAt: this.getCurrentLocalDateTime(),
-            dateTime: this.getCurrentLocalDateTime()
+            dateTimes: [this.getCurrentLocalDateTime()], // 改为数组，支持多个时间点
+            dateTime: this.getCurrentLocalDateTime() // 使用第一个时间点作为默认时间
         };
 
         this.markers.push(markerData);
@@ -498,7 +509,9 @@ class RoadbookApp {
         // 添加拖拽事件更新位置
         marker.on('dragend', (e) => {
             const newPos = e.target.getLatLng();
-            markerData.position = [newPos.lat, newPos.lng];
+            markerData.position = [newPos.lat, newPos.lng]; // position[0] = lat, position[1] = lng
+
+            console.log(`拖拽事件触发 - 标记点ID: ${markerData.id}, 新坐标: [${newPos.lat}, ${newPos.lng}]`);
 
             // 更新连接线
             this.updateConnections();
@@ -510,6 +523,7 @@ class RoadbookApp {
             if (this.currentMarker === markerData) {
                 const markerCoords = document.getElementById('markerCoords');
                 if (markerCoords) {
+                    // 正确的坐标显示格式：经度, 纬度
                     markerCoords.textContent =
                         `${newPos.lng.toFixed(6)}, ${newPos.lat.toFixed(6)}`;
                 }
@@ -522,6 +536,7 @@ class RoadbookApp {
 
             // 保存到本地存储
             this.saveToLocalStorage();
+            console.log(`拖拽后本地存储已保存`);
         });
 
         // 保存到本地存储
@@ -908,9 +923,45 @@ class RoadbookApp {
         let tooltipContent = `<div style="background: rgba(0,0,0,0.8); color: white; padding: 8px; border-radius: 4px; font-size: 12px;">`;
         tooltipContent += `<div><strong>${markerData.title}</strong></div>`;
         tooltipContent += `<div>坐标: ${markerData.position[1].toFixed(6)}, ${markerData.position[0].toFixed(6)}</div>`;
-        if (markerData.dateTime) {
+
+        // 显示多个时间点，按日期分组（从早到晚排序）
+        if (markerData.dateTimes && markerData.dateTimes.length > 0) {
+            // 按日期分组时间点
+            const timesByDate = {};
+            markerData.dateTimes.forEach(dt => {
+                const dateKey = this.getDateKey(dt);
+                if (!timesByDate[dateKey]) {
+                    timesByDate[dateKey] = [];
+                }
+                timesByDate[dateKey].push(dt); // 保存完整时间用于排序
+            });
+
+            // 获取排序后的日期（从早到晚）
+            const sortedDates = Object.keys(timesByDate).sort((a, b) => new Date(a) - new Date(b));
+
+            if (sortedDates.length === 1) {
+                // 只有一个日期，直接显示时间（按时间排序）
+                const times = timesByDate[sortedDates[0]]
+                    .sort((a, b) => new Date(a) - new Date(b))
+                    .map(dt => this.formatTime(dt))
+                    .join(', ');
+                tooltipContent += `<div>时间: ${times}</div>`;
+            } else {
+                // 多个日期，按日期分组显示（从早到晚）
+                tooltipContent += `<div>时间:</div>`;
+                sortedDates.forEach(date => {
+                    const dateHeader = this.formatDateHeader(date);
+                    const times = timesByDate[date]
+                        .sort((a, b) => new Date(a) - new Date(b))
+                        .map(dt => this.formatTime(dt))
+                        .join(', ');
+                    tooltipContent += `<div style="margin-left: 8px;">• ${dateHeader}: ${times}</div>`;
+                });
+            }
+        } else if (markerData.dateTime) {
             tooltipContent += `<div>时间: ${markerData.dateTime}</div>`;
         }
+
         if (markerData.labels && markerData.labels.length > 0) {
             const labelsText = markerData.labels.join('; ');
             tooltipContent += `<div>标注: ${labelsText}</div>`;
@@ -1037,20 +1088,16 @@ class RoadbookApp {
         // 设置日期时间
         if (connectionData.dateTime) {
             const dateString = this.getLocalDateTimeForInput(connectionData.dateTime);
-            const markerDateInput = document.getElementById('markerDateInput');
-            if (markerDateInput) {
-                markerDateInput.value = dateString;
+            const connectionDateInput = document.getElementById('connectionDateInput');
+            if (connectionDateInput) {
+                connectionDateInput.value = dateString;
             }
         } else {
             const now = this.getLocalDateTimeForInput(this.getCurrentLocalDateTime());
-            const markerDateInput = document.getElementById('markerDateInput');
-            if (markerDateInput) {
-                markerDateInput.value = now;
+            const connectionDateInput = document.getElementById('connectionDateInput');
+            if (connectionDateInput) {
+                connectionDateInput.value = now;
             }
-        }
-        const markerDateInput = document.getElementById('markerDateInput');
-        if (markerDateInput) {
-            markerDateInput.style.display = 'block';
         }
 
         // 显示连接信息，使用当前标记点的标题而不是保存时的标题
@@ -1075,11 +1122,9 @@ class RoadbookApp {
 
         // 显示标注内容
         const labelsContent = connectionData.label || '';
-        const markerLabelsInput = document.getElementById('markerLabelsInput');
-        if (markerLabelsInput) {
-            markerLabelsInput.value = labelsContent;
-            markerLabelsInput.style.display = 'block';
-            markerLabelsInput.placeholder = '输入连接线标注内容';
+        const connectionLabelsInput = document.getElementById('connectionLabelsInput');
+        if (connectionLabelsInput) {
+            connectionLabelsInput.value = labelsContent;
         }
 
         // 设置当前交通方式的激活状态
@@ -1180,42 +1225,440 @@ class RoadbookApp {
         const listContainer = document.getElementById('markerList');
         listContainer.innerHTML = '';
 
-        this.markers.forEach((marker, _) => {
-            const item = document.createElement('div');
-            item.className = 'marker-item';
-            item.innerHTML = `
-                <div class="marker-info">
-                    <div class="title">${marker.title}</div>
-                    <div class="coords">${marker.position[1].toFixed(6)}, ${marker.position[0].toFixed(6)}</div>
-                    <div class="date">${marker.createdAt ? marker.createdAt.split(' ')[0] : ''}</div>
-                </div>
-                <div class="marker-actions">
-                    <button class="edit-btn" title="编辑">✏️</button>
-                    <button class="delete-btn" title="删除">🗑️</button>
-                </div>
+        // 按日期分组标记点
+        const markersByDate = this.groupMarkersByDate();
+
+        // 获取所有日期并排序（从近到远）
+        const allDates = this.getAllDatesFromMarkers();
+
+        allDates.forEach(date => {
+            // 创建日期分组标题
+            const dateHeader = document.createElement('div');
+            dateHeader.className = 'date-group-header';
+            const markers = markersByDate[date] || [];
+            dateHeader.innerHTML = `
+                <h4>${this.formatDateHeader(date)}</h4>
+                <span class="marker-count">${markers.length} 个地点</span>
             `;
 
-            // 点击标记点信息显示详情
-            item.querySelector('.marker-info').addEventListener('click', () => {
-                this.showMarkerDetail(marker);
+            // 添加点击事件，点击日期分组进行筛选
+            dateHeader.style.cursor = 'pointer';
+            dateHeader.addEventListener('click', () => {
+                this.filterByDate(date);
             });
 
-            // 编辑按钮
-            item.querySelector('.edit-btn').addEventListener('click', (e) => {
-                e.stopPropagation();
-                this.showMarkerDetail(marker);
-            });
+            listContainer.appendChild(dateHeader);
 
-            // 删除按钮
-            item.querySelector('.delete-btn').addEventListener('click', (e) => {
-                e.stopPropagation();
-                if (confirm(`确定要删除标记点"${marker.title}"吗？`)) {
-                    this.removeMarker(marker);
+            // 按最早时间排序该日期的标记点
+            const sortedMarkers = this.sortMarkersByEarliestTime(markers, date);
+
+            // 添加该日期的所有标记点
+            sortedMarkers.forEach(marker => {
+                const item = document.createElement('div');
+                item.className = 'marker-item';
+
+                // 显示该日期对应的时间点（只显示这一天的）
+                const dayTimes = this.getMarkerTimesForDate(marker, date);
+                const timeDisplay = dayTimes.length > 0
+                    ? dayTimes.map(dt => this.formatTime(dt)).join(', ')
+                    : '';
+
+                item.innerHTML = `
+                    <div class="marker-info">
+                        <div class="title">${marker.title}</div>
+                        <div class="coords">${marker.position[1].toFixed(6)}, ${marker.position[0].toFixed(6)}</div>
+                        <div class="time-info">${timeDisplay}</div>
+                    </div>
+                    <div class="marker-actions">
+                        <button class="edit-btn" title="编辑">✏️</button>
+                        <button class="delete-btn" title="删除">🗑️</button>
+                    </div>
+                `;
+
+                // 点击标记点信息显示详情
+                item.querySelector('.marker-info').addEventListener('click', () => {
+                    this.showMarkerDetail(marker);
+                });
+
+                // 编辑按钮
+                item.querySelector('.edit-btn').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.showMarkerDetail(marker);
+                });
+
+                // 删除按钮
+                item.querySelector('.delete-btn').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (confirm(`确定要删除标记点"${marker.title}"吗？`)) {
+                        this.removeMarker(marker);
+                    }
+                });
+
+                listContainer.appendChild(item);
+            });
+        });
+    }
+
+    // 获取所有标记点中出现过的日期（从早到晚排序）
+    getAllDatesFromMarkers() {
+        const allDates = new Set();
+
+        this.markers.forEach(marker => {
+            const markerDates = this.getMarkerAllDates(marker);
+            markerDates.forEach(date => {
+                if (date !== '未知日期') {
+                    allDates.add(date);
                 }
             });
-
-            listContainer.appendChild(item);
         });
+
+        // 转换为数组并按日期排序（从早到晚）
+        return Array.from(allDates).sort((a, b) => new Date(a) - new Date(b));
+    }
+
+    // 获取标记点在指定日期的时间点
+    getMarkerTimesForDate(marker, dateKey) {
+        const times = [];
+
+        if (marker.dateTimes && marker.dateTimes.length > 0) {
+            marker.dateTimes.forEach(dateTime => {
+                const dtDateKey = this.getDateKey(dateTime);
+                if (dtDateKey === dateKey) {
+                    times.push(dateTime);
+                }
+            });
+        } else if (marker.dateTime) {
+            const dtDateKey = this.getDateKey(marker.dateTime);
+            if (dtDateKey === dateKey) {
+                times.push(marker.dateTime);
+            }
+        }
+
+        return times;
+    }
+
+    // 按最早时间排序标记点（创建副本避免修改原数组）
+    sortMarkersByEarliestTime(markers, dateKey) {
+        return [...markers].sort((a, b) => {
+            // 获取每个标记点在该日期的最早时间
+            const aTimes = this.getMarkerTimesForDate(a, dateKey);
+            const bTimes = this.getMarkerTimesForDate(b, dateKey);
+
+            if (aTimes.length === 0 && bTimes.length === 0) return 0;
+            if (aTimes.length === 0) return 1; // a没有时间，排后面
+            if (bTimes.length === 0) return -1; // b没有时间，排后面
+
+            // 按最早时间排序（时间小的在前）
+            const aEarliest = new Date(aTimes[0]);
+            const bEarliest = new Date(bTimes[0]);
+
+            return aEarliest - bEarliest;
+        });
+    }
+
+    // 按日期分组标记点 - 包含所有出现过的日期
+    groupMarkersByDate() {
+        const groups = {};
+
+        this.markers.forEach(marker => {
+            // 获取该标记点的所有日期
+            const markerDates = this.getMarkerAllDates(marker);
+
+            // 将该标记点添加到它出现的所有日期分组中
+            markerDates.forEach(dateKey => {
+                if (!groups[dateKey]) {
+                    groups[dateKey] = [];
+                }
+                groups[dateKey].push(marker);
+            });
+        });
+
+        return groups;
+    }
+
+    // 获取标记点所有出现的日期
+    getMarkerAllDates(marker) {
+        const dates = new Set();
+
+        if (marker.dateTimes && marker.dateTimes.length > 0) {
+            marker.dateTimes.forEach(dateTime => {
+                const dateKey = this.getDateKey(dateTime);
+                if (dateKey !== '未知日期') {
+                    dates.add(dateKey);
+                }
+            });
+        } else if (marker.dateTime) {
+            const dateKey = this.getDateKey(marker.dateTime);
+            if (dateKey !== '未知日期') {
+                dates.add(dateKey);
+            }
+        }
+
+        return Array.from(dates);
+    }
+
+    // 获取日期键（YYYY-MM-DD格式）
+    getDateKey(dateTimeString) {
+        if (!dateTimeString) return '未知日期';
+        try {
+            const date = new Date(dateTimeString);
+            if (isNaN(date.getTime())) return '未知日期';
+            return date.toISOString().split('T')[0]; // YYYY-MM-DD
+        } catch (error) {
+            return '未知日期';
+        }
+    }
+
+    // 格式化日期标题
+    formatDateHeader(dateKey) {
+        if (dateKey === '未知日期') return dateKey;
+        try {
+            const date = new Date(dateKey);
+            const today = new Date();
+            const yesterday = new Date(today);
+            yesterday.setDate(yesterday.getDate() - 1);
+
+            if (dateKey === today.toISOString().split('T')[0]) {
+                return '今天';
+            } else if (dateKey === yesterday.toISOString().split('T')[0]) {
+                return '昨天';
+            } else {
+                return `${date.getMonth() + 1}月${date.getDate()}日 (${this.getWeekdayName(date.getDay())})`;
+            }
+        } catch (error) {
+            return dateKey;
+        }
+    }
+
+    // 获取星期几的中文名称
+    getWeekdayName(day) {
+        const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+        return weekdays[day];
+    }
+
+    // 格式化时间（只显示时分）
+    formatTime(dateTimeString) {
+        if (!dateTimeString) return '';
+        try {
+            const date = new Date(dateTimeString);
+            if (isNaN(date.getTime())) return '';
+            return date.toLocaleTimeString('zh-CN', {
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        } catch (error) {
+            return '';
+        }
+    }
+
+    // 按日期筛选功能
+    filterByDate(date) {
+        this.filterMode = true;
+        this.filteredDate = date;
+
+        console.log(`进入日期筛选模式: ${date}`);
+
+        // 隐藏所有标记点
+        this.markers.forEach(marker => {
+            marker.marker.remove();
+        });
+
+        // 隐藏所有连接线
+        this.connections.forEach(connection => {
+            connection.polyline.remove();
+            if (connection.endCircle) connection.endCircle.remove();
+            if (connection.iconMarker) connection.iconMarker.remove();
+            if (connection.arrowHead) connection.arrowHead.remove();
+        });
+
+        // 显示筛选日期内的标记点
+        this.markers.forEach(marker => {
+            const markerDates = this.getMarkerAllDates(marker);
+            if (markerDates.includes(date)) {
+                marker.marker.addTo(this.map);
+            }
+        });
+
+        // 显示筛选日期内的连接线
+        this.connections.forEach(connection => {
+            const connectionDate = this.getDateKey(connection.dateTime);
+            if (connectionDate === date) {
+                connection.polyline.addTo(this.map);
+                if (connection.endCircle) connection.endCircle.addTo(this.map);
+                if (connection.iconMarker) connection.iconMarker.addTo(this.map);
+                if (connection.arrowHead) connection.arrowHead.addTo(this.map);
+            }
+        });
+
+        // 更新标记点列表显示
+        this.updateMarkerListForFilter();
+
+        // 显示筛选模式提示
+        this.showFilterModeIndicator(date);
+
+        // 绑定退出筛选模式的事件
+        this.bindFilterExitEvents();
+    }
+
+    // 显示筛选模式提示
+    showFilterModeIndicator(date) {
+        const headerTitle = document.querySelector('header h1');
+        if (headerTitle) {
+            const originalText = headerTitle.textContent;
+            const dateHeader = this.formatDateHeader(date);
+            headerTitle.innerHTML = `${originalText} <span style="font-size: 0.8rem; background: rgba(255,255,255,0.2); padding: 0.2rem 0.5rem; border-radius: 10px; margin-left: 1rem;">📅 ${dateHeader} 筛选模式</span>`;
+            headerTitle.style.cursor = 'pointer';
+            headerTitle.title = '点击退出筛选模式';
+
+            // 添加点击标题退出筛选模式
+            headerTitle.onclick = () => {
+                this.exitFilterMode();
+            };
+        }
+    }
+
+    // 绑定退出筛选模式的事件
+    bindFilterExitEvents() {
+        // 点击地图退出筛选模式
+        this.map.on('click', this.exitFilterModeHandler, this);
+
+        // ESC键退出筛选模式
+        document.addEventListener('keydown', this.exitFilterModeKeyHandler, true);
+
+        // 点击任意按钮退出筛选模式
+        document.querySelectorAll('.btn').forEach(btn => {
+            btn.addEventListener('click', this.exitFilterModeClickHandler, true);
+        });
+    }
+
+    // 退出筛选模式的处理器
+    exitFilterModeHandler(e) {
+        if (e.originalEvent) {
+            this.exitFilterMode();
+        }
+    }
+
+    exitFilterModeKeyHandler(e) {
+        if (e.key === 'Escape') {
+            this.exitFilterMode();
+        }
+    }
+
+    exitFilterModeClickHandler(_e) {
+        this.exitFilterMode();
+    }
+
+    // 退出筛选模式
+    exitFilterMode() {
+        if (!this.filterMode) return;
+
+        console.log('退出日期筛选模式');
+
+        this.filterMode = false;
+        this.filteredDate = null;
+
+        // 恢复所有标记点显示
+        this.markers.forEach(marker => {
+            marker.marker.addTo(this.map);
+        });
+
+        // 恢复所有连接线显示
+        this.connections.forEach(connection => {
+            connection.polyline.addTo(this.map);
+            if (connection.endCircle) connection.endCircle.addTo(this.map);
+            if (connection.iconMarker) connection.iconMarker.addTo(this.map);
+            if (connection.arrowHead) connection.arrowHead.addTo(this.map);
+        });
+
+        // 恢复标记点列表显示
+        this.updateMarkerList();
+
+        // 恢复标题
+        const headerTitle = document.querySelector('header h1');
+        if (headerTitle) {
+            headerTitle.textContent = '路书制作工具';
+            headerTitle.style.cursor = 'default';
+            headerTitle.title = '';
+            headerTitle.onclick = null;
+        }
+
+        // 移除事件监听
+        this.map.off('click', this.exitFilterModeHandler, this);
+        document.removeEventListener('keydown', this.exitFilterModeKeyHandler, true);
+        document.querySelectorAll('.btn').forEach(btn => {
+            btn.removeEventListener('click', this.exitFilterModeClickHandler, true);
+        });
+    }
+
+    // 更新筛选模式下的标记点列表
+    updateMarkerListForFilter() {
+        const listContainer = document.getElementById('markerList');
+        listContainer.innerHTML = '';
+
+        if (this.filteredDate) {
+            // 创建筛选模式标题
+            const filterHeader = document.createElement('div');
+            filterHeader.className = 'date-group-header';
+            filterHeader.innerHTML = `
+                <h4>📅 ${this.formatDateHeader(this.filteredDate)} 筛选结果</h4>
+                <span class="marker-count">筛选模式</span>
+            `;
+            filterHeader.style.cursor = 'pointer';
+            filterHeader.title = '点击退出筛选模式';
+            filterHeader.addEventListener('click', () => {
+                this.exitFilterMode();
+            });
+            listContainer.appendChild(filterHeader);
+
+            // 显示筛选日期内的标记点
+            const filteredMarkers = this.markers.filter(marker => {
+                const markerDates = this.getMarkerAllDates(marker);
+                return markerDates.includes(this.filteredDate);
+            });
+
+            // 按时间排序
+            const sortedMarkers = this.sortMarkersByEarliestTime(filteredMarkers, this.filteredDate);
+
+            sortedMarkers.forEach(marker => {
+                const item = document.createElement('div');
+                item.className = 'marker-item';
+
+                const dayTimes = this.getMarkerTimesForDate(marker, this.filteredDate);
+                const timeDisplay = dayTimes.length > 0
+                    ? dayTimes.map(dt => this.formatTime(dt)).join(', ')
+                    : '';
+
+                item.innerHTML = `
+                    <div class="marker-info">
+                        <div class="title">${marker.title}</div>
+                        <div class="coords">${marker.position[1].toFixed(6)}, ${marker.position[0].toFixed(6)}</div>
+                        <div class="time-info">${timeDisplay}</div>
+                    </div>
+                    <div class="marker-actions">
+                        <button class="edit-btn" title="编辑">✏️</button>
+                        <button class="delete-btn" title="删除">🗑️</button>
+                    </div>
+                `;
+
+                item.querySelector('.marker-info').addEventListener('click', () => {
+                    this.showMarkerDetail(marker);
+                });
+
+                item.querySelector('.edit-btn').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.showMarkerDetail(marker);
+                });
+
+                item.querySelector('.delete-btn').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (confirm(`确定要删除标记点"${marker.title}"吗？`)) {
+                        this.removeMarker(marker);
+                    }
+                });
+
+                listContainer.appendChild(item);
+            });
+        }
     }
 
     updateConnections() {
@@ -1276,16 +1719,15 @@ class RoadbookApp {
     // 保存到本地存储
     saveToLocalStorage() {
         const data = {
-            version: 'localStorage-v1.0',
+            version: 'localStorage-v2.0',
             saveTime: new Date().toISOString(),
-            markers: this.markers.map((m, index) => ({
+            markers: this.markers.map((m) => ({
                 id: m.id,
                 position: m.position,
                 title: m.title,
                 labels: m.labels, // 现在labels是字符串数组，直接导出
                 createdAt: m.createdAt,
-                dateTime: m.dateTime,
-                markerIndex: index, // 添加索引信息，便于导入时重建
+                dateTimes: m.dateTimes || [m.dateTime], // 导出多个时间点
                 icon: m.icon // 导出图标信息
             })),
             connections: this.connections.map(c => {
@@ -1312,8 +1754,20 @@ class RoadbookApp {
         };
 
         try {
+            console.log('开始保存到本地存储，标记点数量:', this.markers.length);
+            if (this.markers.length > 0) {
+                this.markers.forEach((marker, index) => {
+                    console.log(`保存标记点 ${index}: ID=${marker.id}, 位置=${marker.position}, 标题=${marker.title}`);
+                });
+            }
+
             localStorage.setItem('roadbookData', JSON.stringify(data));
             console.log('路书数据已保存到本地存储');
+
+            // 验证保存的数据
+            const savedData = localStorage.getItem('roadbookData');
+            const parsedData = JSON.parse(savedData);
+            console.log('验证保存的数据:', parsedData);
         } catch (error) {
             console.error('保存到本地存储失败:', error);
         }
@@ -1326,6 +1780,14 @@ class RoadbookApp {
             if (savedData) {
                 const data = JSON.parse(savedData);
                 console.log('从本地存储加载路书数据');
+                console.log('本地存储数据:', data);
+
+                // 检查标记点位置数据
+                if (data.markers && data.markers.length > 0) {
+                    data.markers.forEach((marker, index) => {
+                        console.log(`标记点 ${index}: ID=${marker.id}, 位置=${marker.position}, 标题=${marker.title}`);
+                    });
+                }
 
                 // 直接加载本地缓存数据，不显示导入提示
                 this.loadRoadbook(data, false);
@@ -1679,16 +2141,15 @@ class RoadbookApp {
 
     exportRoadbook() {
         const data = {
-            version: '1.0',
+            version: '2.0',
             exportTime: new Date().toISOString(),
-            markers: this.markers.map((m, index) => ({
+            markers: this.markers.map((m) => ({
                 id: m.id,
                 position: m.position,
                 title: m.title,
                 labels: m.labels, // 现在labels是字符串数组，直接导出
                 createdAt: m.createdAt,
-                dateTime: m.dateTime,
-                markerIndex: index, // 添加索引信息，便于导入时重建
+                dateTimes: m.dateTimes || [m.dateTime], // 导出多个时间点
                 icon: m.icon // 导出图标信息
             })),
             connections: this.connections.map(c => {
@@ -1752,6 +2213,8 @@ class RoadbookApp {
 
         // 加载标记点
         data.markers.forEach(markerData => {
+            console.log(`加载标记点: ID=${markerData.id}, 位置=${markerData.position}, 标题=${markerData.title}`);
+
             // 使用导入的图标信息或默认图标
             const iconConfig = markerData.icon || { type: 'default', icon: '📍', color: '#667eea' };
             const icon = this.createMarkerIcon(iconConfig, this.markers.length + 1);
@@ -1770,7 +2233,8 @@ class RoadbookApp {
                 labels: markerData.labels || [], // 导入labels数组
                 icon: markerData.icon || { type: 'default', icon: '📍', color: '#667eea' }, // 导入图标信息
                 createdAt: markerData.createdAt,
-                dateTime: markerData.dateTime
+                dateTimes: markerData.dateTimes || [markerData.dateTime], // 导入多个时间点
+                dateTime: markerData.dateTimes ? markerData.dateTimes[0] : markerData.dateTime // 兼容旧版本
             };
 
             this.markers.push(markerObj);
@@ -1797,6 +2261,8 @@ class RoadbookApp {
                 const newPos = e.target.getLatLng();
                 markerObj.position = [newPos.lat, newPos.lng];
 
+                console.log(`导入拖拽事件触发 - 标记点ID: ${markerObj.id}, 新坐标: [${newPos.lat}, ${newPos.lng}]`);
+
                 // 更新连接线
                 this.updateConnections();
 
@@ -1816,6 +2282,10 @@ class RoadbookApp {
                 this.updateMarkerList();
 
                 console.log(`导入的标记点"${markerObj.title}"坐标已更新: ${newPos.lat.toFixed(6)}, ${newPos.lng.toFixed(6)}`);
+
+                // 保存到本地存储
+                this.saveToLocalStorage();
+                console.log(`导入标记点拖拽后本地存储已保存`);
             });
         });
 
@@ -2074,26 +2544,8 @@ class RoadbookApp {
             markerNameInput.style.display = 'block';
         }
 
-        // 设置日期时间选择器
-        if (markerData.dateTime) {
-            // 使用本地时间格式
-            const dateString = this.getLocalDateTimeForInput(markerData.dateTime);
-            const markerDateInput = document.getElementById('markerDateInput');
-            if (markerDateInput) {
-                markerDateInput.value = dateString;
-            }
-        } else {
-            // 默认为当前本地时间
-            const now = this.getLocalDateTimeForInput(this.getCurrentLocalDateTime());
-            const markerDateInput = document.getElementById('markerDateInput');
-            if (markerDateInput) {
-                markerDateInput.value = now;
-            }
-        }
-        const markerDateInput = document.getElementById('markerDateInput');
-        if (markerDateInput) {
-            markerDateInput.style.display = 'block';
-        }
+        // 显示时间点列表（新的多点时间管理）
+        this.updateDateTimesDisplay();
 
         const markerCoords = document.getElementById('markerCoords');
         if (markerCoords) {
@@ -2130,6 +2582,102 @@ class RoadbookApp {
         }
         this.currentMarker = null;
         this.currentConnection = null;
+    }
+
+    // 更新时间点显示
+    updateDateTimesDisplay() {
+        const container = document.getElementById('dateTimesContainer');
+        if (!container || !this.currentMarker) return;
+
+        container.innerHTML = '';
+
+        const dateTimes = this.currentMarker.dateTimes || [this.currentMarker.dateTime];
+
+        dateTimes.forEach((dateTime, index) => {
+            const timeItem = document.createElement('div');
+            timeItem.className = 'date-time-item';
+
+            const timeInput = document.createElement('input');
+            timeInput.type = 'datetime-local';
+            timeInput.value = this.getLocalDateTimeForInput(dateTime);
+            timeInput.addEventListener('change', (e) => {
+                this.updateMarkerDateTime(index, e.target.value);
+            });
+
+            const deleteBtn = document.createElement('button');
+            deleteBtn.className = 'delete-time-btn';
+            deleteBtn.textContent = '删除';
+            deleteBtn.addEventListener('click', () => {
+                this.deleteMarkerDateTime(index);
+            });
+
+            timeItem.appendChild(timeInput);
+            if (dateTimes.length > 1) {
+                timeItem.appendChild(deleteBtn);
+            }
+
+            container.appendChild(timeItem);
+        });
+    }
+
+    // 更新标记点时间
+    updateMarkerDateTime(index, newDateTime) {
+        if (!this.currentMarker || !this.currentMarker.dateTimes) return;
+
+        this.currentMarker.dateTimes[index] = newDateTime;
+        this.currentMarker.dateTime = this.currentMarker.dateTimes[0]; // 更新主时间
+
+        // 更新显示
+        this.updateDateTimesDisplay();
+        this.updateMarkerList();
+
+        // 保存到本地存储
+        this.saveToLocalStorage();
+
+        console.log(`标记点"${this.currentMarker.title}"时间点${index + 1}已更新: ${newDateTime}`);
+    }
+
+    // 删除标记点时间
+    deleteMarkerDateTime(index) {
+        if (!this.currentMarker || !this.currentMarker.dateTimes || this.currentMarker.dateTimes.length <= 1) {
+            alert('至少需要保留一个时间点！');
+            return;
+        }
+
+        if (confirm('确定要删除这个时间点吗？')) {
+            this.currentMarker.dateTimes.splice(index, 1);
+            this.currentMarker.dateTime = this.currentMarker.dateTimes[0]; // 更新主时间
+
+            // 更新显示
+            this.updateDateTimesDisplay();
+            this.updateMarkerList();
+
+            // 保存到本地存储
+            this.saveToLocalStorage();
+
+            console.log(`标记点"${this.currentMarker.title}"时间点已删除，剩余${this.currentMarker.dateTimes.length}个时间点`);
+        }
+    }
+
+    // 添加新的时间点
+    addMarkerDateTime() {
+        if (!this.currentMarker) return;
+
+        if (!this.currentMarker.dateTimes) {
+            this.currentMarker.dateTimes = [this.currentMarker.dateTime];
+        }
+
+        const newDateTime = this.getCurrentLocalDateTime();
+        this.currentMarker.dateTimes.push(newDateTime);
+
+        // 更新显示
+        this.updateDateTimesDisplay();
+        this.updateMarkerList();
+
+        // 保存到本地存储
+        this.saveToLocalStorage();
+
+        console.log(`标记点"${this.currentMarker.title}"添加新时间点: ${newDateTime}`);
     }
 
     hideConnectionDetail() {
@@ -2311,10 +2859,7 @@ class RoadbookApp {
         // 关闭详情面板
         this.hideConnectionDetail();
 
-        // 显示成功消息
-        alert('连接线详情已保存！');
-
-        // 保存到本地存储
+        // 保存到本地存储（移除成功提示）
         this.saveToLocalStorage();
     }
 
@@ -2325,12 +2870,6 @@ class RoadbookApp {
             if (newName) {
                 this.currentMarker.title = newName;
                 this.currentMarker.marker.setTooltipContent(newName);
-            }
-
-            // 保存日期时间
-            const dateTimeValue = document.getElementById('markerDateInput').value;
-            if (dateTimeValue) {
-                this.currentMarker.dateTime = this.getCurrentLocalDateTime();
             }
 
             // 保存标注内容 - 只保存文本，不直接显示
@@ -2344,13 +2883,23 @@ class RoadbookApp {
             this.updateMarkerList();
         } else if (this.currentConnection) {
             // 保存连接线
-            const dateTimeValue = document.getElementById('markerDateInput').value;
+            const dateTimeValue = document.getElementById('connectionDateInput').value;
             if (dateTimeValue) {
-                this.currentConnection.dateTime = this.getCurrentLocalDateTime();
+                this.currentConnection.dateTime = dateTimeValue;
             }
 
-            const labelText = document.getElementById('markerLabelsInput').value.trim();
-            this.currentConnection.label = labelText;
+            // 保存耗时
+            const durationValue = document.getElementById('connectionDuration').value;
+            if (durationValue) {
+                this.currentConnection.duration = parseFloat(durationValue);
+            }
+
+            // 保存标注内容
+            const connectionLabelsInput = document.getElementById('connectionLabelsInput');
+            if (connectionLabelsInput) {
+                const labelText = connectionLabelsInput.value.trim();
+                this.currentConnection.label = labelText;
+            }
         }
 
         this.hideMarkerDetail();

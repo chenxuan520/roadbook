@@ -49,7 +49,10 @@
             <div class="right-panel">
                 <!-- 标记点列表 -->
                 <div class="sidebar" id="markerListPanel">
-                    <h3>标记点列表</h3>
+                    <div class="sidebar-header">
+                        <h3>标记点列表</h3>
+                        <span class="filter-hint">📅 点击日期分组可筛选</span>
+                    </div>
                     <div id="markerList"></div>
                 </div>
                 <!-- 标记点详情面板 -->
@@ -64,8 +67,11 @@
                             <input type="text" id="markerNameInput" placeholder="输入标记点名称">
                         </div>
                         <div class="form-group">
-                            <label>时间:</label>
-                            <input type="datetime-local" id="markerDateInput">
+                            <label>时间点:</label>
+                            <div id="dateTimesContainer">
+                                <!-- 时间点列表将在这里动态生成 -->
+                            </div>
+                            <button type="button" id="addDateTimeBtn" class="btn" style="margin-top: 0.5rem; color: #000 !important;">添加时间点</button>
                         </div>
                         <div class="form-group">
                             <label>坐标:</label>
@@ -75,7 +81,7 @@
                             <label>标记点图标:</label>
                             <div style="display: flex; gap: 10px; align-items: center;">
                                 <div id="currentIconPreview" style="width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 20px; border: 2px solid #667eea;"></div>
-                                <button type="button" id="changeIconBtn" class="btn" style="margin: 0;">更换图标</button>
+                                <button type="button" id="changeIconBtn" class="btn" style="margin: 0; color: #000 !important;">更换图标</button>
                             </div>
                         </div>
                         <div class="form-group">

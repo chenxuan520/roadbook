@@ -335,11 +335,59 @@ main {
     flex: 1;
 }
 
-.sidebar h3 {
+/* 侧边栏标题区域样式 */
+.sidebar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     margin-bottom: 1rem;
-    color: #333;
-    border-bottom: 2px solid #667eea;
     padding-bottom: 0.5rem;
+    border-bottom: 2px solid #667eea;
+    background: transparent; /* 确保不改变原有背景色 */
+}
+
+.sidebar-header h3 {
+    margin: 0;
+    color: #333;
+    font-size: 1.1rem;
+}
+
+/* 筛选提示文字 */
+.filter-hint {
+    font-size: 0.8rem;
+    color: #667eea;
+    background: transparent; /* 保持透明背景 */
+    padding: 0.3rem 0.6rem;
+    border-radius: 12px;
+    border: 1px solid rgba(102, 126, 234, 0.3);
+    cursor: help;
+    transition: all 0.3s ease;
+    white-space: nowrap;
+}
+
+.filter-hint:hover {
+    background: rgba(102, 126, 234, 0.05); /* 更淡的悬停背景 */
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);
+}
+
+/* 移动端适配 */
+@media (max-width: 768px) {
+    .sidebar-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+
+    .filter-hint {
+        font-size: 0.75rem;
+        padding: 0.2rem 0.4rem;
+    }
+}
+
+.sidebar h3 {
+    margin: 0;
+    color: #333;
 }
 
 .marker-item {
@@ -702,6 +750,120 @@ main {
 #confirmIcon:hover {
     transform: translateY(-1px);
     box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+
+/* 时间点管理样式 */
+.date-time-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+    padding: 0.5rem;
+    background: #f8f9fa;
+    border-radius: 6px;
+    border: 1px solid #dee2e6;
+}
+
+.date-time-item input[type="datetime-local"] {
+    flex: 1;
+    margin: 0;
+}
+
+.delete-time-btn {
+    background: #dc3545;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 0.3rem 0.6rem;
+    cursor: pointer;
+    font-size: 0.8rem;
+    transition: background-color 0.2s ease;
+}
+
+.delete-time-btn:hover {
+    background: #c82333;
+}
+
+/* 日期分组标题样式 - 添加悬停效果 */
+.date-group-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 0.8rem 1rem;
+    margin: 1rem 0 0.5rem 0;
+    border-radius: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.date-group-header:hover {
+    background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.date-group-header:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+}
+
+.date-group-header h4 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.date-group-header .marker-count {
+    font-size: 0.8rem;
+    opacity: 0.9;
+    background: rgba(255,255,255,0.2);
+    padding: 0.2rem 0.5rem;
+    border-radius: 12px;
+}
+
+/* 筛选模式标题样式 */
+.filter-mode-title {
+    font-size: 0.8rem;
+    background: rgba(255,255,255,0.2);
+    padding: 0.2rem 0.5rem;
+    border-radius: 10px;
+    margin-left: 1rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.filter-mode-title:hover {
+    background: rgba(255,255,255,0.3);
+    transform: translateY(-1px);
+}
+
+/* 筛选模式下的日期分组标题 */
+.filter-mode-header {
+    background: linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%) !important;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% {
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    50% {
+        box-shadow: 0 4px 16px rgba(255,107,107,0.3);
+    }
+    100% {
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+}
+
+/* 时间信息显示样式 */
+.time-info {
+    font-size: 0.75rem;
+    color: #6c757d;
+    margin-top: 0.2rem;
+    font-weight: 500;
 }
 
 /* 确认连接按钮样式 - 修改文字颜色为黑色 */
