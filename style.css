@@ -704,6 +704,18 @@ main {
     box-shadow: 0 4px 12px rgba(0,0,0,0.2);
 }
 
+/* 确认连接按钮样式 - 修改文字颜色为黑色 */
+#confirmConnect {
+    color: #000 !important; /* 黑色文字，提高可读性 */
+    background: linear-gradient(135deg, rgba(255,255,255,0.8), rgba(255,255,255,0.6));
+    border: 2px solid rgba(255,255,255,0.8);
+    font-weight: 600;
+}
+
+#confirmConnect:hover {
+    background: linear-gradient(135deg, rgba(255,255,255,0.9), rgba(255,255,255,0.7));
+}
+
 /* 颜色选择器 */
 input[type="color"] {
     width: 100%;
