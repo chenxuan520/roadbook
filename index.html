@@ -25,7 +25,14 @@
                     <button id="exportBtn" class="btn">导出路书</button>
                     <button id="importBtn" class="btn">导入路书</button>
                     <button id="clearCacheBtn" class="btn">清除缓存</button>
-                    <button id="mapModeBtn" class="btn">切换地图</button>
+                    <select id="mapSourceSelect" class="btn" style="background: linear-gradient(135deg, rgba(255,255,255,0.3), rgba(255,255,255,0.15)); color: #fff; border: 2px solid rgba(255,255,255,0.5); padding: 0.6rem 1.2rem; border-radius: 25px; font-size: 0.9rem; font-weight: 600; cursor: pointer;">
+                        <option value="osm">OpenStreetMap</option>
+                        <option value="satellite">ESRI卫星图</option>
+                        <option value="gaode">高德地图</option>
+                        <option value="gaode_satellite">高德卫星图</option>
+                        <option value="google">Google地图</option>
+                        <option value="google_satellite">Google卫星图</option>
+                    </select>
                     <input type="file" id="importFile" accept=".json" style="display: none;">
                 </div>
             </div>

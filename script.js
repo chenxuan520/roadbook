@@ -28,12 +28,53 @@ class RoadbookApp {
         this.initMap();
         this.bindEvents();
         this.loadFromLocalStorage(); // 初始化时加载本地缓存
-        this.updateMapModeButton(); // 设置地图模式按钮的初始文本
+        this.updateSearchInputState(); // 初始化搜索框状态
     }
 
     initMap() {
         // 初始化地图，使用OpenStreetMap作为默认图层
         this.map = L.map('mapContainer').setView([39.90923, 116.397428], 10); // 北京天安门
+
+        // 定义地图搜索能力配置
+        this.mapSearchConfig = {
+            osm: {
+                searchable: true,
+                name: 'OpenStreetMap',
+                searchUrl: 'https://nominatim.openstreetmap.org/search',
+                params: {
+                    format: 'json',
+                    limit: 10
+                },
+                parser: 'nominatim' // 使用Nominatim API
+            },
+            satellite: {
+                searchable: false, // 卫星图禁用搜索
+                name: 'ESRI卫星图'
+            },
+            gaode: {
+                searchable: true,
+                name: '高德地图',
+                searchUrl: 'https://overpass-api.de/api/interpreter',
+                parser: 'overpass' // 使用Overpass API
+            },
+            gaode_satellite: {
+                searchable: false, // 高德卫星图禁用搜索
+                name: '高德卫星图'
+            },
+            google: {
+                searchable: true,
+                name: 'Google地图',
+                searchUrl: 'https://photon.komoot.io/api/',
+                params: {
+                    limit: 10
+                },
+                parser: 'photon' // 使用Photon API
+            },
+            google_satellite: {
+                searchable: false, // Google卫星图禁用搜索
+                name: 'Google卫星图'
+            }
+        };
 
         // 定义地图图层
         this.mapLayers = {
@@ -44,6 +85,30 @@ class RoadbookApp {
             satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
                 attribution: 'Tiles © Esri',
                 maxZoom: 19
+            }),
+            // 高德地图矢量地图 - 无需key，直接访问瓦片
+            gaode: L.tileLayer('https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=7&x={x}&y={y}&z={z}', {
+                attribution: '© 高德地图',
+                maxZoom: 19,
+                subdomains: ['1', '2', '3', '4']
+            }),
+            // 高德地图卫星图 - 无需key，直接访问瓦片
+            gaode_satellite: L.tileLayer('https://webst0{s}.is.autonavi.com/appmaptile?style=6&x={x}&y={y}&z={z}', {
+                attribution: '© 高德地图',
+                maxZoom: 19,
+                subdomains: ['1', '2', '3', '4']
+            }),
+            // Google地图 - 无需key，直接访问瓦片
+            google: L.tileLayer('https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
+                attribution: '© Google Maps',
+                maxZoom: 19,
+                subdomains: ['0', '1', '2', '3']
+            }),
+            // Google地图卫星图 - 无需key，直接访问瓦片
+            google_satellite: L.tileLayer('https://mt{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
+                attribution: '© Google Maps',
+                maxZoom: 19,
+                subdomains: ['0', '1', '2', '3']
             })
         };
 
@@ -107,10 +172,10 @@ class RoadbookApp {
             });
         }
 
-        const mapModeBtn = document.getElementById('mapModeBtn');
-        if (mapModeBtn) {
-            mapModeBtn.addEventListener('click', () => {
-                this.switchMapMode();
+        const mapSourceSelect = document.getElementById('mapSourceSelect');
+        if (mapSourceSelect) {
+            mapSourceSelect.addEventListener('change', (e) => {
+                this.switchMapSource(e.target.value);
             });
         }
 
@@ -198,7 +263,7 @@ class RoadbookApp {
                 if (this.currentConnection) {
                     document.querySelectorAll('.transport-btn').forEach(b => b.classList.remove('active'));
                     btn.classList.add('active');
-                    
+
                     // 更新当前连接线的交通方式
                     const transportType = btn.dataset.transport;
                     this.updateConnectionTransport(this.currentConnection, transportType);
@@ -219,7 +284,7 @@ class RoadbookApp {
             btn.addEventListener('click', () => {
                 document.querySelectorAll('.transport-btn').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
-                
+
                 // 更新隐藏的select值
                 const transportType = btn.dataset.transport;
                 document.getElementById('transportType').value = transportType;
@@ -255,7 +320,7 @@ class RoadbookApp {
             btn.addEventListener('click', () => {
                 document.querySelectorAll('.transport-btn').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
-                
+
                 // 更新隐藏的select值
                 const transportType = btn.dataset.transport;
                 document.getElementById('transportType').value = transportType;
@@ -307,36 +372,48 @@ class RoadbookApp {
         });
     }
 
-    updateMapModeButton() {
-        // 更新按钮文本
-        const mapModeBtn = document.getElementById('mapModeBtn');
-        const layerNames = {
-            osm: '切换地图',
-            satellite: '卫星图'
-        };
-
-        if (mapModeBtn) {
-            mapModeBtn.textContent = layerNames[this.currentLayer] || '切换地图';
+    switchMapSource(newSource) {
+        if (!this.mapLayers[newSource]) {
+            console.error('不支持的地图源:', newSource);
+            return;
         }
-    }
 
-    switchMapMode() {
         // 移除当前图层
         this.map.removeLayer(this.mapLayers[this.currentLayer]);
 
-        // 循环切换到下一个图层
-        const layerKeys = Object.keys(this.mapLayers);
-        const currentIndex = layerKeys.indexOf(this.currentLayer);
-        const nextIndex = (currentIndex + 1) % layerKeys.length;
-        this.currentLayer = layerKeys[nextIndex];
-
-        // 添加新的图层
+        // 切换到新图层
+        this.currentLayer = newSource;
         this.mapLayers[this.currentLayer].addTo(this.map);
 
-        // 更新按钮文本
-        this.updateMapModeButton();
+        // 更新搜索框状态
+        this.updateSearchInputState();
 
-        console.log('地图模式已切换到:', this.currentLayer);
+        console.log('地图源已切换到:', newSource);
+    }
+
+    updateSearchInputState() {
+        const searchInput = document.getElementById('searchInput');
+        const currentMapConfig = this.mapSearchConfig[this.currentLayer];
+
+        if (searchInput && currentMapConfig) {
+            if (currentMapConfig.searchable) {
+                // 启用搜索框
+                searchInput.disabled = false;
+                searchInput.placeholder = '搜索地点...';
+                searchInput.style.opacity = '1';
+            } else {
+                // 禁用搜索框
+                searchInput.disabled = true;
+                searchInput.placeholder = `当前地图(${currentMapConfig.name})不支持搜索`;
+                searchInput.style.opacity = '0.6';
+
+                // 隐藏搜索结果
+                const searchResults = document.getElementById('searchResults');
+                if (searchResults) {
+                    searchResults.style.display = 'none';
+                }
+            }
+        }
     }
 
     setMode(mode) {
@@ -461,9 +538,9 @@ class RoadbookApp {
         const selectedOption = document.querySelector('.icon-option.selected');
         const customIcon = document.getElementById('customIcon').value.trim();
         const iconColor = document.getElementById('iconColor').value;
-        
+
         let newIconConfig;
-        
+
         if (customIcon) {
             // 使用自定义图标
             newIconConfig = {
@@ -477,7 +554,7 @@ class RoadbookApp {
             const iconPreview = selectedOption.querySelector('.icon-preview');
             const icon = iconPreview.textContent;
             const color = iconPreview.style.backgroundColor;
-            
+
             newIconConfig = {
                 type: iconType,
                 icon: icon,
@@ -488,25 +565,25 @@ class RoadbookApp {
             this.closeModals();
             return;
         }
-        
+
         // 如果有当前标记点，更新其图标
         if (this.currentMarker) {
             this.currentMarker.icon = newIconConfig;
-            
+
             // 重新创建标记点图标
             const newIcon = this.createMarkerIcon(newIconConfig, this.markers.indexOf(this.currentMarker) + 1);
             this.currentMarker.marker.setIcon(newIcon);
-            
+
             // 更新预览
             this.updateCurrentIconPreview(newIconConfig);
-            
+
             console.log(`标记点"${this.currentMarker.title}"图标已更新:`, newIconConfig);
         } else {
             // 如果没有当前标记点，设置为默认图标（用于新标记点）
             this.currentIcon = newIconConfig;
             console.log('默认图标已设置:', newIconConfig);
         }
-        
+
         this.closeModals();
     }
 
@@ -701,10 +778,10 @@ class RoadbookApp {
     createMarkerIcon(iconConfig, _number) {
         const icon = iconConfig.icon || '📍';
         const color = iconConfig.color || '#667eea';
-        
+
         // 用户选择什么就显示什么，不自动添加数字
         const displayContent = icon;
-        
+
         return L.divIcon({
             className: 'custom-marker',
             html: `<div style="background-color: ${color}; width: 30px; height: 30px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 10px rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 14px;">${displayContent}</div>`,
@@ -722,25 +799,25 @@ class RoadbookApp {
         const hours = String(now.getHours()).padStart(2, '0');
         const minutes = String(now.getMinutes()).padStart(2, '0');
         const seconds = String(now.getSeconds()).padStart(2, '0');
-        
+
         return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
     }
 
     getLocalDateTimeForInput(dateTimeString) {
         // 将日期时间字符串转换为datetime-local输入框需要的格式
         if (!dateTimeString) return '';
-        
+
         try {
             const date = new Date(dateTimeString);
             if (isNaN(date.getTime())) return '';
-            
+
             // 获取本地时间的各个部分
             const year = date.getFullYear();
             const month = String(date.getMonth() + 1).padStart(2, '0');
             const day = String(date.getDate()).padStart(2, '0');
             const hours = String(date.getHours()).padStart(2, '0');
             const minutes = String(date.getMinutes()).padStart(2, '0');
-            
+
             return `${year}-${month}-${day}T${hours}:${minutes}`;
         } catch (error) {
             console.error('日期时间转换错误:', error);
@@ -1261,14 +1338,64 @@ class RoadbookApp {
             return;
         }
 
-        // 使用Nominatim API进行地理编码
-        const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=10`;
+        // 检查当前地图是否支持搜索
+        const currentMapConfig = this.mapSearchConfig[this.currentLayer];
+        if (!currentMapConfig || !currentMapConfig.searchable) {
+            // 显示地图不支持搜索的提示
+            const searchResults = document.getElementById('searchResults');
+            if (searchResults) {
+                const resultsList = document.getElementById('resultsList');
+                if (resultsList) {
+                    resultsList.innerHTML = `<li style="padding: 12px 15px; color: #999; cursor: default;">当前地图(${currentMapConfig.name})不支持地点搜索，请切换到OpenStreetMap</li>`;
+                }
+                searchResults.style.display = 'block';
+            }
+            return;
+        }
 
-        fetch(url)
-            .then(response => response.json())
+        // 使用当前地图配置的搜索服务
+        const searchConfig = currentMapConfig;
+        let url, searchPromise;
+
+        if (searchConfig.parser === 'overpass') {
+            // 构建Overpass API查询 - 使用英文搜索
+            const overpassQuery = `[out:json];(
+                node['name:en'~'${query}',i]['place'~'city|town|village'];
+                node['name:zh'~'${query}',i]['place'~'city|town|village'];
+                node['name'~'${query}',i]['place'~'city|town|village'];
+                way['name:en'~'${query}',i]['place'~'city|town|village'];
+                way['name:zh'~'${query}',i]['place'~'city|town|village'];
+                way['name'~'${query}',i]['place'~'city|town|village'];
+                relation['name:en'~'${query}',i]['place'~'city|town|village'];
+                relation['name:zh'~'${query}',i]['place'~'city|town|village'];
+                relation['name'~'${query}',i]['place'~'city|town|village'];
+            );out center;`;
+
+            url = `${searchConfig.searchUrl}?data=${encodeURIComponent(overpassQuery)}`;
+            searchPromise = fetch(url).then(response => response.json()).then(data => {
+                if (data && data.elements && data.elements.length > 0) {
+                    return this.convertOverpassToSearchResults(data.elements);
+                }
+                return [];
+            });
+        } else {
+            // 原有的Nominatim/Photon搜索逻辑
+            const params = new URLSearchParams({
+                ...searchConfig.params,
+                q: query
+            });
+
+            url = `${searchConfig.searchUrl}?${params.toString()}`;
+            searchPromise = fetch(url).then(response => response.json());
+        }
+
+        searchPromise
             .then(data => {
                 if (data && data.length > 0) {
                     this.showSearchResults(data);
+                } else if (data && data.features && data.features.length > 0) {
+                    // Photon服务返回的是GeoJSON格式
+                    this.showPhotonSearchResults(data.features);
                 } else {
                     // 没有找到结果，显示提示
                     const searchResults = document.getElementById('searchResults');
@@ -1293,6 +1420,133 @@ class RoadbookApp {
                     searchResults.style.display = 'block';
                 }
             });
+    }
+
+    // 显示Photon搜索结果下拉框
+    showPhotonSearchResults(features) {
+        const searchResults = document.getElementById('searchResults');
+        const resultsList = document.getElementById('resultsList');
+
+        if (!searchResults || !resultsList) return;
+
+        // 清空现有结果
+        resultsList.innerHTML = '';
+
+        // 添加搜索结果到列表
+        features.forEach((feature) => {
+            const li = document.createElement('li');
+            const name = feature.properties.name || feature.properties.street || '未知地点';
+            const city = feature.properties.city || '';
+            const country = feature.properties.country || '';
+
+            let address = '';
+            if (city && country) {
+                address = `${city}, ${country}`;
+            } else if (city) {
+                address = city;
+            } else if (country) {
+                address = country;
+            }
+
+            li.innerHTML = `
+                <div class="result-title">${name}</div>
+                <div class="result-address">${address || '地点'}</div>
+            `;
+
+            // 添加点击事件
+            li.addEventListener('click', () => {
+                this.selectPhotonSearchResult(feature);
+            });
+
+            resultsList.appendChild(li);
+        });
+
+        // 显示搜索结果下拉框
+        searchResults.style.display = 'block';
+    }
+
+    // 选择Photon搜索结果
+    selectPhotonSearchResult(feature) {
+        const coordinates = feature.geometry.coordinates;
+        const lat = coordinates[1];
+        const lon = coordinates[0];
+
+        if (!isNaN(lat) && !isNaN(lon)) {
+            // 聚焦到搜索结果位置
+            this.map.setView([lat, lon], 15); // 缩放级别15适合城市级别
+
+            // 在搜索结果位置添加一个临时标记点来显示结果
+            if (this.searchMarker) {
+                this.map.removeLayer(this.searchMarker);
+            }
+
+            const name = feature.properties.name || feature.properties.street || '搜索结果';
+            this.searchMarker = L.marker([lat, lon])
+                .addTo(this.map)
+                .bindPopup(name)
+                .openPopup();
+
+            // 3秒后自动关闭弹窗
+            if (this.searchPopupTimeout) {
+                clearTimeout(this.searchPopupTimeout);
+            }
+            this.searchPopupTimeout = setTimeout(() => {
+                if (this.searchMarker) {
+                    this.map.closePopup(this.searchMarker.getPopup());
+                }
+                this.searchPopupTimeout = null;
+            }, 3000);
+
+            // 隐藏搜索结果下拉框
+            const searchResults = document.getElementById('searchResults');
+            if (searchResults) {
+                searchResults.style.display = 'none';
+            }
+
+            console.log(`已选择Photon搜索结果: ${name} (${lat}, ${lon})`);
+        } else {
+            alert('未能获取有效的地理位置信息');
+        }
+    }
+
+    // 转换Overpass API结果为标准格式
+    convertOverpassToSearchResults(elements) {
+        return elements.map(element => {
+            let lat, lon, name, display_name;
+
+            if (element.type === 'node') {
+                lat = element.lat;
+                lon = element.lon;
+            } else if (element.type === 'way' || element.type === 'relation') {
+                // 对于way和relation，使用center坐标
+                if (element.center) {
+                    lat = element.center.lat;
+                    lon = element.center.lon;
+                }
+            }
+
+            // 获取名称
+            if (element.tags) {
+                name = element.tags.name || element.tags['name:zh'] || element.tags['name:en'] || '未知地点';
+
+                // 构建显示名称
+                display_name = name;
+                if (element.tags['addr:city']) {
+                    display_name += `, ${element.tags['addr:city']}`;
+                }
+                if (element.tags['addr:country']) {
+                    display_name += `, ${element.tags['addr:country']}`;
+                }
+            }
+
+            return {
+                lat: lat,
+                lon: lon,
+                display_name: display_name || name,
+                name: name,
+                type: element.tags && element.tags.place ? element.tags.place : 'unknown'
+            };
+        }).filter(result => result.lat && result.lon); // 只保留有坐标的结果
     }
 
     // 显示搜索结果下拉框
@@ -1847,13 +2101,13 @@ class RoadbookApp {
 
     updateConnectionTransport(connection, transportType) {
         if (!connection) return;
-        
+
         // 更新连接线的交通方式
         connection.transportType = transportType;
-        
+
         // 更新地图上的连接线
         this.updateConnectionVisual(connection);
-        
+
         console.log(`连接线交通方式已更新: ${transportType}`);
     }
 
