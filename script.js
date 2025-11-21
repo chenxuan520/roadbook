@@ -23,8 +23,264 @@ class RoadbookApp {
         this.currentConnection = null; // 当前选中的连接线
         this.filterMode = false; // 是否处于筛选模式
         this.filteredDate = null; // 当前筛选的日期
+        this.history = []; // 操作历史栈
+        this.historyLimit = 50; // 历史记录最大数量
 
         this.init();
+    }
+
+    // 添加方法到类中
+    addHistory(operation, data) {
+        // 记录操作到历史栈
+        this.history.push({
+            operation: operation,
+            data: data,
+            timestamp: Date.now()
+        });
+
+        // 限制历史记录数量
+        if (this.history.length > this.historyLimit) {
+            this.history.shift(); // 移除最旧的记录
+        }
+    }
+
+    // 撤销操作
+    undo() {
+        if (this.history.length === 0) {
+            console.log('没有可撤销的操作');
+            return false;
+        }
+
+        const lastOperation = this.history.pop();
+
+        switch (lastOperation.operation) {
+            case 'addMarker':
+                return this.undoAddMarker(lastOperation.data);
+            case 'removeMarker':
+                return this.undoRemoveMarker(lastOperation.data);
+            case 'addConnection':
+                return this.undoAddConnection(lastOperation.data);
+            case 'removeConnection':
+                return this.undoRemoveConnection(lastOperation.data);
+            case 'moveMarker':
+                return this.undoMoveMarker(lastOperation.data);
+            default:
+                console.error('未知的操作类型:', lastOperation.operation);
+                return false;
+        }
+    }
+
+    undoAddMarker(data) {
+        // 查找要撤销的标记点
+        const markerIndex = this.markers.findIndex(m => m.id === data.id);
+        if (markerIndex !== -1) {
+            const marker = this.markers[markerIndex];
+            this.removeMarker(marker);
+            console.log(`已撤销添加标记点: ${data.title}`);
+            return true;
+        }
+        console.warn('找不到要撤销的标记点:', data);
+        return false;
+    }
+
+    undoRemoveMarker(data) {
+        // 重新添加标记点
+        const icon = this.createMarkerIcon(data.icon, this.markers.length + 1);
+
+        const marker = L.marker([data.position[0], data.position[1]], {
+            icon: icon,
+            draggable: true,
+            title: data.title
+        }).addTo(this.map);
+
+        const markerData = {
+            id: data.id,
+            marker: marker,
+            position: data.position,
+            title: data.title,
+            labels: data.labels || [],
+            icon: data.icon,
+            createdAt: data.createdAt,
+            dateTimes: data.dateTimes || [data.dateTime],
+            dateTime: data.dateTimes ? data.dateTimes[0] : data.dateTime
+        };
+
+        this.markers.push(markerData);
+
+        // 添加事件监听
+        marker.on('click', () => {
+            this.showMarkerDetail(markerData);
+        });
+
+        marker.on('contextmenu', (e) => {
+            e.preventDefault();
+            this.showMarkerContextMenu(markerData);
+        });
+
+        marker.on('mouseover', (e) => {
+            this.showMarkerTooltip(markerData, e.latlng);
+        });
+
+        marker.on('mouseout', () => {
+            this.hideMarkerTooltip();
+        });
+
+        marker.on('dragend', (e) => {
+            const newPos = e.target.getLatLng();
+            markerData.position = [newPos.lat, newPos.lng];
+
+            // 更新连接线
+            this.updateConnections();
+            // 更新标注位置
+            this.updateLabels();
+
+            // 如果当前标记点正在详情面板中显示，更新坐标显示
+            if (this.currentMarker === markerData) {
+                const markerCoords = document.getElementById('markerCoords');
+                if (markerCoords) {
+                    markerCoords.textContent = `${newPos.lng.toFixed(6)}, ${newPos.lat.toFixed(6)}`;
+                }
+            }
+
+            // 更新标记点列表中的坐标显示
+            this.updateMarkerList();
+
+            // 保存到本地存储
+            this.saveToLocalStorage();
+        });
+
+        console.log(`已撤销删除标记点: ${data.title}`);
+        return true;
+    }
+
+    undoAddConnection(data) {
+        // 查找要撤销的连接线
+        const connectionIndex = this.connections.findIndex(c => c.id === data.id);
+        if (connectionIndex !== -1) {
+            const connection = this.connections[connectionIndex];
+            this.removeConnection(connection);
+            console.log('已撤销添加连接线');
+            return true;
+        }
+        console.warn('找不到要撤销的连接线:', data);
+        return false;
+    }
+
+    undoRemoveConnection(data) {
+        // 通过ID查找起始点和终点
+        const startMarker = this.markers.find(m => m.id === data.startId);
+        const endMarker = this.markers.find(m => m.id === data.endId);
+
+        if (!startMarker || !endMarker) {
+            console.error('连接线的起始点或终点不存在:', data.startId, data.endId);
+            return false;
+        }
+
+        // 创建连接线
+        const polyline = L.polyline([
+            [startMarker.position[0], startMarker.position[1]],
+            [endMarker.position[0], endMarker.position[1]]
+        ], {
+            color: this.getTransportColor(data.transportType),
+            weight: 6,
+            opacity: 1.0,
+            smoothFactor: 1.0
+        }).addTo(this.map);
+
+        // 添加终点标记（小圆点）
+        const endCircle = L.circleMarker([endMarker.position[0], endMarker.position[1]], {
+            radius: 6,
+            fillColor: this.getTransportColor(data.transportType),
+            color: '#fff',
+            weight: 2,
+            opacity: 1,
+            fillOpacity: 1
+        }).addTo(this.map);
+
+        // 创建箭头
+        const arrowHead = this.createArrowHead(startMarker.position, endMarker.position, data.transportType);
+        arrowHead.addTo(this.map);
+
+        // 计算中点位置并添加交通图标
+        const startLat = parseFloat(startMarker.position[0]);
+        const startLng = parseFloat(startMarker.position[1]);
+        const endLat = parseFloat(endMarker.position[0]);
+        const endLng = parseFloat(endMarker.position[1]);
+
+        if (isNaN(startLat) || isNaN(startLng) || isNaN(endLat) || isNaN(endLng)) {
+            console.error('连接线坐标无效:', startMarker.position, endMarker.position);
+            return false;
+        }
+
+        const midLat = (startLat + endLat) / 2;
+        const midLng = (startLng + endLng) / 2;
+        const transportIcon = this.getTransportIcon(data.transportType);
+
+        const iconMarker = L.marker([midLat, midLng], {
+            icon: L.divIcon({
+                className: 'transport-icon',
+                html: `<div style="background-color: white; border: 2px solid ${this.getTransportColor(data.transportType)}; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-size: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.3);">${transportIcon}</div>`,
+                iconSize: [30, 30],
+                iconAnchor: [15, 15]
+            })
+        }).addTo(this.map);
+
+        const connection = {
+            id: data.id,
+            startId: data.startId,
+            endId: data.endId,
+            transportType: data.transportType,
+            polyline: polyline,
+            endCircle: endCircle,
+            iconMarker: iconMarker,
+            arrowHead: arrowHead,
+            dateTime: data.dateTime || this.getCurrentLocalDateTime(),
+            label: data.label || '',
+            duration: data.duration || 0,
+            startTitle: data.startTitle || startMarker.title,
+            endTitle: data.endTitle || endMarker.title
+        };
+
+        // 添加连接线事件
+        const self = this;
+        polyline.on('click', function() {
+            self.showConnectionDetail(connection);
+        });
+
+        polyline.on('mouseover', function(e) {
+            self.showConnectionTooltip(connection, e.latlng);
+        });
+
+        polyline.on('mouseout', function() {
+            self.hideConnectionTooltip();
+        });
+
+        this.connections.push(connection);
+
+        console.log('已撤销删除连接线');
+        return true;
+    }
+
+    undoMoveMarker(data) {
+        // 查找标记点并恢复到之前的位置
+        const marker = this.markers.find(m => m.id === data.id);
+        if (marker) {
+            // 将标记点移回之前的位置
+            marker.marker.setLatLng([data.prevPosition[0], data.prevPosition[1]]);
+            marker.position = [...data.prevPosition];
+
+            // 更新连接线和标注位置
+            this.updateConnections();
+            this.updateLabels();
+
+            // 更新标记点列表
+            this.updateMarkerList();
+
+            console.log(`已撤销移动标记点 "${marker.title}" 到 ${data.prevPosition[1].toFixed(6)}, ${data.prevPosition[0].toFixed(6)}`);
+            return true;
+        }
+        console.warn('找不到要撤销移动的标记点:', data);
+        return false;
     }
 
     init() {
@@ -402,6 +658,58 @@ class RoadbookApp {
                 this.handleFitViewClick();
             });
         }
+
+        // 添加键盘事件监听器
+        document.addEventListener('keydown', (e) => {
+            // 检查是否按下Ctrl+Z（或Cmd+Z）且没有在输入框中输入
+            if ((e.ctrlKey || e.metaKey) && e.key === 'z' &&
+                !['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
+                e.preventDefault(); // 阻止浏览器默认的撤销操作
+                this.undo(); // 执行撤销
+            }
+            // 检查是否按下A键添加标记点
+            else if (e.key.toLowerCase() === 'a' &&
+                     !['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
+                e.preventDefault();
+                this.setMode('addMarker'); // 进入添加标记点模式
+            }
+            // 检查是否按下C键连接标记点
+            else if (e.key.toLowerCase() === 'c' &&
+                     !['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
+                e.preventDefault();
+                this.showConnectModal(); // 打开连接标记点界面
+            }
+            // 检查是否按下H键显示帮助
+            else if (e.key.toLowerCase() === 'h' &&
+                     !['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
+                e.preventDefault();
+                this.showHelpModal(); // 显示帮助弹窗
+            }
+        });
+
+        // 绑定帮助按钮事件
+        const helpBtn = document.getElementById('helpBtn');
+        if (helpBtn) {
+            helpBtn.addEventListener('click', () => {
+                this.showHelpModal();
+            });
+        }
+
+        // 绑定帮助模态框关闭事件
+        const closeHelp = document.getElementById('closeHelp');
+        if (closeHelp) {
+            closeHelp.addEventListener('click', () => {
+                this.closeHelpModal();
+            });
+        }
+
+        // 点击模态框外部关闭
+        window.addEventListener('click', (e) => {
+            const helpModal = document.getElementById('helpModal');
+            if (e.target === helpModal) {
+                this.closeHelpModal();
+            }
+        });
     }
 
     switchMapSource(newSource) {
@@ -521,9 +829,18 @@ class RoadbookApp {
         // 添加拖拽事件更新位置
         marker.on('dragend', (e) => {
             const newPos = e.target.getLatLng();
+            const oldPosition = [...markerData.position]; // 保存之前的位置
+
             markerData.position = [newPos.lat, newPos.lng]; // position[0] = lat, position[1] = lng
 
             console.log(`拖拽事件触发 - 标记点ID: ${markerData.id}, 新坐标: [${newPos.lat}, ${newPos.lng}]`);
+
+            // 记录移动操作到历史栈
+            this.addHistory('moveMarker', {
+                id: markerData.id,
+                prevPosition: oldPosition,
+                newPosition: [newPos.lat, newPos.lng]
+            });
 
             // 更新连接线
             this.updateConnections();
@@ -549,6 +866,17 @@ class RoadbookApp {
             // 保存到本地存储
             this.saveToLocalStorage();
             console.log(`拖拽后本地存储已保存`);
+        });
+
+        // 记录添加操作到历史栈
+        this.addHistory('addMarker', {
+            id: markerId,
+            position: [latlng.lat, latlng.lng],
+            title: `标记点${this.markers.length}`,
+            icon: defaultIcon,
+            createdAt: this.getCurrentLocalDateTime(),
+            dateTimes: [this.getCurrentLocalDateTime()],
+            dateTime: this.getCurrentLocalDateTime()
         });
 
         // 保存到本地存储
@@ -793,6 +1121,20 @@ class RoadbookApp {
         });
 
         this.connections.push(connection);
+
+        // 记录添加连接操作到历史栈
+        this.addHistory('addConnection', {
+            id: connection.id,
+            startId: connection.startId,
+            endId: connection.endId,
+            transportType: connection.transportType,
+            dateTime: connection.dateTime,
+            label: connection.label,
+            duration: connection.duration,
+            startTitle: connection.startTitle,
+            endTitle: connection.endTitle
+        });
+
         this.closeModals();
 
         // 保存到本地存储
@@ -2781,6 +3123,19 @@ class RoadbookApp {
     removeConnection(connection) {
         if (!connection) return;
 
+        // 记录删除连接操作到历史栈
+        this.addHistory('removeConnection', {
+            id: connection.id,
+            startId: connection.startId,
+            endId: connection.endId,
+            transportType: connection.transportType,
+            dateTime: connection.dateTime,
+            label: connection.label,
+            duration: connection.duration,
+            startTitle: connection.startTitle,
+            endTitle: connection.endTitle
+        });
+
         // 从地图上移除
         connection.polyline.remove();
         if (connection.endCircle) {
@@ -2801,6 +3156,18 @@ class RoadbookApp {
     }
 
     removeMarker(markerData) {
+        // 记录删除操作到历史栈
+        this.addHistory('removeMarker', {
+            id: markerData.id,
+            position: [...markerData.position],
+            title: markerData.title,
+            labels: [...markerData.labels], // 复制数组
+            icon: {...markerData.icon}, // 复制对象
+            createdAt: markerData.createdAt,
+            dateTimes: [...markerData.dateTimes],
+            dateTime: markerData.dateTime
+        });
+
         // 删除标记点
         markerData.marker.remove();
         // 标注不再直接显示，无需删除
@@ -3230,6 +3597,14 @@ class RoadbookApp {
             this.removeConnection(this.currentConnection);
             this.hideConnectionDetail();
         }
+    }
+
+    showHelpModal() {
+        document.getElementById('helpModal').style.display = 'block';
+    }
+
+    closeHelpModal() {
+        document.getElementById('helpModal').style.display = 'none';
     }
 
     closeModals() {
