@@ -390,6 +390,14 @@ class RoadbookApp {
                 this.closeModals();
             }
         });
+
+        // 地图控制按钮事件 - 调整视窗按钮
+        const fitViewBtn = document.getElementById('fitViewBtn');
+        if (fitViewBtn) {
+            fitViewBtn.addEventListener('click', () => {
+                this.handleFitViewClick();
+            });
+        }
     }
 
     switchMapSource(newSource) {
@@ -1590,6 +1598,29 @@ class RoadbookApp {
         });
     }
 
+    // 处理调整视窗按钮点击事件
+    handleFitViewClick() {
+        console.log('用户点击了调整视窗按钮');
+        
+        const fitViewBtn = document.getElementById('fitViewBtn');
+        if (fitViewBtn) {
+            // 添加点击动画效果
+            fitViewBtn.classList.add('active');
+            fitViewBtn.classList.add('rotating');
+            
+            setTimeout(() => {
+                fitViewBtn.classList.remove('active');
+            }, 600);
+            
+            setTimeout(() => {
+                fitViewBtn.classList.remove('rotating');
+            }, 1000);
+        }
+        
+        // 执行视窗调整
+        this.autoFitMapView();
+    }
+
     // 更新筛选模式下的标记点列表
     updateMarkerListForFilter() {
         const listContainer = document.getElementById('markerList');
@@ -1791,6 +1822,11 @@ class RoadbookApp {
 
                 // 直接加载本地缓存数据，不显示导入提示
                 this.loadRoadbook(data, false);
+                
+                // 延迟执行自动调整视窗，确保所有元素都已渲染
+                setTimeout(() => {
+                    this.autoFitMapView();
+                }, 500);
             } else {
                 console.log('没有找到本地缓存数据');
             }
@@ -2419,6 +2455,9 @@ class RoadbookApp {
         if (isImport) {
             alert(`路书导入成功！\n标记点: ${markerCount} 个\n连接线: ${connectionCount} 条`);
         }
+
+        // 自动调整视窗以包含所有元素
+        this.autoFitMapView();
     }
 
     // 为标记点创建标注的辅助方法
@@ -2436,6 +2475,108 @@ class RoadbookApp {
 
         marker.labels.push(labelMarker);
         this.labels.push({ marker: marker, label: labelMarker, content: content });
+    }
+
+    // 自动调整地图视窗以包含所有元素
+    autoFitMapView() {
+        if (this.markers.length === 0 && this.connections.length === 0) {
+            console.log('没有标记点和连接线，保持默认视窗');
+            return;
+        }
+
+        console.log('开始自动调整地图视窗，标记点数量:', this.markers.length, '连接线数量:', this.connections.length);
+
+        try {
+            // 创建边界对象
+            const bounds = L.latLngBounds();
+            let hasValidPoints = false;
+
+            // 添加所有标记点的坐标到边界
+            this.markers.forEach(marker => {
+                if (marker.position && marker.position.length >= 2) {
+                    const lat = parseFloat(marker.position[0]);
+                    const lng = parseFloat(marker.position[1]);
+                    if (!isNaN(lat) && !isNaN(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+                        bounds.extend([lat, lng]);
+                        hasValidPoints = true;
+                        console.log(`添加标记点到边界: [${lat}, ${lng}]`);
+                    } else {
+                        console.warn(`无效的标记点坐标: [${lat}, ${lng}]`);
+                    }
+                }
+            });
+
+            // 添加所有连接线的坐标到边界
+            this.connections.forEach(connection => {
+                if (connection.polyline) {
+                    try {
+                        const latlngs = connection.polyline.getLatLngs();
+                        if (Array.isArray(latlngs) && latlngs.length > 0) {
+                            latlngs.forEach(latlng => {
+                                if (latlng && typeof latlng.lat === 'number' && typeof latlng.lng === 'number') {
+                                    const lat = parseFloat(latlng.lat);
+                                    const lng = parseFloat(latlng.lng);
+                                    if (!isNaN(lat) && !isNaN(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+                                        bounds.extend([lat, lng]);
+                                        hasValidPoints = true;
+                                        console.log(`添加连接线点到边界: [${lat}, ${lng}]`);
+                                    }
+                                }
+                            });
+                        }
+                    } catch (err) {
+                        console.warn('获取连接线坐标失败:', err);
+                    }
+                }
+            });
+
+            // 检查是否有有效的点
+            if (!hasValidPoints) {
+                console.warn('没有找到有效的坐标点');
+                return;
+            }
+
+            // 检查边界是否有效
+            if (bounds.isValid()) {
+                // 计算合适的padding，根据标记点数量调整
+                const markerCount = this.markers.length + this.connections.length;
+                const basePadding = 50;
+                const additionalPadding = Math.min(markerCount * 10, 100); // 最多额外增加100像素
+                const padding = basePadding + additionalPadding;
+
+                console.log(`调整地图视窗到边界，使用padding: ${padding}px`);
+                
+                // 获取边界的中心点和建议缩放级别
+                const center = bounds.getCenter();
+                const zoom = this.map.getBoundsZoom(bounds, false, [padding, padding]);
+                
+                console.log(`边界中心点: [${center.lat}, ${center.lng}], 建议缩放级别: ${zoom}`);
+                
+                // 延迟执行以确保所有元素都已渲染
+                setTimeout(() => {
+                    try {
+                        this.map.fitBounds(bounds, {
+                            padding: [padding, padding],
+                            maxZoom: 16, // 最大缩放级别，避免过度放大
+                            minZoom: 3,  // 最小缩放级别，避免缩放过小
+                            animate: true,
+                            duration: 1.5, // 动画持续时间1.5秒
+                            easeLinearity: 0.25
+                        });
+                        
+                        console.log('地图视窗调整完成');
+                    } catch (err) {
+                        console.error('调整视窗时出错:', err);
+                    }
+                }, 400); // 400毫秒延迟，确保DOM完全更新
+                
+            } else {
+                console.warn('边界无效，无法调整视窗');
+            }
+            
+        } catch (error) {
+            console.error('自动调整视窗时出错:', error);
+        }
     }
 
     clearAll() {
