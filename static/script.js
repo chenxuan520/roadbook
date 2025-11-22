@@ -929,7 +929,17 @@ class RoadbookApp {
                 e.preventDefault();
                 const searchInput = document.getElementById('searchInput');
                 if (searchInput && !searchInput.disabled) {
+                    // 如果搜索框已有内容，则清空
+                    if (searchInput.value.trim() !== '') {
+                        searchInput.value = '';
+                    }
                     searchInput.focus();
+
+                    // 隐藏搜索结果下拉框
+                    const searchResults = document.getElementById('searchResults');
+                    if (searchResults) {
+                        searchResults.style.display = 'none';
+                    }
                 }
             }
         });
@@ -3915,7 +3925,26 @@ class RoadbookApp {
             this.currentMarker.dateTimes = [this.currentMarker.dateTime];
         }
 
-        const newDateTime = this.getCurrentLocalDateTime();
+        // 获取最后一个时间点，如果没有则使用当前时间
+        let lastDateTime = null;
+        if (this.currentMarker.dateTimes.length > 0) {
+            // 获取最后一个时间点
+            lastDateTime = new Date(this.currentMarker.dateTimes[this.currentMarker.dateTimes.length - 1]);
+        } else if (this.currentMarker.dateTime) {
+            lastDateTime = new Date(this.currentMarker.dateTime);
+        }
+
+        let newDateTime;
+        if (lastDateTime) {
+            // 将时间加一天，并将时分秒设置为00:00:00
+            lastDateTime.setDate(lastDateTime.getDate() + 1); // 加一天
+            lastDateTime.setHours(0, 0, 0, 0); // 设置为00:00:00
+            newDateTime = `${lastDateTime.getFullYear()}-${String(lastDateTime.getMonth() + 1).padStart(2, '0')}-${String(lastDateTime.getDate()).padStart(2, '0')} 00:00:00`;
+        } else {
+            // 如果没有上一个时间点，使用当前时间
+            newDateTime = this.getCurrentLocalDateTime();
+        }
+
         this.currentMarker.dateTimes.push(newDateTime);
 
         // 更新显示
@@ -4291,8 +4320,7 @@ class RoadbookApp {
         document.querySelectorAll('.modal').forEach(modal => {
             modal.style.display = 'none';
         });
-        // 也隐藏日期详情面板
-        this.closeDateDetail();
+        // 不再调用 closeDateDetail，因为关闭模态框不应该影响当前选中的标记点或连接
     }
 }
 
