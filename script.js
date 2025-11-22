@@ -292,7 +292,7 @@ class RoadbookApp {
             this.currentSearchMethod = cachedData.currentSearchMethod || 'auto';
         } else {
             // 否则使用默认设置
-            this.currentLayer = 'osm';
+            this.currentLayer = 'gaode';  // 改为高德地图
             this.currentSearchMethod = 'auto';
         }
 
@@ -301,6 +301,103 @@ class RoadbookApp {
         this.bindEvents();
         this.loadFromLocalStorage(); // 初始化时加载本地缓存
         this.updateSearchInputState(); // 初始化搜索框状态
+
+        // 检查是否是首次进入（没有标记点、连接线和日期备注）
+        const savedData = localStorage.getItem('roadbookData');
+        if (!savedData) {
+            // 首次进入，尝试获取用户位置并定位
+            this.locateUserAndFitView();
+        }
+    }
+
+    // 自动定位用户并聚焦到用户位置（仅在首次进入时）
+    locateUserAndFitView() {
+        if (!navigator.geolocation) {
+            console.log('浏览器不支持地理定位');
+            // 如果浏览器不支持定位，则使用默认位置（北京）
+            this.map.setView([39.90923, 116.397428], 10); // 北京天安门
+            return;
+        }
+
+        console.log('正在尝试获取用户位置...');
+
+        // 先显示一个加载提示
+        const loadingMessage = document.createElement('div');
+        loadingMessage.id = 'geolocation-loading';
+        loadingMessage.style.cssText = `
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 15px 25px;
+            border-radius: 8px;
+            z-index: 10000;
+            font-size: 16px;
+            text-align: center;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        `;
+        loadingMessage.innerHTML = `
+            <div style="margin-bottom: 8px;">📍 正在获取您的位置...</div>
+            <div style="font-size: 12px; opacity: 0.8;">请允许位置访问权限</div>
+        `;
+        document.body.appendChild(loadingMessage);
+
+        // 设置较短的超时时间来移除加载提示，避免UI阻塞
+        const timeoutId = setTimeout(() => {
+            const loadingEl = document.getElementById('geolocation-loading');
+            if (loadingEl) {
+                document.body.removeChild(loadingEl);
+                console.log('获取位置超时，使用默认位置');
+                // 超时后使用默认位置
+                this.map.setView([39.90923, 116.397428], 10); // 北京天安门
+            }
+        }, 3000); // 3秒超时
+
+        navigator.geolocation.getCurrentPosition(
+            // 成功回调
+            (position) => {
+                // 清除超时定时器
+                clearTimeout(timeoutId);
+
+                const { latitude, longitude } = position.coords;
+                console.log(`获取到用户位置: 纬度=${latitude}, 经度=${longitude}`);
+
+                // 移除加载提示
+                const loadingEl = document.getElementById('geolocation-loading');
+                if (loadingEl) {
+                    document.body.removeChild(loadingEl);
+                }
+
+                // 设置地图视图到用户位置，使用中等缩放级别
+                this.map.setView([latitude, longitude], 13);
+
+                console.log(`地图已定位到用户位置: [${latitude}, ${longitude}]`);
+            },
+            // 失败回调
+            (error) => {
+                // 清除超时定时器
+                clearTimeout(timeoutId);
+
+                console.log('获取用户位置失败:', error.message);
+
+                // 移除加载提示
+                const loadingEl = document.getElementById('geolocation-loading');
+                if (loadingEl) {
+                    document.body.removeChild(loadingEl);
+                }
+
+                // 获取失败时，使用默认位置（北京）
+                this.map.setView([39.90923, 116.397428], 10); // 北京天安门
+                console.log('使用默认位置（北京）');
+            },
+            {
+                enableHighAccuracy: false,  // 禁用高精度以加快响应（可能无法在某些环境下工作）
+                timeout: 2500,             // 2.5秒超时（略短于UI超时时间）
+                maximumAge: 60000          // 使用1分钟内的缓存位置
+            }
+        );
     }
 
     // 从缓存中只加载设置而不加载其他数据
