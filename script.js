@@ -284,10 +284,41 @@ class RoadbookApp {
     }
 
     init() {
+        // 先尝试从本地存储加载设置，以获取保存的地图源和搜索方式
+        const cachedData = this.loadSettingsFromCache();
+        if (cachedData) {
+            // 如果缓存中有数据，使用缓存的设置
+            this.currentLayer = cachedData.currentLayer || 'osm';
+            this.currentSearchMethod = cachedData.currentSearchMethod || 'auto';
+        } else {
+            // 否则使用默认设置
+            this.currentLayer = 'osm';
+            this.currentSearchMethod = 'auto';
+        }
+
+        // 现在初始化地图时会使用正确的设置
         this.initMap();
         this.bindEvents();
         this.loadFromLocalStorage(); // 初始化时加载本地缓存
         this.updateSearchInputState(); // 初始化搜索框状态
+    }
+
+    // 从缓存中只加载设置而不加载其他数据
+    loadSettingsFromCache() {
+        try {
+            const savedData = localStorage.getItem('roadbookData');
+            if (savedData) {
+                const data = JSON.parse(savedData);
+                // 只返回设置相关的信息
+                return {
+                    currentLayer: data.currentLayer,
+                    currentSearchMethod: data.currentSearchMethod
+                };
+            }
+        } catch (error) {
+            console.error('从本地存储加载设置失败:', error);
+        }
+        return null;
     }
 
     initMap() {
@@ -371,8 +402,8 @@ class RoadbookApp {
             })
         };
 
-        // 当前图层
-        this.currentLayer = 'osm';
+        // 添加当前图层到地图
+        // this.currentLayer 已经在 init() 方法中设置好了
         this.mapLayers[this.currentLayer].addTo(this.map);
 
         // 添加地图点击事件
@@ -383,11 +414,16 @@ class RoadbookApp {
         });
 
         // 添加地图右键点击事件，用于取消添加标记点状态
-        this.map.on('contextmenu', (e) => {
-            e.preventDefault(); // 防止默认右键菜单
+        this.map.on('contextmenu', () => {
             if (this.currentMode === 'addMarker') {
                 this.setMode('view'); // 取消添加标记点状态
             }
+        });
+
+        // 在地图容器DOM元素上添加右键事件监听器以阻止默认菜单
+        const mapContainer = this.map.getContainer();
+        mapContainer.addEventListener('contextmenu', (e) => {
+            e.preventDefault(); // 阻止浏览器默认右键菜单
         });
     }
 
@@ -434,9 +470,12 @@ class RoadbookApp {
         const mapSourceSelect = document.getElementById('mapSourceSelect');
         if (mapSourceSelect) {
             mapSourceSelect.addEventListener('change', (e) => {
-                this.switchMapSource(e.target.value);
-                // 保存到本地存储以确保刷新后状态保持
-                this.saveToLocalStorage();
+                // 只有在不是UI更新时才执行切换和保存操作
+                if (!this.updatingUI) {
+                    this.switchMapSource(e.target.value);
+                    // 保存到本地存储以确保刷新后状态保持
+                    this.saveToLocalStorage();
+                }
             });
         }
 
@@ -479,10 +518,13 @@ class RoadbookApp {
         const searchMethodSelect = document.getElementById('searchMethodSelect');
         if (searchMethodSelect) {
             searchMethodSelect.addEventListener('change', (e) => {
-                this.currentSearchMethod = e.target.value;
-                console.log(`搜索方式已切换为: ${this.currentSearchMethod}`);
-                // 保存到本地存储以确保刷新后状态保持
-                this.saveToLocalStorage();
+                // 只有在不是UI更新时才执行切换和保存操作
+                if (!this.updatingUI) {
+                    this.currentSearchMethod = e.target.value;
+                    console.log(`搜索方式已切换为: ${this.currentSearchMethod}`);
+                    // 保存到本地存储以确保刷新后状态保持
+                    this.saveToLocalStorage();
+                }
             });
         }
 
@@ -679,11 +721,32 @@ class RoadbookApp {
                 e.preventDefault();
                 this.showConnectModal(); // 打开连接标记点界面
             }
-            // 检查是否按下H键显示帮助
-            else if (e.key.toLowerCase() === 'h' &&
+            // 检查是否按下H键或?键显示帮助
+            else if ((e.key.toLowerCase() === 'h' || e.key === '?') &&
                      !['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
                 e.preventDefault();
                 this.showHelpModal(); // 显示帮助弹窗
+            }
+            // 检查是否按下D键删除选中的标记点或连接线
+            else if (e.key.toLowerCase() === 'd' &&
+                     !['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
+                e.preventDefault();
+                this.deleteCurrentElement(); // 删除当前选中的元素
+            }
+            // 检查是否按下F键自动调整视窗
+            else if (e.key.toLowerCase() === 'f' &&
+                     !['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
+                e.preventDefault();
+                this.handleFitViewClick(); // 执行视窗调整（与右上角按钮相同的功能）
+            }
+            // 检查是否按下/键聚焦到搜索框
+            else if (e.key === '/' &&
+                     !['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
+                e.preventDefault();
+                const searchInput = document.getElementById('searchInput');
+                if (searchInput && !searchInput.disabled) {
+                    searchInput.focus();
+                }
             }
         });
 
@@ -2180,26 +2243,26 @@ class RoadbookApp {
                 this.loadRoadbook(data, false);
 
                 // 恢复地图源和搜索方式（如果存在）
+                // 注意：我们先更新内部状态，然后再更新UI，避免触发change事件
                 if (data.currentLayer) {
-                    this.switchMapSource(data.currentLayer);
+                    this.currentLayer = data.currentLayer; // 先更新内部状态
+                    this.switchMapSourceWithoutSaving(data.currentLayer); // 然后切换图层
                 }
 
                 if (data.currentSearchMethod) {
                     this.currentSearchMethod = data.currentSearchMethod;
                 }
 
-                // 确保UI下拉框显示正确的值
-                setTimeout(() => {
-                    const mapSourceSelect = document.getElementById('mapSourceSelect');
-                    if (mapSourceSelect) {
-                        mapSourceSelect.value = data.currentLayer || this.currentLayer || 'osm';
-                    }
+                // 标记正在更新UI，避免触发保存事件
+                this.updatingUI = true;
 
-                    const searchMethodSelect = document.getElementById('searchMethodSelect');
-                    if (searchMethodSelect) {
-                        searchMethodSelect.value = data.currentSearchMethod || this.currentSearchMethod || 'auto';
-                    }
-                }, 0); // 立即执行，确保UI更新
+                // 确保UI下拉框立即显示正确的值，但要避免触发change事件
+                this.updateUISelectsNoEvent(data.currentLayer, data.currentSearchMethod);
+
+                // 延迟清除标记，确保UI更新完成
+                setTimeout(() => {
+                    this.updatingUI = false;
+                }, 100);
 
                 // 延迟执行自动调整视窗，确保所有元素都已渲染
                 setTimeout(() => {
@@ -2209,20 +2272,63 @@ class RoadbookApp {
                 console.log('没有找到本地缓存数据');
 
                 // 确保UI下拉框显示默认值
-                setTimeout(() => {
-                    const mapSourceSelect = document.getElementById('mapSourceSelect');
-                    if (mapSourceSelect) {
-                        mapSourceSelect.value = this.currentLayer || 'osm';
-                    }
-
-                    const searchMethodSelect = document.getElementById('searchMethodSelect');
-                    if (searchMethodSelect) {
-                        searchMethodSelect.value = this.currentSearchMethod || 'auto';
-                    }
-                }, 0); // 立即执行，确保UI更新
+                this.updateUISelectsNoEvent(this.currentLayer, this.currentSearchMethod);
             }
         } catch (error) {
             console.error('从本地存储加载数据失败:', error);
+        }
+    }
+
+    // 不保存到本地存储的切换地图源方法，避免在加载缓存时触发事件
+    switchMapSourceWithoutSaving(newSource) {
+        if (!this.mapLayers[newSource]) {
+            console.error('不支持的地图源:', newSource);
+            return;
+        }
+
+        // 移除当前图层
+        if (this.currentLayer && this.mapLayers[this.currentLayer]) {
+            this.map.removeLayer(this.mapLayers[this.currentLayer]);
+        }
+
+        // 切换到新图层
+        this.currentLayer = newSource;
+        this.mapLayers[this.currentLayer].addTo(this.map);
+
+        // 更新搜索框状态
+        this.updateSearchInputState();
+
+        console.log('地图源已切换到:', newSource);
+    }
+
+    // 更新UI下拉框的辅助方法，不触发事件
+    updateUISelectsNoEvent(currentLayer, currentSearchMethod) {
+        // 确保DOM元素存在后再更新
+        if (document.readyState === 'loading') {
+            // 如果DOM还未完全加载，等待加载完成
+            document.addEventListener('DOMContentLoaded', () => {
+                this.setSelectValuesNoEvent(currentLayer, currentSearchMethod);
+            });
+        } else {
+            // DOM已加载，直接更新
+            this.setSelectValuesNoEvent(currentLayer, currentSearchMethod);
+        }
+    }
+
+    // 设置下拉框值的辅助方法，不触发change事件
+    setSelectValuesNoEvent(currentLayer, currentSearchMethod) {
+        const mapSourceSelect = document.getElementById('mapSourceSelect');
+        if (mapSourceSelect) {
+            // 使用传入的值或当前值或默认值
+            const layer = currentLayer || this.currentLayer || 'osm';
+            mapSourceSelect.value = layer;
+        }
+
+        const searchMethodSelect = document.getElementById('searchMethodSelect');
+        if (searchMethodSelect) {
+            // 使用传入的值或当前值或默认值
+            const method = currentSearchMethod || this.currentSearchMethod || 'auto';
+            searchMethodSelect.value = method;
         }
     }
 
@@ -3605,6 +3711,18 @@ class RoadbookApp {
 
     closeHelpModal() {
         document.getElementById('helpModal').style.display = 'none';
+    }
+
+    // 删除当前选中的元素（标记点或连接线）
+    deleteCurrentElement() {
+        if (this.currentMarker) {
+            // 如果当前选中的是标记点，执行删除标记点操作
+            this.deleteCurrentMarker();
+        } else if (this.currentConnection) {
+            // 如果当前选中的是连接线，执行删除连接线操作
+            this.deleteCurrentConnection();
+        }
+        // 如果都没有选中，不执行任何操作
     }
 
     closeModals() {
