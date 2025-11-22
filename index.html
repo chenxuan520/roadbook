@@ -13,6 +13,7 @@
             <div class="header-top">
                 <h1>路书制作工具</h1>
             </div>
+            <!-- 日期备注便签 -->
             <div class="search-toolbar">
                 <div class="search-box">
                     <input type="text" id="searchInput" placeholder="搜索地点...">
@@ -56,6 +57,14 @@
                     <button id="helpBtn" class="help-btn" title="帮助">
                         ❓
                     </button>
+                </div>
+                <!-- 日期备注便签 -->
+                <div id="dateNotesSticky" class="date-notes-sticky" style="display: none;">
+                    <div class="date-notes-header">
+                        <span id="dateNotesDate"></span>
+                        <button id="closeDateNotesSticky" class="close-sticky-btn">×</button>
+                    </div>
+                    <div id="dateNotesContent" class="date-notes-content"></div>
                 </div>
             </div>
             <!-- GitHub链接 - 经典角标，覆盖在右上角 -->
@@ -171,6 +180,27 @@
                         <div class="detail-actions">
                             <button id="saveConnectionBtn" class="btn btn-primary">保存</button>
                             <button id="deleteConnectionBtn" class="btn btn-danger">删除</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 日期详情面板 -->
+                <div class="detail-panel" id="dateDetailPanel" style="display: none;">
+                    <div class="detail-header">
+                        <h3 id="dateDetailTitle">日期详情</h3>
+                        <button class="close-btn" id="closeDateDetailBtn">&times;</button>
+                    </div>
+                    <div class="detail-content">
+                        <div class="form-group">
+                            <label>日期:</label>
+                            <div id="dateDisplay"></div>
+                        </div>
+                        <div class="form-group">
+                            <label>日期备注:</label>
+                            <textarea id="dateNotesInput" rows="5" placeholder="请输入日期备注信息"></textarea>
+                        </div>
+                        <div class="detail-actions">
+                            <button id="saveDateNotesBtn" class="btn btn-primary">保存备注</button>
                         </div>
                     </div>
                 </div>

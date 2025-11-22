@@ -1380,3 +1380,75 @@ input[type="color"] {
     display: block;
     font-size: 12px;
 }
+
+/* 日期备注便签样式 */
+.date-notes-sticky {
+    position: absolute;
+    top: 10px; /* 恢复原始位置 */
+    left: 10px;
+    z-index: 2000; /* 提高z-index值以覆盖Leaflet控件 */
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    width: 250px;
+    max-height: 300px;
+    display: flex;
+    flex-direction: column;
+    backdrop-filter: blur(10px);
+    background: rgba(255, 255, 255, 0.95);
+}
+
+/* 确保地图容器为相对定位以便定位便签 */
+#mapContainer {
+    position: relative;
+}
+
+.date-notes-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 15px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 8px 8px 0 0;
+    font-size: 0.9rem;
+}
+
+.close-sticky-btn {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 0;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: background-color 0.3s ease;
+}
+
+.close-sticky-btn:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+}
+
+.date-notes-content {
+    padding: 15px;
+    overflow-y: auto;
+    max-height: 200px;
+    font-size: 0.9rem;
+    line-height: 1.4;
+    color: #333;
+    white-space: pre-wrap; /* 保持换行 */
+    word-wrap: break-word; /* 允许长单词换行 */
+}
+
+/* 当便签内容为空时的样式 */
+.date-notes-content:empty::before {
+    content: "暂无备注";
+    color: #999;
+    font-style: italic;
+}

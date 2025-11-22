@@ -766,6 +766,29 @@ class RoadbookApp {
             });
         }
 
+        // 日期详情面板事件
+        const closeDateDetailBtn = document.getElementById('closeDateDetailBtn');
+        if (closeDateDetailBtn) {
+            closeDateDetailBtn.addEventListener('click', () => {
+                this.closeDateDetail();
+            });
+        }
+
+        const saveDateNotesBtn = document.getElementById('saveDateNotesBtn');
+        if (saveDateNotesBtn) {
+            saveDateNotesBtn.addEventListener('click', () => {
+                this.saveDateNotes();
+            });
+        }
+
+        // 日期备注便签关闭按钮事件
+        const closeDateNotesSticky = document.getElementById('closeDateNotesSticky');
+        if (closeDateNotesSticky) {
+            closeDateNotesSticky.addEventListener('click', () => {
+                this.hideDateNotesSticky();
+            });
+        }
+
         // 点击模态框外部关闭
         window.addEventListener('click', (e) => {
             const helpModal = document.getElementById('helpModal');
@@ -1658,10 +1681,14 @@ class RoadbookApp {
                 <span class="marker-count">${markers.length} 个地点</span>
             `;
 
-            // 添加点击事件，点击日期分组进行筛选
+            // 添加点击事件，点击日期分组进行筛选并自动调整视窗，同时显示日期详情
             dateHeader.style.cursor = 'pointer';
             dateHeader.addEventListener('click', () => {
-                this.filterByDate(date);
+                this.filterByDate(date); // 执行筛选并自动调整视窗
+                // 在筛选后显示日期详情，这样用户可以编辑备注
+                setTimeout(() => {
+                    this.showDateDetail(date);
+                }, 300); // 延迟显示详情，让视窗调整完成
             });
 
             listContainer.appendChild(dateHeader);
@@ -1918,6 +1945,9 @@ class RoadbookApp {
 
         // 自动调整视窗以聚焦到筛选后的元素
         this.autoFitMapViewAfterFilter();
+
+        // 显示日期备注便签
+        this.showDateNotesSticky(date);
     }
 
     // 显示筛选模式提示
@@ -1949,6 +1979,33 @@ class RoadbookApp {
         document.querySelectorAll('.btn').forEach(btn => {
             btn.addEventListener('click', this.exitFilterModeClickHandler, true);
         });
+    }
+
+    // 显示日期备注便签
+    showDateNotesSticky(date) {
+        const sticky = document.getElementById('dateNotesSticky');
+        const dateElement = document.getElementById('dateNotesDate');
+        const contentElement = document.getElementById('dateNotesContent');
+
+        if (sticky && dateElement && contentElement) {
+            // 设置日期标题
+            dateElement.textContent = this.formatDateHeader(date);
+
+            // 获取日期备注
+            const notes = this.getDateNotes(date);
+            contentElement.textContent = notes || '暂无备注';
+
+            // 显示便签
+            sticky.style.display = 'flex';
+        }
+    }
+
+    // 隐藏日期备注便签
+    hideDateNotesSticky() {
+        const sticky = document.getElementById('dateNotesSticky');
+        if (sticky) {
+            sticky.style.display = 'none';
+        }
     }
 
     // 退出筛选模式的处理器
@@ -2008,6 +2065,9 @@ class RoadbookApp {
         document.querySelectorAll('.btn').forEach(btn => {
             btn.removeEventListener('click', this.exitFilterModeClickHandler, true);
         });
+
+        // 隐藏日期备注便签
+        this.hideDateNotesSticky();
 
         // 退出筛选模式后自动调整视窗以显示所有元素
         setTimeout(() => {
@@ -2200,7 +2260,8 @@ class RoadbookApp {
             labels: this.labels.map(l => ({
                 markerIndex: this.markers.indexOf(l.marker),
                 content: l.content
-            }))
+            })),
+            dateNotes: this.dateNotes || {} // 保存日期备注信息
         };
 
         try {
@@ -2241,6 +2302,13 @@ class RoadbookApp {
 
                 // 直接加载本地缓存数据，不显示导入提示
                 this.loadRoadbook(data, false);
+
+                // 加载日期备注信息
+                if (data.dateNotes) {
+                    this.dateNotes = data.dateNotes;
+                } else {
+                    this.dateNotes = {};
+                }
 
                 // 恢复地图源和搜索方式（如果存在）
                 // 注意：我们先更新内部状态，然后再更新UI，避免触发change事件
@@ -2707,7 +2775,8 @@ class RoadbookApp {
             labels: this.labels.map(l => ({
                 markerIndex: this.markers.indexOf(l.marker),
                 content: l.content
-            }))
+            })),
+            dateNotes: this.dateNotes || {} // 包含日期备注信息
         };
 
         const json = JSON.stringify(data, null, 2);
@@ -2954,6 +3023,13 @@ class RoadbookApp {
                     this.createLabelForMarker(marker, labelData.content);
                 }
             });
+        }
+
+        // 加载日期备注信息
+        if (data.dateNotes) {
+            this.dateNotes = data.dateNotes;
+        } else {
+            this.dateNotes = {};
         }
 
         this.updateMarkerList();
@@ -3725,10 +3801,105 @@ class RoadbookApp {
         // 如果都没有选中，不执行任何操作
     }
 
+    // 显示日期详情
+    showDateDetail(date) {
+        this.currentDate = date;
+        this.currentMarker = null;
+        this.currentConnection = null;
+
+        // 设置面板标题
+        const dateDetailTitle = document.getElementById('dateDetailTitle');
+        if (dateDetailTitle) {
+            dateDetailTitle.textContent = `${this.formatDateHeader(date)} 详情`;
+        }
+
+        // 显示日期
+        const dateDisplay = document.getElementById('dateDisplay');
+        if (dateDisplay) {
+            dateDisplay.textContent = date;
+        }
+
+        // 显示日期备注
+        const dateNotesInput = document.getElementById('dateNotesInput');
+        if (dateNotesInput) {
+            // 如果存在日期备注，显示它；否则显示空字符串
+            dateNotesInput.value = this.getDateNotes(date) || '';
+        }
+
+        // 隐藏其他详情面板，显示日期详情面板
+        const markerDetailPanel = document.getElementById('markerDetailPanel');
+        const connectionDetailPanel = document.getElementById('connectionDetailPanel');
+        const dateDetailPanel = document.getElementById('dateDetailPanel');
+
+        if (markerDetailPanel) markerDetailPanel.style.display = 'none';
+        if (connectionDetailPanel) connectionDetailPanel.style.display = 'none';
+        if (dateDetailPanel) dateDetailPanel.style.display = 'block';
+    }
+
+    // 获取指定日期的备注
+    getDateNotes(date) {
+        if (!this.dateNotes) {
+            this.dateNotes = {};
+        }
+        return this.dateNotes[date] || '';
+    }
+
+
+    // 保存日期备注
+    saveDateNotes() {
+        const dateNotesInput = document.getElementById('dateNotesInput');
+        if (!dateNotesInput || !this.currentDate) return;
+
+        if (!this.dateNotes) {
+            this.dateNotes = {};
+        }
+
+        const notes = dateNotesInput.value.trim();
+        this.dateNotes[this.currentDate] = notes;
+
+        // 保存到本地存储
+        this.saveToLocalStorage();
+
+        console.log(`日期 ${this.currentDate} 的备注已保存`);
+
+        // 隐藏日期详情面板（自动退出编辑页面）
+        const dateDetailPanel = document.getElementById('dateDetailPanel');
+        if (dateDetailPanel) {
+            dateDetailPanel.style.display = 'none';
+        }
+
+        // 清除当前日期状态
+        this.currentDate = null;
+        this.currentMarker = null;
+        this.currentConnection = null;
+
+        // 如果当前处于筛选模式，则退出筛选模式
+        if (this.filterMode) {
+            this.exitFilterMode();
+        }
+    }
+
+    closeDateDetail() {
+        const dateDetailPanel = document.getElementById('dateDetailPanel');
+        if (dateDetailPanel) {
+            dateDetailPanel.style.display = 'none';
+        }
+        this.currentDate = null;
+        this.currentMarker = null;
+        this.currentConnection = null;
+
+        // 如果当前处于筛选模式，则退出筛选模式
+        if (this.filterMode) {
+            this.exitFilterMode();
+        }
+    }
+
     closeModals() {
         document.querySelectorAll('.modal').forEach(modal => {
             modal.style.display = 'none';
         });
+        // 也隐藏日期详情面板
+        this.closeDateDetail();
     }
 }
 
