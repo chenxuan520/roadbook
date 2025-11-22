@@ -481,7 +481,7 @@ class RoadbookApp {
             gaode: {
                 searchable: true,
                 name: '高德地图',
-                searchUrl: 'https://map.chenxunaweb.top/api/cnmap/search', // 使用TianSearch端点
+                searchUrl: 'https://map.chenxuanweb.top/api/cnmap/search', // 使用TianSearch端点
                 params: {
                     format: 'json',
                     limit: 10
@@ -2752,7 +2752,7 @@ class RoadbookApp {
             // CNSearch搜索模式
             searchConfig = {
                 searchable: true,
-                searchUrl: 'https://map.chenxunaweb.top/api/cnmap/search',
+                searchUrl: 'https://map.chenxuanweb.top/api/cnmap/search',
                 params: {
                     format: 'json',
                     limit: 10
@@ -2763,7 +2763,7 @@ class RoadbookApp {
             // TianSearch搜索模式
             searchConfig = {
                 searchable: true,
-                searchUrl: 'https://map.chenxunaweb.top/api/tianmap/search',
+                searchUrl: 'https://map.chenxuanweb.top/api/tianmap/search',
                 params: {
                     format: 'json',
                     limit: 10

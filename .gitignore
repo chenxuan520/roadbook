@@ -1,3 +1,4 @@
 backend/backend
 roadbook-api
 run.sh
+*.out
