@@ -81,11 +81,14 @@ class RoadbookHtmlExporter {
 
         <main>
             <div id="mapContainer" style="height: 100%; width: 100%;"></div>
+            <!-- 移动端菜单切换按钮 -->
+            <button id="menuToggleBtn" class="menu-toggle-btn">☰</button>
             <!-- 右侧面板用于显示日期分组信息 -->
             <div class="right-panel">
                 <div class="sidebar" id="markerListPanel">
                     <div class="sidebar-header">
                         <h3>日程列表</h3>
+                        <button id="closeSidebarBtn" class="close-btn">×</button>
                     </div>
                     <div id="markerList"></div>
                 </div>
@@ -798,6 +801,18 @@ class RoadbookHtmlExporter {
 
                 // 自动调整视窗以聚焦到筛选后的元素
                 autoFitMapViewAfterFilter();
+
+                // 在移动端自动关闭侧边栏以便用户查看筛选结果
+                if (isMobileDevice()) {
+                    const rightPanel = document.querySelector('.right-panel');
+                    const menuToggleBtn = document.getElementById('menuToggleBtn');
+                    if (rightPanel) {
+                        rightPanel.classList.remove('active');
+                    }
+                    if (menuToggleBtn) {
+                        menuToggleBtn.textContent = '☰';
+                    }
+                }
             }
 
             // 退出过滤模式的函数
@@ -927,6 +942,18 @@ class RoadbookHtmlExporter {
                         map.fitBounds(group.getBounds().pad(0.1));
                     }
                 }
+
+                // 在移动端自动关闭侧边栏以便用户查看筛选结果
+                if (isMobileDevice()) {
+                    const rightPanel = document.querySelector('.right-panel');
+                    const menuToggleBtn = document.getElementById('menuToggleBtn');
+                    if (rightPanel) {
+                        rightPanel.classList.remove('active');
+                    }
+                    if (menuToggleBtn) {
+                        menuToggleBtn.textContent = '☰';
+                    }
+                }
             }
 
             // 筛选后自动调整地图视窗以包含筛选后的元素
@@ -995,6 +1022,13 @@ class RoadbookHtmlExporter {
                     exitFilterMode();
                 }
             });
+
+            // 检测是否为移动设备
+            function isMobileDevice() {
+                return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+                       (navigator.maxTouchPoints && navigator.maxTouchPoints > 2) ||
+                       (window.innerWidth <= 768);
+            }
 
             // 添加标记点的鼠标悬浮事件处理函数
             function showMarkerTooltip(markerData, latlng) {
@@ -1211,7 +1245,99 @@ class RoadbookHtmlExporter {
 
             // 初始更新标记点列表
             updateMarkerList();
+
+            // 移动端功能适配
+            function initMobileFeatures() {
+                const menuToggleBtn = document.getElementById('menuToggleBtn');
+                if (menuToggleBtn) {
+                    if (isMobileDevice()) {
+                        menuToggleBtn.classList.add('show');
+
+                        // 添加点击事件
+                        menuToggleBtn.addEventListener('click', function(e) {
+                            e.stopPropagation();
+                            const rightPanel = document.querySelector('.right-panel');
+                            rightPanel.classList.toggle('active');
+
+                            // 更新按钮图标
+                            this.textContent = rightPanel.classList.contains('active') ? '✕' : '☰';
+                        });
+
+                        // 点击侧边栏外部关闭侧边栏
+                        document.addEventListener('click', function(e) {
+                            const rightPanel = document.querySelector('.right-panel');
+                            const menuBtn = document.getElementById('menuToggleBtn');
+
+                            if (!rightPanel.contains(e.target) &&
+                                !menuBtn.contains(e.target) &&
+                                rightPanel.classList.contains('active')) {
+                                rightPanel.classList.remove('active');
+                                menuBtn.textContent = '☰';
+                            }
+                        });
+
+                        // 添加关闭侧边栏按钮事件
+                        const closeSidebarBtn = document.getElementById('closeSidebarBtn');
+                        if (closeSidebarBtn) {
+                            closeSidebarBtn.addEventListener('click', function() {
+                                const rightPanel = document.querySelector('.right-panel');
+                                rightPanel.classList.remove('active');
+                                menuToggleBtn.textContent = '☰';
+                            });
+                        }
+                    } else {
+                        // 在电脑端完全移除按钮元素，而不仅仅是隐藏
+                        menuToggleBtn.remove();
+                    }
+                }
+            }
+
+            // 初始化移动端功能
+            initMobileFeatures();
+
+            // 监听窗口大小变化，以适配横竖屏切换
+            window.addEventListener('resize', function() {
+                const menuToggleBtn = document.getElementById('menuToggleBtn');
+                if (menuToggleBtn) {
+                    if (isMobileDevice()) {
+                        menuToggleBtn.classList.add('show');
+                    } else {
+                        menuToggleBtn.classList.remove('show');
+                        // 在非移动设备上确保侧边栏可见
+                        const rightPanel = document.querySelector('.right-panel');
+                        rightPanel.classList.remove('active');
+                        menuToggleBtn.textContent = '☰';
+                    }
+                }
+            });
         });
+    </script>
+    <script>
+        // 立即检测设备类型并在电脑端移除菜单按钮
+        (function() {
+            // 检测是否为移动设备
+            function isMobileDevice() {
+                return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+                       (navigator.maxTouchPoints && navigator.maxTouchPoints > 2) ||
+                       (window.innerWidth <= 768);
+            }
+
+            // 等待DOM加载完成后执行
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', function() {
+                    const menuToggleBtn = document.getElementById('menuToggleBtn');
+                    if (menuToggleBtn && !isMobileDevice()) {
+                        menuToggleBtn.remove(); // 完全移除按钮元素
+                    }
+                });
+            } else {
+                // 如果DOM已经加载完成
+                const menuToggleBtn = document.getElementById('menuToggleBtn');
+                if (menuToggleBtn && !isMobileDevice()) {
+                    menuToggleBtn.remove(); // 完全移除按钮元素
+                }
+            }
+        })();
     </script>
 </body>
 </html>`;
@@ -1506,6 +1632,17 @@ main {
     background: rgba(255, 255, 255, 0.2);
 }
 
+/* 电脑端隐藏侧边栏关闭按钮，只在移动设备显示 */
+.close-btn {
+    display: none; /* 默认隐藏 */
+}
+
+@media (max-width: 768px) {
+    .close-btn {
+        display: flex; /* 移动设备上显示 */
+    }
+}
+
 .date-notes-content {
     padding: 15px;
     overflow-y: auto;
@@ -1522,6 +1659,106 @@ main {
     content: "暂无备注";
     color: #999;
     font-style: italic;
+}
+
+/* 移动设备适配 */
+@media (max-width: 768px) {
+    .right-panel {
+        position: fixed;
+        top: 0;
+        right: -350px; /* 默认隐藏在屏幕右侧 */
+        width: 300px; /* 适配移动设备宽度 */
+        height: 100vh;
+        z-index: 1001;
+        transition: right 0.3s ease;
+        box-shadow: -2px 0 10px rgba(0,0,0,0.1);
+    }
+
+    .right-panel.active {
+        right: 0; /* 展开状态 */
+    }
+
+    /* 在移动设备上添加菜单按钮 */
+    .menu-toggle-btn {
+        position: absolute;
+        top: 70px; /* 位于header下方 */
+        right: 15px;
+        z-index: 1000;
+        width: 44px;
+        height: 44px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        border-radius: 50%;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 20px;
+        color: white;
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        backdrop-filter: blur(10px);
+        display: none; /* 默认隐藏，通过JS控制显示 */
+    }
+
+    .menu-toggle-btn {
+        display: none !important; /* 强制隐藏，确保电脑端不显示 */
+        visibility: hidden !important; /* 进一步确保不可见 */
+        opacity: 0 !important; /* 额外确保不可见 */
+        pointer-events: none !important; /* 确保不响应点击事件 */
+        width: 0 !important; /* 确保不占用空间 */
+        height: 0 !important; /* 确保不占用空间 */
+        margin: 0 !important; /* 确保不占用空间 */
+        padding: 0 !important; /* 确保不占用空间 */
+    }
+
+    @media (max-width: 768px) {
+        .menu-toggle-btn {
+            display: flex !important; /* 只在移动设备上显示 */
+            visibility: visible !important; /* 移动设备上可见 */
+            opacity: 1 !important; /* 移动设备上可见 */
+            pointer-events: auto !important; /* 移动设备上可交互 */
+            width: 44px !important; /* 恢复正常尺寸 */
+            height: 44px !important; /* 恢复正常尺寸 */
+            margin: inherit !important; /* 恢复正常边距 */
+            padding: inherit !important; /* 恢复正常内边距 */
+        }
+    }
+
+    .menu-toggle-btn::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+        transition: left 0.6s ease;
+    }
+
+    .menu-toggle-btn:hover {
+        transform: translateY(-3px) scale(1.05);
+        box-shadow: 0 8px 20px rgba(102, 126, 234, 0.5);
+    }
+
+    .menu-toggle-btn:hover::before {
+        left: 100%;
+    }
+
+    .menu-toggle-btn:active {
+        transform: translateY(-1px) scale(0.98);
+        box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+    }
+
+    /* 调整地图容器在侧边栏展开时的样式 */
+    .map-container-sidebar-open {
+        margin-right: 300px;
+    }
+
+    /* 移动设备上隐藏日期备注便签，避免重叠 */
+    .date-notes-sticky {
+        top: 70px; /* 调整位置避免与菜单按钮重叠 */
+    }
 }`;
     }
 

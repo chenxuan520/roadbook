@@ -45,6 +45,14 @@ class RoadbookApp {
         }
     }
 
+    // 检测是否为移动设备
+    isMobileDevice() {
+        // 检测多种移动设备特征
+        return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+               (navigator.maxTouchPoints && navigator.maxTouchPoints > 2) || // 检测触摸屏
+               (window.innerWidth <= 768); // 小屏幕设备也视为移动设备
+    }
+
     // 撤销操作
     undo() {
         if (this.history.length === 0) {
@@ -285,6 +293,12 @@ class RoadbookApp {
     }
 
     init() {
+        // 检测是否为移动设备
+        if (this.isMobileDevice()) {
+            alert('提示：当前界面不支持手机端编辑功能，请使用电脑访问以获得完整体验。导出的路书可在手机端正常查看。');
+            // 可以考虑在移动设备上显示一个更友好的提示页面，而不是完全阻止使用
+        }
+
         // 先尝试从本地存储加载设置，以获取保存的地图源和搜索方式
         const cachedData = this.loadSettingsFromCache();
         if (cachedData) {
