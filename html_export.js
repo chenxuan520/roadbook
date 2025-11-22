@@ -1,0 +1,1300 @@
+class RoadbookHtmlExporter {
+    constructor(app) {
+        this.app = app;
+    }
+
+    exportToHtml() {
+        const data = this.prepareExportData();
+        const htmlContent = this.generateHtmlContent(data);
+
+        // 创建并下载HTML文件
+        const blob = new Blob([htmlContent], { type: 'text/html' });
+        const url = URL.createObjectURL(blob);
+
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `roadbook_${new Date().toISOString().slice(0, 10)}_${Date.now()}.html`;
+        a.click();
+
+        URL.revokeObjectURL(url);
+    }
+
+    prepareExportData() {
+        return {
+            version: '2.0',
+            exportTime: new Date().toISOString(),
+            currentLayer: this.app.currentLayer,
+            currentSearchMethod: this.app.currentSearchMethod,
+            markers: this.app.markers.map((m) => ({
+                id: m.id,
+                position: m.position,
+                title: m.title,
+                labels: m.labels,
+                createdAt: m.createdAt,
+                dateTimes: m.dateTimes || [m.dateTime],
+                icon: m.icon
+            })),
+            connections: this.app.connections.map(c => {
+                const startMarker = this.app.markers.find(m => m.id === c.startId);
+                const endMarker = this.app.markers.find(m => m.id === c.endId);
+
+                return {
+                    id: c.id,
+                    startId: c.startId,
+                    endId: c.endId,
+                    transportType: c.transportType,
+                    dateTime: c.dateTime,
+                    label: c.label,
+                    duration: c.duration || 0,
+                    startTitle: startMarker ? startMarker.title : c.startTitle,
+                    endTitle: endMarker ? endMarker.title : c.endTitle
+                };
+            }),
+            labels: this.app.labels.map(l => ({
+                markerIndex: this.app.markers.indexOf(l.marker),
+                content: l.content
+            })),
+            dateNotes: this.app.dateNotes || {}
+        };
+    }
+
+    generateHtmlContent(data) {
+        return `
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>路书分享 - ${new Date().toLocaleDateString('zh-CN')}</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        ${this.generateCssStyles()}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-top">
+                <h1>路书分享</h1>
+            </div>
+        </header>
+
+        <main>
+            <div id="mapContainer" style="height: 100%; width: 100%;"></div>
+            <!-- 右侧面板用于显示日期分组信息 -->
+            <div class="right-panel">
+                <div class="sidebar" id="markerListPanel">
+                    <div class="sidebar-header">
+                        <h3>日程列表</h3>
+                    </div>
+                    <div id="markerList"></div>
+                </div>
+            </div>
+            <!-- 日期备注便签 -->
+            <div id="dateNotesSticky" class="date-notes-sticky" style="display: none;">
+                <div class="date-notes-header">
+                    <span id="dateNotesDate"></span>
+                    <button id="closeDateNotesSticky" class="close-sticky-btn">×</button>
+                </div>
+                <div id="dateNotesContent" class="date-notes-content"></div>
+            </div>
+            <div class="github-corner">
+                <a href="https://github.com/chenxuan520/roadbook" target="_blank" class="github-corner-link" title="GitHub" rel="noopener noreferrer">
+                    <svg width="80" height="80" viewBox="0 0 250 250" style="fill:#000000; color:#fff;" aria-hidden="true">
+                        <path d="M0,0 L115,115 L130,115 L142,142 L250,250 L250,0 Z"></path>
+                        <path d="M128.3,109.0 C113.8,99.7 119.0,89.6 119.0,89.6 C122.0,82.7 120.5,78.6 120.5,78.6 C119.2,72.0 123.4,76.3 123.4,76.3 C127.3,80.9 125.5,87.3 125.5,87.3 C122.9,97.6 130.6,101.9 134.4,103.2" fill="currentColor" style="transform-origin: 130px 106px;" class="octo-arm"></path>
+                        <path d="M115.0,115.0 C114.9,115.1 118.7,116.5 119.8,115.4 L133.7,101.6 C136.9,99.2 139.9,98.4 142.2,98.6 C133.8,88.0 127.5,74.4 143.8,58.0 C148.5,53.4 154.0,51.2 159.7,51.0 C160.3,49.4 163.2,43.6 171.4,40.1 C171.4,40.1 176.1,42.5 178.8,56.2 C183.1,58.6 187.2,61.8 190.9,65.4 C194.5,69.0 197.7,73.2 200.1,77.6 C213.8,80.2 216.3,84.9 216.3,84.9 C212.7,93.1 206.9,96.0 205.4,96.6 C205.1,102.4 203.0,107.8 198.3,112.5 C181.9,128.9 168.3,122.5 157.7,114.1 C157.9,116.9 156.7,120.9 152.7,124.9 L141.0,136.5 C139.8,137.7 141.6,141.9 141.8,141.8 Z" fill="currentColor" class="octo-body"></path>
+                    </svg>
+                </a>
+            </div>
+        </main>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // 解析内联数据 - 使用安全的编码方式
+        const roadbookData = JSON.parse(decodeURIComponent(\`${encodeURIComponent(JSON.stringify(data))}\`));
+
+        // 初始化只读地图
+        document.addEventListener('DOMContentLoaded', function() {
+            // 初始化地图
+            const map = L.map('mapContainer').setView([39.90923, 116.397428], 10); // 北京天安门
+
+            // 定义地图图层
+            const mapLayers = {
+                osm: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '© OpenStreetMap contributors',
+                    maxZoom: 19
+                }),
+                satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                    attribution: 'Tiles © Esri',
+                    maxZoom: 19
+                }),
+                // 高德地图矢量地图 - 无需key，直接访问瓦片
+                gaode: L.tileLayer('https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=7&x={x}&y={y}&z={z}', {
+                    attribution: '© 高德地图',
+                    maxZoom: 19,
+                    subdomains: ['1', '2', '3', '4']
+                }),
+                // 高德地图卫星图 - 无需key，直接访问瓦片
+                gaode_satellite: L.tileLayer('https://webst0{s}.is.autonavi.com/appmaptile?style=6&x={x}&y={y}&z={z}', {
+                    attribution: '© 高德地图',
+                    maxZoom: 19,
+                    subdomains: ['1', '2', '3', '4']
+                }),
+                // Google地图 - 无需key，直接访问瓦片
+                google: L.tileLayer('https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
+                    attribution: '© Google Maps',
+                    maxZoom: 19,
+                    subdomains: ['0', '1', '2', '3']
+                }),
+                // Google地图卫星图 - 无需key，直接访问瓦片
+                google_satellite: L.tileLayer('https://mt{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
+                    attribution: '© Google Maps',
+                    maxZoom: 19,
+                    subdomains: ['0', '1', '2', '3']
+                })
+            };
+
+            // 添加当前图层到地图
+            const currentLayer = roadbookData.currentLayer || 'gaode';
+            if (mapLayers[currentLayer]) {
+                mapLayers[currentLayer].addTo(map);
+            } else {
+                mapLayers['gaode'].addTo(map); // 默认高德地图
+            }
+
+            // 只读模式下添加标记点
+            roadbookData.markers.forEach(markerData => {
+                const icon = createMarkerIcon(markerData.icon, 0);
+                const marker = L.marker([markerData.position[0], markerData.position[1]], {
+                    icon: icon,
+                    draggable: false, // 禁用拖拽
+                    title: markerData.title
+                }).addTo(map);
+
+                // 添加点击弹窗显示详细信息
+                marker.bindPopup(generateMarkerPopupContent(markerData));
+            });
+
+            // 只读模式下添加连接线
+            roadbookData.connections.forEach(connData => {
+                // 查找起始点和终点
+                const startMarker = roadbookData.markers.find(m => m.id === connData.startId);
+                const endMarker = roadbookData.markers.find(m => m.id === connData.endId);
+
+                if (!startMarker || !endMarker) return;
+
+                // 创建连接线
+                const polyline = L.polyline([
+                    [startMarker.position[0], startMarker.position[1]],
+                    [endMarker.position[0], endMarker.position[1]]
+                ], {
+                    color: getTransportColor(connData.transportType),
+                    weight: 6,
+                    opacity: 1.0,
+                    smoothFactor: 1.0
+                }).addTo(map);
+
+                // 添加终点标记（小圆点）
+                const endCircle = L.circleMarker([endMarker.position[0], endMarker.position[1]], {
+                    radius: 6,
+                    fillColor: getTransportColor(connData.transportType),
+                    color: '#fff',
+                    weight: 2,
+                    opacity: 1,
+                    fillOpacity: 1
+                }).addTo(map);
+
+                // 创建箭头
+                const arrowHead = createArrowHead([startMarker.position[0], startMarker.position[1]], [endMarker.position[0], endMarker.position[1]], connData.transportType);
+                arrowHead.addTo(map);
+
+                // 计算中点位置并添加交通图标
+                const startLat = parseFloat(startMarker.position[0]);
+                const startLng = parseFloat(startMarker.position[1]);
+                const endLat = parseFloat(endMarker.position[0]);
+                const endLng = parseFloat(endMarker.position[1]);
+
+                if (!isNaN(startLat) && !isNaN(startLng) && !isNaN(endLat) && !isNaN(endLng)) {
+                    const midLat = (startLat + endLat) / 2;
+                    const midLng = (startLng + endLng) / 2;
+                    const transportIcon = getTransportIcon(connData.transportType);
+
+                    const iconMarker = L.marker([midLat, midLng], {
+                        icon: L.divIcon({
+                            className: 'transport-icon',
+                            html: \`
+                                <div style="background-color: white; border: 2px solid \${getTransportColor(connData.transportType)}; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-size: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.3);">\${transportIcon}</div>
+                            \`,
+                            iconSize: [30, 30],
+                            iconAnchor: [15, 15]
+                        })
+                    }).addTo(map);
+
+                    // 为连接线添加弹窗
+                    polyline.bindPopup(generateConnectionPopupContent(connData, startMarker, endMarker));
+                }
+            });
+
+            // 保留地图交互功能
+            // 注意：我们不限制交互，保持地图的可缩放、拖拽功能
+            // 只是不允许编辑功能
+
+            // 如果有标记点，自动调整视窗以包含所有元素
+            if (roadbookData.markers.length > 0) {
+                const group = new L.featureGroup([
+                    ...roadbookData.markers.map(m => L.marker([m.position[0], m.position[1]])),
+                    ...roadbookData.connections.map(c => L.polyline([
+                        [roadbookData.markers.find(m => m.id === c.startId)?.position[0], roadbookData.markers.find(m => m.id === c.startId)?.position[1]],
+                        [roadbookData.markers.find(m => m.id === c.endId)?.position[0], roadbookData.markers.find(m => m.id === c.endId)?.position[1]]
+                    ]))
+                ]);
+
+                if (group.getLayers().length > 0) {
+                    map.fitBounds(group.getBounds().pad(0.1));
+                }
+            }
+
+            // 创建标记点图标的函数
+            function createMarkerIcon(iconConfig, _number) {
+                const icon = iconConfig.icon || '📍';
+                const color = iconConfig.color || '#667eea';
+
+                const displayContent = icon;
+
+                return L.divIcon({
+                    className: 'custom-marker',
+                    html: \`
+                        <div style="background-color: \${color}; width: 30px; height: 30px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 10px rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 14px;">\${displayContent}</div>
+                    \`,
+                    iconSize: [30, 30],
+                    iconAnchor: [15, 15]
+                });
+            }
+
+            // 获取交通方式颜色
+            function getTransportColor(type) {
+                const colors = {
+                    car: '#FF5722',
+                    train: '#2196F3',
+                    subway: '#9C27B0',  // 地铁 - 紫色
+                    plane: '#4CAF50',
+                    walk: '#FF9800'
+                };
+                return colors[type] || '#666';
+            }
+
+            // 获取交通方式图标
+            function getTransportIcon(type) {
+                const icons = {
+                    car: '🚗',
+                    train: '🚄',
+                    subway: '🚇',  // 地铁
+                    plane: '✈️',
+                    walk: '🚶'
+                };
+                return icons[type] || '•';
+            }
+
+            // 创建箭头
+            function createArrowHead(startPos, endPos, transportType) {
+                const startLat = parseFloat(startPos[0]);
+                const startLng = parseFloat(startPos[1]);
+                const endLat = parseFloat(endPos[0]);
+                const endLng = parseFloat(endPos[1]);
+
+                // 计算方向角度
+                const deltaLat = endLat - startLat;
+                const deltaLng = endLng - startLng;
+
+                // 计算基础角度（弧度）
+                let angle = Math.atan2(deltaLng, deltaLat);
+
+                // 转换为角度
+                angle = angle * 180 / Math.PI;
+
+                // 计算线段长度的75%位置
+                const ratio = 0.75;
+                const arrowLat = startLat + (endLat - startLat) * ratio;
+                const arrowLng = startLng + (endLng - startLng) * ratio;
+
+                // 创建箭头图标
+                const arrowColor = getTransportColor(transportType);
+                const arrowIcon = L.divIcon({
+                    className: 'arrow-icon',
+                    html: \`
+                        <div style="
+                            position: relative;
+                            width: 28px;
+                            height: 28px;
+                            transform: rotate(\${angle}deg);
+                            transform-origin: center;">
+                            <div style="
+                                position: absolute;
+                                top: 0;
+                                left: 50%;
+                                transform: translateX(-50%);
+                                width: 0;
+                                height: 0;
+                                border-left: 10px solid transparent;
+                                border-right: 10px solid transparent;
+                                border-bottom: 20px solid \${arrowColor};
+                                filter: drop-shadow(0 3px 6px rgba(0,0,0,0.4));
+                            "></div>
+                        </div>
+                    \`,
+                    iconSize: [28, 28],
+                    iconAnchor: [14, 14]
+                });
+
+                return L.marker([arrowLat, arrowLng], {
+                    icon: arrowIcon,
+                    interactive: false
+                });
+            }
+
+            // 生成标记点弹窗内容
+            function generateMarkerPopupContent(markerData) {
+                let content = '<div class="popup-content">';
+                content += '<h3>' + markerData.title + '</h3>';
+
+                // 格式化时间显示，只在小时或分钟不为0时显示时分
+                if (markerData.dateTimes && markerData.dateTimes.length > 0) {
+                    const formattedTimes = markerData.dateTimes.map(dt => formatTime(dt));
+                    content += '<p><strong>时间:</strong> ' + formattedTimes.join(', ') + '</p>';
+                } else if (markerData.dateTime) {
+                    content += '<p><strong>时间:</strong> ' + formatTime(markerData.dateTime) + '</p>';
+                }
+
+                if (markerData.labels && markerData.labels.length > 0) {
+                    content += '<p><strong>标注:</strong> ' + markerData.labels.join('; ') + '</p>';
+                }
+
+                content += '<p><strong>坐标:</strong> ' + markerData.position[1].toFixed(6) + ', ' + markerData.position[0].toFixed(6) + '</p>';
+                content += '</div>';
+
+                return content;
+            }
+
+            // 生成连接线弹窗内容
+            function generateConnectionPopupContent(connData, startMarker, endMarker) {
+                let content = '<div class="popup-content">';
+                content += '<h3>' + startMarker.title + ' → ' + endMarker.title + '</h3>';
+                content += '<p><strong>交通方式:</strong> ' + getTransportIcon(connData.transportType) + ' ' + getTransportTypeName(connData.transportType) + '</p>';
+
+                if (connData.duration > 0) {
+                    content += '<p><strong>耗时:</strong> ' + connData.duration + ' 小时</p>';
+                }
+
+                if (connData.dateTime) {
+                    // 使用相同的格式化方式显示时间
+                    content += '<p><strong>时间:</strong> ' + formatTime(connData.dateTime) + '</p>';
+                }
+
+                if (connData.label) {
+                    content += '<p><strong>标注:</strong> ' + connData.label + '</p>';
+                }
+
+                content += '</div>';
+
+                return content;
+            }
+
+            // 获取交通方式类型名称
+            function getTransportTypeName(type) {
+                const names = {
+                    car: '汽车',
+                    train: '火车',
+                    subway: '地铁',
+                    plane: '飞机',
+                    walk: '步行'
+                };
+                return names[type] || '其他';
+            }
+
+            // 实现日期分组功能，包含点击聚焦和备注功能
+            function updateMarkerList() {
+                const listContainer = document.getElementById('markerList');
+                listContainer.innerHTML = '';
+
+                // 按日期分组标记点
+                const markersByDate = groupMarkersByDate();
+
+                // 获取所有日期并排序（从早到晚）
+                const allDates = getAllDatesFromMarkers();
+
+                allDates.forEach(date => {
+                    // 创建日期分组标题
+                    const dateHeader = document.createElement('div');
+                    dateHeader.className = 'date-group-header';
+                    const markers = markersByDate[date] || [];
+                    dateHeader.innerHTML = \`
+                        <h4>\${formatDateHeader(date)}</h4>
+                        <span class="marker-count">\${markers.length} 个地点</span>
+                    \`;
+
+                    // 添加点击事件，点击日期分组进行筛选并自动调整视窗，同时显示日期备注
+                    dateHeader.style.cursor = 'pointer';
+                    dateHeader.addEventListener('click', () => {
+                        filterByDate(date); // 执行筛选并自动调整视窗
+                        // 在筛选后显示日期备注，这样用户可以查看备注
+                        setTimeout(() => {
+                            showDateNotesSticky(date);
+                        }, 300); // 延迟显示备注，让视窗调整完成
+                    });
+
+                    listContainer.appendChild(dateHeader);
+
+                    // 按最早时间排序该日期的标记点
+                    const sortedMarkers = sortMarkersByEarliestTime(markers, date);
+
+                    // 添加该日期的所有标记点
+                    sortedMarkers.forEach(marker => {
+                        const item = document.createElement('div');
+                        item.className = 'marker-item';
+
+                        // 显示该日期对应的时间点（只显示这一天的）
+                        const dayTimes = getMarkerTimesForDate(marker, date);
+                        const timeDisplay = dayTimes.length > 0
+                            ? dayTimes.map(dt => formatTime(dt)).join(', ')
+                            : '';
+
+                        item.innerHTML = \`
+                            <div class="marker-info">
+                                <div class="title">\${marker.title}</div>
+                                <div class="coords">\${marker.position[1].toFixed(6)}, \${marker.position[0].toFixed(6)}</div>
+                                <div class="time-info">\${timeDisplay}</div>
+                            </div>
+                        \`;
+
+                        // 点击标记点信息在地图上定位
+                        item.querySelector('.marker-info').addEventListener('click', () => {
+                            map.setView([marker.position[0], marker.position[1]], 15); // 跳转到标记点位置
+                        });
+
+                        listContainer.appendChild(item);
+                    });
+                });
+            }
+
+            // 按日期分组标记点 - 包含所有出现过的日期
+            function groupMarkersByDate() {
+                const groups = {};
+
+                roadbookData.markers.forEach(marker => {
+                    // 获取该标记点的所有日期
+                    const markerDates = getMarkerAllDates(marker);
+
+                    // 将该标记点添加到它出现的所有日期分组中
+                    markerDates.forEach(dateKey => {
+                        if (!groups[dateKey]) {
+                            groups[dateKey] = [];
+                        }
+                        groups[dateKey].push(marker);
+                    });
+                });
+
+                return groups;
+            }
+
+            // 获取标记点所有出现的日期
+            function getMarkerAllDates(marker) {
+                const dates = new Set();
+
+                if (marker.dateTimes && marker.dateTimes.length > 0) {
+                    marker.dateTimes.forEach(dateTime => {
+                        const dateKey = getDateKey(dateTime);
+                        if (dateKey !== '未知日期') {
+                            dates.add(dateKey);
+                        }
+                    });
+                } else if (marker.dateTime) {
+                    const dateKey = getDateKey(marker.dateTime);
+                    if (dateKey !== '未知日期') {
+                        dates.add(dateKey);
+                    }
+                }
+
+                return Array.from(dates);
+            }
+
+            // 获取日期键（YYYY-MM-DD格式）
+            function getDateKey(dateTimeString) {
+                if (!dateTimeString) return '未知日期';
+                try {
+                    const date = new Date(dateTimeString);
+                    if (isNaN(date.getTime())) return '未知日期';
+                    // 使用本地时区的日期，而不是UTC
+                    const year = date.getFullYear();
+                    const month = String(date.getMonth() + 1).padStart(2, '0');
+                    const day = String(date.getDate()).padStart(2, '0');
+                    return year + '-' + month + '-' + day; // YYYY-MM-DD in local timezone
+                } catch (error) {
+                    return '未知日期';
+                }
+            }
+
+            // 格式化日期标题
+            function formatDateHeader(dateKey) {
+                if (dateKey === '未知日期') return dateKey;
+                try {
+                    const date = new Date(dateKey);
+                    // 获取今天的日期键（本地时区）
+                    const today = new Date();
+                    const todayKey = getDateKey(today.toISOString());
+
+                    // 获取昨天的日期键（本地时区）
+                    const yesterday = new Date(today);
+                    yesterday.setDate(yesterday.getDate() - 1);
+                    const yesterdayKey = getDateKey(yesterday.toISOString());
+
+                    if (dateKey === todayKey) {
+                        return '今天';
+                    } else if (dateKey === yesterdayKey) {
+                        return '昨天';
+                    } else {
+                        return \`\${date.getMonth() + 1}月\${date.getDate()}日 (\${getWeekdayName(date.getDay())})\`;
+                    }
+                } catch (error) {
+                    return dateKey;
+                }
+            }
+
+            // 获取星期几的中文名称
+            function getWeekdayName(day) {
+                const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+                return weekdays[day];
+            }
+
+            // 格式化时间（只在小时或分钟不为0时显示）
+            function formatTime(dateTimeString) {
+                if (!dateTimeString) return '';
+                try {
+                    const date = new Date(dateTimeString);
+                    if (isNaN(date.getTime())) return '';
+
+                    // 检查小时和分钟是否为0
+                    const hours = date.getHours();
+                    const minutes = date.getMinutes();
+
+                    // 如果小时和分钟都为0，则只显示日期部分
+                    if (hours === 0 && minutes === 0) {
+                        // 只返回日期部分
+                        return date.toLocaleDateString('zh-CN');
+                    } else {
+                        // 显示日期和时间（时:分）
+                        return date.toLocaleString('zh-CN', {
+                            year: 'numeric',
+                            month: '2-digit',
+                            day: '2-digit',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            hour12: false
+                        });
+                    }
+                } catch (error) {
+                    return '';
+                }
+            }
+
+            // 按最早时间排序标记点（创建副本避免修改原数组）
+            function sortMarkersByEarliestTime(markers, dateKey) {
+                return [...markers].sort((a, b) => {
+                    // 获取每个标记点在该日期的最早时间
+                    const aTimes = getMarkerTimesForDate(a, dateKey);
+                    const bTimes = getMarkerTimesForDate(b, dateKey);
+
+                    if (aTimes.length === 0 && bTimes.length === 0) return 0;
+                    if (aTimes.length === 0) return 1; // a没有时间，排后面
+                    if (bTimes.length === 0) return -1; // b没有时间，排后面
+
+                    // 按最早时间排序（时间小的在前）
+                    const aEarliest = new Date(aTimes[0]);
+                    const bEarliest = new Date(bTimes[0]);
+
+                    return aEarliest - bEarliest;
+                });
+            }
+
+            // 获取标记点在指定日期的时间点
+            function getMarkerTimesForDate(marker, dateKey) {
+                const times = [];
+
+                if (marker.dateTimes && marker.dateTimes.length > 0) {
+                    marker.dateTimes.forEach(dateTime => {
+                        const dtDateKey = getDateKey(dateTime);
+                        if (dtDateKey === dateKey) {
+                            times.push(dateTime);
+                        }
+                    });
+                } else if (marker.dateTime) {
+                    const dtDateKey = getDateKey(marker.dateTime);
+                    if (dtDateKey === dateKey) {
+                        times.push(marker.dateTime);
+                    }
+                }
+
+                return times;
+            }
+
+            // 获取所有标记点中出现过的日期（从早到晚排序）
+            function getAllDatesFromMarkers() {
+                const allDates = new Set();
+
+                roadbookData.markers.forEach(marker => {
+                    const markerDates = getMarkerAllDates(marker);
+                    markerDates.forEach(date => {
+                        if (date !== '未知日期') {
+                            allDates.add(date);
+                        }
+                    });
+                });
+
+                // 转换为数组并按日期排序（从早到晚）
+                return Array.from(allDates).sort((a, b) => new Date(a) - new Date(b));
+            }
+
+            // 添加变量跟踪过滤模式状态
+            let isFilteredMode = false;
+            let filteredDate = null;
+
+            // 按日期筛选功能 (只读模式)
+            function filterByDate(date) {
+                // 设置过滤模式状态
+                isFilteredMode = true;
+                filteredDate = date;
+
+                // 隐藏所有标记点
+                map.eachLayer(function(layer) {
+                    if (layer instanceof L.Marker || layer instanceof L.Polyline) {
+                        map.removeLayer(layer);
+                    }
+                });
+
+                // 显示筛选日期内的标记点
+                roadbookData.markers.forEach(marker => {
+                    const markerDates = getMarkerAllDates(marker);
+                    if (markerDates.includes(date)) {
+                        const icon = createMarkerIcon(marker.icon, 0);
+                        const markerObj = L.marker([marker.position[0], marker.position[1]], {
+                            icon: icon,
+                            draggable: false, // 禁用拖拽
+                            title: marker.title
+                        }).addTo(map);
+
+                        // 添加点击弹窗显示详细信息
+                        markerObj.bindPopup(generateMarkerPopupContent(marker));
+                    }
+                });
+
+                // 显示筛选日期内的连接线
+                roadbookData.connections.forEach(connection => {
+                    const connectionDate = getDateKey(connection.dateTime);
+                    if (connectionDate === date) {
+                        // 查找起始点和终点
+                        const startMarker = roadbookData.markers.find(m => m.id === connection.startId);
+                        const endMarker = roadbookData.markers.find(m => m.id === connection.endId);
+
+                        if (startMarker && endMarker) {
+                            // 创建连接线
+                            const polyline = L.polyline([
+                                [startMarker.position[0], startMarker.position[1]],
+                                [endMarker.position[0], endMarker.position[1]]
+                            ], {
+                                color: getTransportColor(connection.transportType),
+                                weight: 6,
+                                opacity: 1.0,
+                                smoothFactor: 1.0
+                            }).addTo(map);
+
+                            // 添加终点标记（小圆点）
+                            const endCircle = L.circleMarker([endMarker.position[0], endMarker.position[1]], {
+                                radius: 6,
+                                fillColor: getTransportColor(connection.transportType),
+                                color: '#fff',
+                                weight: 2,
+                                opacity: 1,
+                                fillOpacity: 1
+                            }).addTo(map);
+
+                            // 创建箭头
+                            const arrowHead = createArrowHead([startMarker.position[0], startMarker.position[1]], [endMarker.position[0], endMarker.position[1]], connection.transportType);
+                            arrowHead.addTo(map);
+
+                            // 计算中点位置并添加交通图标
+                            const startLat = parseFloat(startMarker.position[0]);
+                            const startLng = parseFloat(startMarker.position[1]);
+                            const endLat = parseFloat(endMarker.position[0]);
+                            const endLng = parseFloat(endMarker.position[1]);
+
+                            if (!isNaN(startLat) && !isNaN(startLng) && !isNaN(endLat) && !isNaN(endLng)) {
+                                const midLat = (startLat + endLat) / 2;
+                                const midLng = (startLng + endLng) / 2;
+                                const transportIcon = getTransportIcon(connection.transportType);
+
+                                const iconMarker = L.marker([midLat, midLng], {
+                                    icon: L.divIcon({
+                                        className: 'transport-icon',
+                                        html: \`
+                                            <div style="background-color: white; border: 2px solid \${getTransportColor(connection.transportType)}; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-size: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.3);">\${transportIcon}</div>
+                                        \`,
+                                        iconSize: [30, 30],
+                                        iconAnchor: [15, 15]
+                                    })
+                                }).addTo(map);
+
+                                // 为连接线添加弹窗
+                                polyline.bindPopup(generateConnectionPopupContent(connection, startMarker, endMarker));
+                            }
+                        }
+                    }
+                });
+
+                // 自动调整视窗以聚焦到筛选后的元素
+                autoFitMapViewAfterFilter();
+            }
+
+            // 退出过滤模式的函数
+            function exitFilterMode() {
+                if (!isFilteredMode) return;
+
+                isFilteredMode = false;
+                filteredDate = null;
+
+                // 重新加载所有标记点和连接线
+                map.eachLayer(function(layer) {
+                    if (layer instanceof L.Marker || layer instanceof L.Polyline) {
+                        map.removeLayer(layer);
+                    }
+                });
+
+                // 添加所有标记点
+                roadbookData.markers.forEach(markerData => {
+                    const icon = createMarkerIcon(markerData.icon, 0);
+                    const marker = L.marker([markerData.position[0], markerData.position[1]], {
+                        icon: icon,
+                        draggable: false, // 禁用拖拽
+                        title: markerData.title
+                    }).addTo(map);
+
+                    // 添加点击弹窗显示详细信息
+                    marker.bindPopup(generateMarkerPopupContent(markerData));
+                });
+
+                // 添加所有连接线
+                roadbookData.connections.forEach(connData => {
+                    // 查找起始点和终点
+                    const startMarker = roadbookData.markers.find(m => m.id === connData.startId);
+                    const endMarker = roadbookData.markers.find(m => m.id === connData.endId);
+
+                    if (!startMarker || !endMarker) return;
+
+                    // 创建连接线
+                    const polyline = L.polyline([
+                        [startMarker.position[0], startMarker.position[1]],
+                        [endMarker.position[0], endMarker.position[1]]
+                    ], {
+                        color: getTransportColor(connData.transportType),
+                        weight: 6,
+                        opacity: 1.0,
+                        smoothFactor: 1.0
+                    }).addTo(map);
+
+                    // 添加终点标记（小圆点）
+                    const endCircle = L.circleMarker([endMarker.position[0], endMarker.position[1]], {
+                        radius: 6,
+                        fillColor: getTransportColor(connData.transportType),
+                        color: '#fff',
+                        weight: 2,
+                        opacity: 1,
+                        fillOpacity: 1
+                    }).addTo(map);
+
+                    // 创建箭头
+                    const arrowHead = createArrowHead([startMarker.position[0], startMarker.position[1]], [endMarker.position[0], endMarker.position[1]], connData.transportType);
+                    arrowHead.addTo(map);
+
+                    // 计算中点位置并添加交通图标
+                    const startLat = parseFloat(startMarker.position[0]);
+                    const startLng = parseFloat(startMarker.position[1]);
+                    const endLat = parseFloat(endMarker.position[0]);
+                    const endLng = parseFloat(endMarker.position[1]);
+
+                    if (!isNaN(startLat) && !isNaN(startLng) && !isNaN(endLat) && !isNaN(endLng)) {
+                        const midLat = (startLat + endLat) / 2;
+                        const midLng = (startLng + endLng) / 2;
+                        const transportIcon = getTransportIcon(connData.transportType);
+
+                        const iconMarker = L.marker([midLat, midLng], {
+                            icon: L.divIcon({
+                                className: 'transport-icon',
+                                html: \`
+                                    <div style="background-color: white; border: 2px solid \${getTransportColor(connData.transportType)}; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-size: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.3);">\${transportIcon}</div>
+                                \`,
+                                iconSize: [30, 30],
+                                iconAnchor: [15, 15]
+                            })
+                        }).addTo(map);
+
+                        // 为连接线添加弹窗
+                        polyline.bindPopup(generateConnectionPopupContent(connData, startMarker, endMarker));
+                    }
+                });
+
+                // 隐藏日期备注便签
+                const sticky = document.getElementById('dateNotesSticky');
+                if (sticky) {
+                    sticky.style.display = 'none';
+                }
+
+                // 重新自动调整视窗以包含所有元素
+                if (roadbookData.markers.length > 0) {
+                    const group = new L.featureGroup([
+                        ...roadbookData.markers.map(m => L.marker([m.position[0], m.position[1]])),
+                        ...roadbookData.connections.map(c => L.polyline([
+                            [roadbookData.markers.find(m => m.id === c.startId)?.position[0], roadbookData.markers.find(m => m.id === c.startId)?.position[1]],
+                            [roadbookData.markers.find(m => m.id === c.endId)?.position[0], roadbookData.markers.find(m => m.id === c.endId)?.position[1]]
+                        ]))
+                    ]);
+
+                    if (group.getLayers().length > 0) {
+                        map.fitBounds(group.getBounds().pad(0.1));
+                    }
+                }
+            }
+
+            // 筛选后自动调整地图视窗以包含筛选后的元素
+            function autoFitMapViewAfterFilter() {
+                const group = new L.featureGroup([]);
+
+                // 添加当前显示的标记点到组中
+                map.eachLayer(function(layer) {
+                    if (layer instanceof L.Marker || layer instanceof L.Polyline) {
+                        group.addLayer(layer);
+                    }
+                });
+
+                if (group.getLayers().length > 0) {
+                    map.fitBounds(group.getBounds().pad(0.1));
+                }
+            }
+
+            // 显示日期备注便签（类似script.js中的实现）
+            function showDateNotesSticky(date) {
+                const sticky = document.getElementById('dateNotesSticky');
+                const dateElement = document.getElementById('dateNotesDate');
+                const contentElement = document.getElementById('dateNotesContent');
+
+                if (sticky && dateElement && contentElement) {
+                    // 设置日期标题
+                    dateElement.textContent = formatDateHeader(date);
+
+                    // 获取日期备注 - 使用roadbookData中的dateNotes
+                    const notes = roadbookData.dateNotes && roadbookData.dateNotes[date] ? roadbookData.dateNotes[date] : '';
+                    contentElement.textContent = notes || '暂无备注';
+
+                    // 显示便签
+                    sticky.style.display = 'flex';
+
+                    // 添加关闭事件
+                    const closeBtn = document.getElementById('closeDateNotesSticky');
+                    if (closeBtn) {
+                        closeBtn.onclick = () => {
+                            sticky.style.display = 'none';
+                        };
+                    }
+                }
+            }
+
+            // 添加点击地图事件来退出筛选模式
+            map.on('click', function() {
+                if (isFilteredMode) {
+                    exitFilterMode();
+                }
+            });
+
+            // 初始更新标记点列表
+            updateMarkerList();
+        });
+    </script>
+</body>
+</html>`;
+    }
+
+    generateCssStyles() {
+        // 返回项目中的CSS样式，只包含必要的部分以支持只读视图
+        return `
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Microsoft YaHei', Arial, sans-serif;
+    background-color: #f5f5f5;
+}
+
+.container {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 0.5rem 0;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    position: relative;
+}
+
+header h1 {
+    text-align: center;
+    margin: 0;
+    font-size: 1.5rem;
+}
+
+main {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+}
+
+.right-panel {
+    width: 350px;
+    position: relative;
+    overflow: hidden;
+}
+
+#mapContainer {
+    flex: 1;
+    position: relative;
+    background: #e0e0e0;
+    min-height: 400px;
+}
+
+.sidebar {
+    width: 100%;
+    height: 100%;
+    background: white;
+    border-left: 1px solid #ddd;
+    padding: 1rem;
+    overflow-y: auto;
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+
+/* 侧边栏标题区域样式 */
+.sidebar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid #667eea;
+    background: transparent;
+}
+
+.sidebar-header h3 {
+    margin: 0;
+    color: #333;
+    font-size: 1.1rem;
+}
+
+.sidebar h3 {
+    margin: 0;
+    color: #333;
+}
+
+.marker-item {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 0.8rem;
+    margin-bottom: 0.5rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.marker-item:hover {
+    background: #e9ecef;
+    transform: translateX(5px);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.marker-info {
+    flex: 1;
+}
+
+.marker-item .title {
+    font-weight: bold;
+    color: #495057;
+    margin-bottom: 0.2rem;
+    font-size: 0.9rem;
+}
+
+.marker-item .coords {
+    font-size: 0.75rem;
+    color: #6c757d;
+    margin-bottom: 0.1rem;
+}
+
+.marker-item .date {
+    font-size: 0.7rem;
+    color: #868e96;
+}
+
+.marker-actions {
+    display: flex;
+    gap: 0.3rem;
+    margin-left: 0.5rem;
+}
+
+/* 日期分组标题样式 */
+.date-group-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 0.8rem 1rem;
+    margin: 1rem 0 0.5rem 0;
+    border-radius: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    cursor: default;
+    transition: all 0.3s ease;
+}
+
+.date-group-header h4 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.date-group-header .marker-count {
+    font-size: 0.8rem;
+    opacity: 0.9;
+    background: rgba(255,255,255,0.2);
+    padding: 0.2rem 0.5rem;
+    border-radius: 12px;
+}
+
+/* 时间信息显示样式 */
+.time-info {
+    font-size: 0.75rem;
+    color: #6c757d;
+    margin-top: 0.2rem;
+    font-weight: 500;
+}
+
+/* GitHub角标样式 - 经典右上角Octocat */
+.github-corner {
+    position: absolute;
+    top: 0;
+    right: 0;
+    z-index: 9999;
+    border: 0;
+    width: 80px;
+    height: 80px;
+}
+
+.github-corner:hover .octo-arm {
+    animation: octocat-arm 0.56s ease-in-out;
+}
+
+.github-corner .github-corner-link {
+    display: block;
+    position: absolute;
+    top: 0;
+    right: 0;
+    border: 0;
+    text-decoration: none;
+}
+
+@keyframes octocat-arm {
+    0%, 100% { transform: rotate(0); }
+    20%, 60% { transform: rotate(-25deg); }
+    40%, 80% { transform: rotate(10deg); }
+}
+
+/* 自定义标记点样式 */
+.custom-marker {
+    background: none !important;
+    border: none !important;
+}
+
+.custom-label {
+    background: none !important;
+    border: none !important;
+}
+
+/* 箭头图标样式 */
+.arrow-icon {
+    background: none !important;
+    border: none !important;
+    pointer-events: none !important;
+}
+
+.arrow-icon div {
+    transition: transform 0.2s ease;
+}
+
+/* 弹窗内容样式 */
+.popup-content h3 {
+    margin: 0 0 10px 0;
+    color: #333;
+    font-size: 1.2em;
+}
+
+.popup-content p {
+    margin: 5px 0;
+    color: #666;
+    line-height: 1.4;
+}
+
+.popup-content strong {
+    color: #333;
+}
+
+/* 日期备注便签样式 */
+.date-notes-sticky {
+    position: absolute;
+    top: 60px; /* 调整位置，避免覆盖header */
+    left: 10px;
+    z-index: 2000;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    width: 250px;
+    max-height: 300px;
+    display: flex;
+    flex-direction: column;
+    backdrop-filter: blur(10px);
+    background: rgba(255, 255, 255, 0.95);
+}
+
+.date-notes-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 15px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 8px 8px 0 0;
+    font-size: 0.9rem;
+}
+
+.close-sticky-btn {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 0;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: background-color 0.3s ease;
+}
+
+.close-sticky-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.date-notes-content {
+    padding: 15px;
+    overflow-y: auto;
+    max-height: 200px;
+    font-size: 0.9rem;
+    line-height: 1.4;
+    color: #333;
+    white-space: pre-wrap; /* 保持换行 */
+    word-wrap: break-word; /* 允许长单词换行 */
+}
+
+/* 当便签内容为空时的样式 */
+.date-notes-content:empty::before {
+    content: "暂无备注";
+    color: #999;
+    font-style: italic;
+}`;
+    }
+
+    // Import from HTML function
+    importFromHtml(file) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const htmlContent = e.target.result;
+
+                // 从HTML中提取嵌入的JSON数据 - 适配新的编码方式
+                // 查找使用encodeURIComponent和decodeURIComponent编码的数据
+                let dataMatch = htmlContent.match(/const roadbookData = JSON\.parse\(decodeURIComponent\(`([^`]*)`\)\);/);
+
+                if (!dataMatch) {
+                    // 尝试匹配旧的格式作为备选
+                    dataMatch = htmlContent.match(/const roadbookData = JSON\.parse\(`([^`\\]*(\\.[^`\\]*)*)`\)/);
+
+                    if (!dataMatch) {
+                        alert('HTML文件中未找到路书数据！');
+                        return;
+                    }
+
+                    // 解析旧格式的数据
+                    const dataStr = dataMatch[1].replace(/\\`/g, '`');
+                    const data = JSON.parse(dataStr);
+                    this.processImportedData(data);
+                    return;
+                }
+
+                // 解析新编码格式的数据
+                const encodedDataStr = dataMatch[1];
+                // 修复反斜杠转义问题
+                const properlyDecodedStr = encodedDataStr.replace(/\\`/g, '`');
+                const decodedDataStr = decodeURIComponent(properlyDecodedStr);
+                const data = JSON.parse(decodedDataStr);
+
+                this.processImportedData(data);
+
+            } catch (error) {
+                console.error('导入HTML失败:', error);
+                alert('HTML文件格式错误或数据损坏！');
+            }
+        };
+        reader.readAsText(file);
+    }
+
+    processImportedData(data) {
+        // 调用app的loadRoadbook方法加载数据
+        this.app.loadRoadbook(data, true);
+
+        // 确保UI下拉框显示正确的值（导入后）
+        setTimeout(() => {
+            if (data.currentLayer) {
+                this.app.switchMapSource(data.currentLayer);
+                const mapSourceSelect = document.getElementById('mapSourceSelect');
+                if (mapSourceSelect) {
+                    mapSourceSelect.value = data.currentLayer;
+                }
+            }
+
+            if (data.currentSearchMethod) {
+                this.app.currentSearchMethod = data.currentSearchMethod;
+                const searchMethodSelect = document.getElementById('searchMethodSelect');
+                if (searchMethodSelect) {
+                    searchMethodSelect.value = data.currentSearchMethod;
+                }
+            }
+        }, 100); // 稍微延时以确保数据加载完成
+    }
+}

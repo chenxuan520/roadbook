@@ -31,7 +31,8 @@
                 <div class="toolbar">
                     <button id="addMarkerBtn" class="btn">添加标记点</button>
                     <button id="connectMarkersBtn" class="btn">连接标记点</button>
-                    <button id="exportBtn" class="btn">导出路书</button>
+                    <button id="exportBtn" class="btn">导出JSON</button>
+                    <button id="exportHtmlBtn" class="btn">导出HTML</button>
                     <button id="importBtn" class="btn">导入路书</button>
                     <button id="clearCacheBtn" class="btn">清除缓存</button>
                     <select id="mapSourceSelect" class="btn" style="background: linear-gradient(135deg, rgba(255,255,255,0.3), rgba(255,255,255,0.15)); color: #fff; border: 2px solid rgba(255,255,255,0.5); padding: 0.6rem 1.2rem; border-radius: 25px; font-size: 0.9rem; font-weight: 600; cursor: pointer;">
@@ -42,7 +43,7 @@
                         <option value="google">Google地图</option>
                         <option value="google_satellite">Google卫星图</option>
                     </select>
-                    <input type="file" id="importFile" accept=".json" style="display: none;">
+                    <input type="file" id="importFile" accept=".json,.html" style="display: none;">
                 </div>
             </div>
         </header>
@@ -78,10 +79,10 @@
                 </a>
             </div>
             <div class="right-panel">
-                <!-- 标记点列表 -->
+                <!-- 日程列表 -->
                 <div class="sidebar" id="markerListPanel">
                     <div class="sidebar-header">
-                        <h3>标记点列表</h3>
+                        <h3>日程列表</h3>
                         <span class="filter-hint">📅 点击日期分组可筛选</span>
                     </div>
                     <div id="markerList"></div>
@@ -435,10 +436,24 @@
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="script.js"></script>
+    <script src="html_export.js"></script>
     <script>
         // 添加提示信息以展示新功能
         document.addEventListener('DOMContentLoaded', function() {
             console.log('路书制作工具已加载，支持Ctrl+Z撤销功能');
+
+            // Initialize the HTML exporter module
+            if (typeof RoadbookHtmlExporter !== 'undefined' && window.app) {
+                window.htmlExporter = new RoadbookHtmlExporter(window.app);
+
+                // Update the exportHtmlBtn to use the module
+                const exportHtmlBtn = document.getElementById('exportHtmlBtn');
+                if (exportHtmlBtn) {
+                    exportHtmlBtn.addEventListener('click', () => {
+                        window.htmlExporter.exportToHtml();
+                    });
+                }
+            }
         });
     </script>
 </body>

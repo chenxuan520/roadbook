@@ -547,6 +547,7 @@ class RoadbookApp {
             });
         }
 
+
         const importBtn = document.getElementById('importBtn');
         if (importBtn) {
             importBtn.addEventListener('click', () => {
@@ -1496,7 +1497,7 @@ class RoadbookApp {
                 });
             }
         } else if (markerData.dateTime) {
-            tooltipContent += `<div>时间: ${markerData.dateTime}</div>`;
+            tooltipContent += `<div>时间: ${this.formatTime(markerData.dateTime)}</div>`;
         }
 
         if (markerData.labels && markerData.labels.length > 0) {
@@ -1540,7 +1541,8 @@ class RoadbookApp {
             tooltipContent += `<div>耗时: ${connection.duration} 小时</div>`;
         }
         if (connection.dateTime) {
-            tooltipContent += `<div>时间: ${connection.dateTime}</div>`;
+            // 使用相同的格式化方式显示时间
+            tooltipContent += `<div>时间: ${this.formatTime(connection.dateTime)}</div>`;
         }
         if (connection.label) {
             tooltipContent += `<div>标注: ${connection.label}</div>`;
@@ -1944,7 +1946,11 @@ class RoadbookApp {
         try {
             const date = new Date(dateTimeString);
             if (isNaN(date.getTime())) return '未知日期';
-            return date.toISOString().split('T')[0]; // YYYY-MM-DD
+            // 使用本地时区的日期，而不是UTC
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`; // YYYY-MM-DD in local timezone
         } catch (error) {
             return '未知日期';
         }
@@ -1955,13 +1961,18 @@ class RoadbookApp {
         if (dateKey === '未知日期') return dateKey;
         try {
             const date = new Date(dateKey);
+            // 获取今天的日期键（本地时区）
             const today = new Date();
+            const todayKey = this.getDateKey(today.toISOString());
+
+            // 获取昨天的日期键（本地时区）
             const yesterday = new Date(today);
             yesterday.setDate(yesterday.getDate() - 1);
+            const yesterdayKey = this.getDateKey(yesterday.toISOString());
 
-            if (dateKey === today.toISOString().split('T')[0]) {
+            if (dateKey === todayKey) {
                 return '今天';
-            } else if (dateKey === yesterday.toISOString().split('T')[0]) {
+            } else if (dateKey === yesterdayKey) {
                 return '昨天';
             } else {
                 return `${date.getMonth() + 1}月${date.getDate()}日 (${this.getWeekdayName(date.getDay())})`;
@@ -1977,16 +1988,32 @@ class RoadbookApp {
         return weekdays[day];
     }
 
-    // 格式化时间（只显示时分）
+    // 格式化时间（只在小时或分钟不为0时显示）
     formatTime(dateTimeString) {
         if (!dateTimeString) return '';
         try {
             const date = new Date(dateTimeString);
             if (isNaN(date.getTime())) return '';
-            return date.toLocaleTimeString('zh-CN', {
-                hour: '2-digit',
-                minute: '2-digit'
-            });
+
+            // 检查小时和分钟是否为0
+            const hours = date.getHours();
+            const minutes = date.getMinutes();
+
+            // 如果小时和分钟都为0，则只显示日期部分
+            if (hours === 0 && minutes === 0) {
+                // 只返回日期部分
+                return date.toLocaleDateString('zh-CN');
+            } else {
+                // 显示日期和时间（时:分）
+                return date.toLocaleString('zh-CN', {
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: false
+                });
+            }
         } catch (error) {
             return '';
         }
@@ -2175,22 +2202,22 @@ class RoadbookApp {
     // 处理调整视窗按钮点击事件
     handleFitViewClick() {
         console.log('用户点击了调整视窗按钮');
-        
+
         const fitViewBtn = document.getElementById('fitViewBtn');
         if (fitViewBtn) {
             // 添加点击动画效果
             fitViewBtn.classList.add('active');
             fitViewBtn.classList.add('rotating');
-            
+
             setTimeout(() => {
                 fitViewBtn.classList.remove('active');
             }, 600);
-            
+
             setTimeout(() => {
                 fitViewBtn.classList.remove('rotating');
             }, 1000);
         }
-        
+
         // 执行视窗调整
         this.autoFitMapView();
     }
@@ -2888,8 +2915,21 @@ class RoadbookApp {
         URL.revokeObjectURL(url);
     }
 
+
+
     importRoadbook(file) {
         if (!file) return;
+
+        // 检查是否是HTML文件
+        if (file.name.toLowerCase().endsWith('.html') || file.name.toLowerCase().endsWith('.htm')) {
+            // If html_export.js is loaded, use the new module
+            if (typeof RoadbookHtmlExporter !== 'undefined' && window.htmlExporter) {
+                window.htmlExporter.importFromHtml(file);
+            } else {
+                this.importFromHtml(file); // fallback to old method
+            }
+            return;
+        }
 
         const reader = new FileReader();
         reader.onload = (e) => {
@@ -2923,6 +2963,73 @@ class RoadbookApp {
             }
         };
         reader.readAsText(file);
+    }
+
+    importFromHtml(file) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const htmlContent = e.target.result;
+
+                // 从HTML中提取嵌入的JSON数据 - 适配新的编码方式
+                // 查找使用encodeURIComponent和decodeURIComponent编码的数据
+                let dataMatch = htmlContent.match(/const roadbookData = JSON\.parse\(decodeURIComponent\(`([^`]*)`\)\);/);
+
+                if (!dataMatch) {
+                    // 尝试匹配旧的格式作为备选
+                    dataMatch = htmlContent.match(/const roadbookData = JSON\.parse\(`([^`\\]*(\\.[^`\\]*)*)`\)/);
+
+                    if (!dataMatch) {
+                        alert('HTML文件中未找到路书数据！');
+                        return;
+                    }
+
+                    // 解析旧格式的数据
+                    const dataStr = dataMatch[1].replace(/\\`/g, '`');
+                    const data = JSON.parse(dataStr);
+                    this.processImportedData(data);
+                    return;
+                }
+
+                // 解析新编码格式的数据
+                const encodedDataStr = dataMatch[1];
+                // 修复反斜杠转义问题
+                const properlyDecodedStr = encodedDataStr.replace(/\\`/g, '`');
+                const decodedDataStr = decodeURIComponent(properlyDecodedStr);
+                const data = JSON.parse(decodedDataStr);
+
+                this.processImportedData(data);
+
+            } catch (error) {
+                console.error('导入HTML失败:', error);
+                alert('HTML文件格式错误或数据损坏！');
+            }
+        };
+        reader.readAsText(file);
+    }
+
+    processImportedData(data) {
+        // 调用loadRoadbook方法加载数据
+        this.loadRoadbook(data, true); // 明确指定这是手动导入
+
+        // 确保UI下拉框显示正确的值（导入后）
+        setTimeout(() => {
+            if (data.currentLayer) {
+                this.switchMapSource(data.currentLayer);
+                const mapSourceSelect = document.getElementById('mapSourceSelect');
+                if (mapSourceSelect) {
+                    mapSourceSelect.value = data.currentLayer;
+                }
+            }
+
+            if (data.currentSearchMethod) {
+                this.currentSearchMethod = data.currentSearchMethod;
+                const searchMethodSelect = document.getElementById('searchMethodSelect');
+                if (searchMethodSelect) {
+                    searchMethodSelect.value = data.currentSearchMethod;
+                }
+            }
+        }, 100); // 稍微延时以确保数据加载完成
     }
 
     loadRoadbook(data, isImport = true) {
@@ -3231,13 +3338,13 @@ class RoadbookApp {
                 const padding = basePadding + additionalPadding;
 
                 console.log(`调整地图视窗到边界，使用padding: ${padding}px`);
-                
+
                 // 获取边界的中心点和建议缩放级别
                 const center = bounds.getCenter();
                 const zoom = this.map.getBoundsZoom(bounds, false, [padding, padding]);
-                
+
                 console.log(`边界中心点: [${center.lat}, ${center.lng}], 建议缩放级别: ${zoom}`);
-                
+
                 // 延迟执行以确保所有元素都已渲染
                 setTimeout(() => {
                     try {
@@ -3249,17 +3356,17 @@ class RoadbookApp {
                             duration: 1.5, // 动画持续时间1.5秒
                             easeLinearity: 0.25
                         });
-                        
+
                         console.log('地图视窗调整完成');
                     } catch (err) {
                         console.error('调整视窗时出错:', err);
                     }
                 }, 400); // 400毫秒延迟，确保DOM完全更新
-                
+
             } else {
                 console.warn('边界无效，无法调整视窗');
             }
-            
+
         } catch (error) {
             console.error('自动调整视窗时出错:', error);
         }
