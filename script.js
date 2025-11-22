@@ -25,6 +25,7 @@ class RoadbookApp {
         this.filteredDate = null; // 当前筛选的日期
         this.history = []; // 操作历史栈
         this.historyLimit = 50; // 历史记录最大数量
+        this.dateNotes = {}; // 日期备注信息
 
         this.init();
     }
@@ -974,6 +975,26 @@ class RoadbookApp {
             title: `标记点${this.markers.length + 1}`
         }).addTo(this.map);
 
+        // 确定新标记点的时间 - 如果有上一个点则使用其时间，否则为当天00:00
+        let newMarkerDateTime = this.getCurrentLocalDateTime();
+        if (this.markers.length > 0) {
+            // 使用最后一个标记点的时间
+            const lastMarker = this.markers[this.markers.length - 1];
+            if (lastMarker.dateTimes && lastMarker.dateTimes.length > 0) {
+                newMarkerDateTime = lastMarker.dateTimes[0]; // 使用上一个点的第一个时间
+            } else if (lastMarker.dateTime) {
+                newMarkerDateTime = lastMarker.dateTime;
+            } else {
+                // 如果上一个点也没有时间，则使用当天00:00
+                const lastDateTime = new Date();
+                newMarkerDateTime = `${lastDateTime.getFullYear()}-${String(lastDateTime.getMonth() + 1).padStart(2, '0')}-${String(lastDateTime.getDate()).padStart(2, '0')} 00:00:00`;
+            }
+        } else {
+            // 如果没有上一个点，使用当天00:00
+            const today = new Date();
+            newMarkerDateTime = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')} 00:00:00`;
+        }
+
         const markerData = {
             id: markerId, // 不可见不可编辑的唯一ID
             marker: marker,
@@ -982,8 +1003,8 @@ class RoadbookApp {
             labels: [], // 存储标注文本，不直接显示
             icon: defaultIcon, // 保存图标信息
             createdAt: this.getCurrentLocalDateTime(),
-            dateTimes: [this.getCurrentLocalDateTime()], // 改为数组，支持多个时间点
-            dateTime: this.getCurrentLocalDateTime() // 使用第一个时间点作为默认时间
+            dateTimes: [newMarkerDateTime], // 改为数组，支持多个时间点
+            dateTime: newMarkerDateTime // 使用第一个时间点作为默认时间
         };
 
         this.markers.push(markerData);
@@ -1269,6 +1290,17 @@ class RoadbookApp {
             })
         }).addTo(this.map);
 
+        // 使用起始点的时间作为连接线的默认时间
+        let connectionDateTime = this.getCurrentLocalDateTime();
+        if (startMarker.dateTimes && startMarker.dateTimes.length > 0) {
+            connectionDateTime = startMarker.dateTimes[0]; // 使用起始点的第一个时间
+        } else if (startMarker.dateTime) {
+            connectionDateTime = startMarker.dateTime;
+        } else {
+            // 如果起始点也没有时间，则使用当前时间
+            connectionDateTime = this.getCurrentLocalDateTime();
+        }
+
         const connection = {
             id: Date.now(),
             startId: startMarker.id, // 使用ID引用开始标记点
@@ -1278,7 +1310,7 @@ class RoadbookApp {
             endCircle: endCircle,
             iconMarker: iconMarker,
             arrowHead: arrowHead, // 添加箭头
-            dateTime: this.getCurrentLocalDateTime(),
+            dateTime: connectionDateTime,
             label: '',
             duration: 0, // 新增：连接耗时（分钟）
             startTitle: startMarker.title, // 保存创建时的标题，用于显示
@@ -1775,19 +1807,37 @@ class RoadbookApp {
             const dateHeader = document.createElement('div');
             dateHeader.className = 'date-group-header';
             const markers = markersByDate[date] || [];
+            // 默认为展开状态
+            if (!this.collapsedDates) this.collapsedDates = {};
+            const isCollapsed = this.collapsedDates[date] || false;
+            const expandIcon = isCollapsed ? '📁' : '📂'; // 收起状态显示▶，展开状态显示▼
+
             dateHeader.innerHTML = `
-                <h4>${this.formatDateHeader(date)}</h4>
+                <h4 style="display: flex; align-items: center; gap: 8px;">
+                    <span class="expand-toggle">${expandIcon}</span>
+                    ${this.formatDateHeader(date)}
+                </h4>
                 <span class="marker-count">${markers.length} 个地点</span>
             `;
 
-            // 添加点击事件，点击日期分组进行筛选并自动调整视窗，同时显示日期详情
+            // 为日期标题添加展开/收起功能，同时保留筛选功能
             dateHeader.style.cursor = 'pointer';
-            dateHeader.addEventListener('click', () => {
-                this.filterByDate(date); // 执行筛选并自动调整视窗
-                // 在筛选后显示日期详情，这样用户可以编辑备注
-                setTimeout(() => {
-                    this.showDateDetail(date);
-                }, 300); // 延迟显示详情，让视窗调整完成
+            const expandToggle = dateHeader.querySelector('.expand-toggle');
+            dateHeader.addEventListener('click', (e) => {
+                // 如果点击的是展开/收起按钮，则只执行展开/收起功能
+                if (e.target.classList.contains('expand-toggle') || e.target === expandToggle) {
+                    // 切换展开/收起状态
+                    this.collapsedDates[date] = !this.collapsedDates[date];
+                    // 重新渲染整个列表以更新展开/收起状态
+                    this.updateMarkerList();
+                } else {
+                    // 否则执行筛选功能
+                    this.filterByDate(date); // 执行筛选并自动调整视窗
+                    // 在筛选后显示日期详情，这样用户可以编辑备注
+                    setTimeout(() => {
+                        this.showDateDetail(date);
+                    }, 300); // 延迟显示详情，让视窗调整完成
+                }
             });
 
             listContainer.appendChild(dateHeader);
@@ -1795,50 +1845,53 @@ class RoadbookApp {
             // 按最早时间排序该日期的标记点
             const sortedMarkers = this.sortMarkersByEarliestTime(markers, date);
 
-            // 添加该日期的所有标记点
-            sortedMarkers.forEach(marker => {
-                const item = document.createElement('div');
-                item.className = 'marker-item';
+            // 如果未收起，则显示该日期的标记点
+            if (!this.collapsedDates[date]) {
+                // 添加该日期的所有标记点
+                sortedMarkers.forEach(marker => {
+                    const item = document.createElement('div');
+                    item.className = 'marker-item';
 
-                // 显示该日期对应的时间点（只显示这一天的）
-                const dayTimes = this.getMarkerTimesForDate(marker, date);
-                const timeDisplay = dayTimes.length > 0
-                    ? dayTimes.map(dt => this.formatTime(dt)).join(', ')
-                    : '';
+                    // 显示该日期对应的时间点（只显示这一天的）
+                    const dayTimes = this.getMarkerTimesForDate(marker, date);
+                    const timeDisplay = dayTimes.length > 0
+                        ? dayTimes.map(dt => this.formatTime(dt)).join(', ')
+                        : '';
 
-                item.innerHTML = `
-                    <div class="marker-info">
-                        <div class="title">${marker.title}</div>
-                        <div class="coords">${marker.position[1].toFixed(6)}, ${marker.position[0].toFixed(6)}</div>
-                        <div class="time-info">${timeDisplay}</div>
-                    </div>
-                    <div class="marker-actions">
-                        <button class="edit-btn" title="编辑">✏️</button>
-                        <button class="delete-btn" title="删除">🗑️</button>
-                    </div>
-                `;
+                    item.innerHTML = `
+                        <div class="marker-info">
+                            <div class="title">${marker.title}</div>
+                            <div class="coords">${marker.position[1].toFixed(6)}, ${marker.position[0].toFixed(6)}</div>
+                            <div class="time-info">${timeDisplay}</div>
+                        </div>
+                        <div class="marker-actions">
+                            <button class="edit-btn" title="编辑">✏️</button>
+                            <button class="delete-btn" title="删除">🗑️</button>
+                        </div>
+                    `;
 
-                // 点击标记点信息显示详情
-                item.querySelector('.marker-info').addEventListener('click', () => {
-                    this.showMarkerDetail(marker);
+                    // 点击标记点信息显示详情
+                    item.querySelector('.marker-info').addEventListener('click', () => {
+                        this.showMarkerDetail(marker);
+                    });
+
+                    // 编辑按钮
+                    item.querySelector('.edit-btn').addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        this.showMarkerDetail(marker);
+                    });
+
+                    // 删除按钮
+                    item.querySelector('.delete-btn').addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        if (confirm(`确定要删除标记点"${marker.title}"吗？`)) {
+                            this.removeMarker(marker);
+                        }
+                    });
+
+                    listContainer.appendChild(item);
                 });
-
-                // 编辑按钮
-                item.querySelector('.edit-btn').addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    this.showMarkerDetail(marker);
-                });
-
-                // 删除按钮
-                item.querySelector('.delete-btn').addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    if (confirm(`确定要删除标记点"${marker.title}"吗？`)) {
-                        this.removeMarker(marker);
-                    }
-                });
-
-                listContainer.appendChild(item);
-            });
+            }
         });
     }
 
@@ -2121,6 +2174,23 @@ class RoadbookApp {
 
             // 显示便签
             sticky.style.display = 'flex';
+
+            // 阻止滚动事件冒泡到地图，防止在备注内容区域滚动时影响地图
+            contentElement.addEventListener('wheel', function(e) {
+                const scrollTop = this.scrollTop;
+                const scrollHeight = this.scrollHeight;
+                const clientHeight = this.clientHeight;
+
+                // 检查是否滚动到了顶部或底部
+                const isScrollAtTop = (scrollTop === 0 && e.deltaY < 0);
+                const isScrollAtBottom = (scrollTop + clientHeight >= scrollHeight && e.deltaY > 0);
+
+                // 如果已经滚动到了顶部或底部，允许事件继续传播以影响地图
+                // 否则阻止事件传播，只在便签内容内部滚动
+                if (!isScrollAtTop && !isScrollAtBottom) {
+                    e.stopPropagation();
+                }
+            });
         }
     }
 
@@ -3496,6 +3566,7 @@ class RoadbookApp {
         this.markers = [];
         this.connections = [];
         this.labels = [];
+        this.dateNotes = {}; // 清除日期备注
         this.updateMarkerList();
     }
 

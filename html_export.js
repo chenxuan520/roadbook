@@ -424,24 +424,46 @@ class RoadbookHtmlExporter {
                 // 获取所有日期并排序（从早到晚）
                 const allDates = getAllDatesFromMarkers();
 
+                // 初始化collapsedDates对象，用于存储展开/收起状态
+                if (typeof window.collapsedDates === 'undefined') {
+                    window.collapsedDates = {};
+                }
+
                 allDates.forEach(date => {
                     // 创建日期分组标题
                     const dateHeader = document.createElement('div');
                     dateHeader.className = 'date-group-header';
                     const markers = markersByDate[date] || [];
+                    // 默认为展开状态
+                    const isCollapsed = window.collapsedDates[date] || false;
+                    const expandIcon = isCollapsed ? '📁' : '📂'; // 收起状态显示▶，展开状态显示▼
+
                     dateHeader.innerHTML = \`
-                        <h4>\${formatDateHeader(date)}</h4>
+                        <h4 style="display: flex; align-items: center; gap: 8px;">
+                            <span class="expand-toggle">\${expandIcon}</span>
+                            \${formatDateHeader(date)}
+                        </h4>
                         <span class="marker-count">\${markers.length} 个地点</span>
                     \`;
 
-                    // 添加点击事件，点击日期分组进行筛选并自动调整视窗，同时显示日期备注
+                    // 为日期标题添加展开/收起功能，同时保留筛选功能
                     dateHeader.style.cursor = 'pointer';
-                    dateHeader.addEventListener('click', () => {
-                        filterByDate(date); // 执行筛选并自动调整视窗
-                        // 在筛选后显示日期备注，这样用户可以查看备注
-                        setTimeout(() => {
-                            showDateNotesSticky(date);
-                        }, 300); // 延迟显示备注，让视窗调整完成
+                    const expandToggle = dateHeader.querySelector('.expand-toggle');
+                    dateHeader.addEventListener('click', (e) => {
+                        // 如果点击的是展开/收起按钮，则只执行展开/收起功能
+                        if (e.target.classList.contains('expand-toggle') || e.target === expandToggle) {
+                            // 切换展开/收起状态
+                            window.collapsedDates[date] = !window.collapsedDates[date];
+                            // 重新渲染整个列表以更新展开/收起状态
+                            updateMarkerList();
+                        } else {
+                            // 否则执行筛选功能
+                            filterByDate(date); // 执行筛选并自动调整视窗
+                            // 在筛选后显示日期备注，这样用户可以查看备注
+                            setTimeout(() => {
+                                showDateNotesSticky(date);
+                            }, 300); // 延迟显示备注，让视窗调整完成
+                        }
                     });
 
                     listContainer.appendChild(dateHeader);
@@ -449,32 +471,35 @@ class RoadbookHtmlExporter {
                     // 按最早时间排序该日期的标记点
                     const sortedMarkers = sortMarkersByEarliestTime(markers, date);
 
-                    // 添加该日期的所有标记点
-                    sortedMarkers.forEach(marker => {
-                        const item = document.createElement('div');
-                        item.className = 'marker-item';
+                    // 如果未收起，则显示该日期的标记点
+                    if (!window.collapsedDates[date]) {
+                        // 添加该日期的所有标记点
+                        sortedMarkers.forEach(marker => {
+                            const item = document.createElement('div');
+                            item.className = 'marker-item';
 
-                        // 显示该日期对应的时间点（只显示这一天的）
-                        const dayTimes = getMarkerTimesForDate(marker, date);
-                        const timeDisplay = dayTimes.length > 0
-                            ? dayTimes.map(dt => formatTime(dt)).join(', ')
-                            : '';
+                            // 显示该日期对应的时间点（只显示这一天的）
+                            const dayTimes = getMarkerTimesForDate(marker, date);
+                            const timeDisplay = dayTimes.length > 0
+                                ? dayTimes.map(dt => formatTime(dt)).join(', ')
+                                : '';
 
-                        item.innerHTML = \`
-                            <div class="marker-info">
-                                <div class="title">\${marker.title}</div>
-                                <div class="coords">\${marker.position[1].toFixed(6)}, \${marker.position[0].toFixed(6)}</div>
-                                <div class="time-info">\${timeDisplay}</div>
-                            </div>
-                        \`;
+                            item.innerHTML = \`
+                                <div class="marker-info">
+                                    <div class="title">\${marker.title}</div>
+                                    <div class="coords">\${marker.position[1].toFixed(6)}, \${marker.position[0].toFixed(6)}</div>
+                                    <div class="time-info">\${timeDisplay}</div>
+                                </div>
+                            \`;
 
-                        // 点击标记点信息在地图上定位
-                        item.querySelector('.marker-info').addEventListener('click', () => {
-                            map.setView([marker.position[0], marker.position[1]], 15); // 跳转到标记点位置
+                            // 点击标记点信息在地图上定位
+                            item.querySelector('.marker-info').addEventListener('click', () => {
+                                map.setView([marker.position[0], marker.position[1]], 15); // 跳转到标记点位置
+                            });
+
+                            listContainer.appendChild(item);
                         });
-
-                        listContainer.appendChild(item);
-                    });
+                    }
                 });
             }
 
@@ -685,6 +710,16 @@ class RoadbookHtmlExporter {
 
                         // 添加点击弹窗显示详细信息
                         markerObj.bindPopup(generateMarkerPopupContent(marker));
+
+                        // 添加鼠标悬浮事件
+                        markerObj.on('mouseover', function(e) {
+                            showMarkerTooltip(marker, e.latlng);
+                        });
+
+                        // 添加鼠标移出事件
+                        markerObj.on('mouseout', function() {
+                            hideMarkerTooltip();
+                        });
                     }
                 });
 
@@ -746,6 +781,16 @@ class RoadbookHtmlExporter {
 
                                 // 为连接线添加弹窗
                                 polyline.bindPopup(generateConnectionPopupContent(connection, startMarker, endMarker));
+
+                                // 为连接线添加鼠标悬浮事件
+                                polyline.on('mouseover', function(e) {
+                                    showConnectionTooltip(connection, e.latlng);
+                                });
+
+                                // 为连接线添加鼠标移出事件
+                                polyline.on('mouseout', function() {
+                                    hideConnectionTooltip();
+                                });
                             }
                         }
                     }
@@ -780,6 +825,16 @@ class RoadbookHtmlExporter {
 
                     // 添加点击弹窗显示详细信息
                     marker.bindPopup(generateMarkerPopupContent(markerData));
+
+                    // 添加鼠标悬浮事件
+                    marker.on('mouseover', function(e) {
+                        showMarkerTooltip(markerData, e.latlng);
+                    });
+
+                    // 添加鼠标移出事件
+                    marker.on('mouseout', function() {
+                        hideMarkerTooltip();
+                    });
                 });
 
                 // 添加所有连接线
@@ -839,6 +894,16 @@ class RoadbookHtmlExporter {
 
                         // 为连接线添加弹窗
                         polyline.bindPopup(generateConnectionPopupContent(connData, startMarker, endMarker));
+
+                        // 为连接线添加鼠标悬浮事件
+                        polyline.on('mouseover', function(e) {
+                            showConnectionTooltip(connData, e.latlng);
+                        });
+
+                        // 为连接线添加鼠标移出事件
+                        polyline.on('mouseout', function() {
+                            hideConnectionTooltip();
+                        });
                     }
                 });
 
@@ -897,6 +962,23 @@ class RoadbookHtmlExporter {
                     // 显示便签
                     sticky.style.display = 'flex';
 
+                    // 阻止滚动事件冒泡到地图，防止在备注内容区域滚动时影响地图
+                    contentElement.addEventListener('wheel', function(e) {
+                        const scrollTop = this.scrollTop;
+                        const scrollHeight = this.scrollHeight;
+                        const clientHeight = this.clientHeight;
+
+                        // 检查是否滚动到了顶部或底部
+                        const isScrollAtTop = (scrollTop === 0 && e.deltaY < 0);
+                        const isScrollAtBottom = (scrollTop + clientHeight >= scrollHeight && e.deltaY > 0);
+
+                        // 如果已经滚动到了顶部或底部，允许事件继续传播以影响地图
+                        // 否则阻止事件传播，只在便签内容内部滚动
+                        if (!isScrollAtTop && !isScrollAtBottom) {
+                            e.stopPropagation();
+                        }
+                    });
+
                     // 添加关闭事件
                     const closeBtn = document.getElementById('closeDateNotesSticky');
                     if (closeBtn) {
@@ -911,6 +993,219 @@ class RoadbookHtmlExporter {
             map.on('click', function() {
                 if (isFilteredMode) {
                     exitFilterMode();
+                }
+            });
+
+            // 添加标记点的鼠标悬浮事件处理函数
+            function showMarkerTooltip(markerData, latlng) {
+                let tooltipContent = '<div style="background: rgba(0,0,0,0.8); color: white; padding: 8px; border-radius: 4px; font-size: 12px;">';
+                tooltipContent += '<div><strong>' + markerData.title + '</strong></div>';
+                tooltipContent += '<div>坐标: ' + markerData.position[1].toFixed(6) + ', ' + markerData.position[0].toFixed(6) + '</div>';
+
+                // 显示多个时间点，按日期分组（从早到晚排序）
+                if (markerData.dateTimes && markerData.dateTimes.length > 0) {
+                    // 按日期分组时间点
+                    const timesByDate = {};
+                    markerData.dateTimes.forEach(function(dt) {
+                        const dateKey = getDateKey(dt);
+                        if (!timesByDate[dateKey]) {
+                            timesByDate[dateKey] = [];
+                        }
+                        timesByDate[dateKey].push(dt); // 保存完整时间用于排序
+                    });
+
+                    // 获取排序后的日期（从早到晚）
+                    const sortedDates = Object.keys(timesByDate).sort(function(a, b) { return new Date(a) - new Date(b); });
+
+                    if (sortedDates.length === 1) {
+                        // 只有一个日期，直接显示时间（按时间排序）
+                        const times = timesByDate[sortedDates[0]]
+                            .sort(function(a, b) { return new Date(a) - new Date(b); })
+                            .map(function(dt) { return formatTime(dt); })
+                            .join(', ');
+                        tooltipContent += '<div>时间: ' + times + '</div>';
+                    } else {
+                        // 多个日期，按日期分组显示（从早到晚）
+                        tooltipContent += '<div>时间:</div>';
+                        sortedDates.forEach(function(date) {
+                            const dateHeader = formatDateHeader(date);
+                            const times = timesByDate[date]
+                                .sort(function(a, b) { return new Date(a) - new Date(b); })
+                                .map(function(dt) { return formatTime(dt); })
+                                .join(', ');
+                            tooltipContent += '<div style="margin-left: 8px;">• ' + dateHeader + ': ' + times + '</div>';
+                        });
+                    }
+                } else if (markerData.dateTime) {
+                    tooltipContent += '<div>时间: ' + formatTime(markerData.dateTime) + '</div>';
+                }
+
+                if (markerData.labels && markerData.labels.length > 0) {
+                    const labelsText = markerData.labels.join('; ');
+                    tooltipContent += '<div>标注: ' + labelsText + '</div>';
+                }
+                tooltipContent += '</div>';
+
+                // 创建临时 tooltip，Leaflet 提供了内置的tooltip支持
+                if (window.currentMarkerTooltip) {
+                    map.removeLayer(window.currentMarkerTooltip);
+                }
+
+                const tooltip = L.tooltip({
+                    permanent: false,
+                    direction: 'top',
+                    className: 'marker-tooltip'
+                });
+                tooltip.setLatLng(latlng);
+                tooltip.setContent(tooltipContent);
+                tooltip.addTo(map);
+                window.currentMarkerTooltip = tooltip;
+            }
+
+            // 隐藏标记点tooltip的函数
+            function hideMarkerTooltip() {
+                if (window.currentMarkerTooltip) {
+                    map.removeLayer(window.currentMarkerTooltip);
+                    window.currentMarkerTooltip = null;
+                }
+            }
+
+            // 添加连接线的鼠标悬浮事件处理函数
+            function showConnectionTooltip(connection, latlng) {
+                // 通过ID获取当前的起始点和终点对象，确保显示最新的标题
+                var startMarker = roadbookData.markers.find(function(m) { return m.id === connection.startId; });
+                var endMarker = roadbookData.markers.find(function(m) { return m.id === connection.endId; });
+
+                var startTitle = startMarker ? startMarker.title : connection.startTitle;
+                var endTitle = endMarker ? endMarker.title : connection.endTitle;
+
+                let tooltipContent = '<div style="background: rgba(0,0,0,0.8); color: white; padding: 8px; border-radius: 4px; font-size: 12px;">';
+                tooltipContent += '<div><strong>' + startTitle + ' → ' + endTitle + '</strong></div>';
+                tooltipContent += '<div>' + getTransportIcon(connection.transportType) + ' ' + getTransportTypeName(connection.transportType) + '</div>';
+                if (connection.duration > 0) {
+                    tooltipContent += '<div>耗时: ' + connection.duration + ' 小时</div>';
+                }
+                if (connection.dateTime) {
+                    // 使用相同的格式化方式显示时间
+                    tooltipContent += '<div>时间: ' + formatTime(connection.dateTime) + '</div>';
+                }
+                if (connection.label) {
+                    tooltipContent += '<div>标注: ' + connection.label + '</div>';
+                }
+                tooltipContent += '</div>';
+
+                // 创建临时 tooltip
+                if (window.currentConnectionTooltip) {
+                    map.removeLayer(window.currentConnectionTooltip);
+                }
+
+                const tooltip = L.tooltip({
+                    permanent: false,
+                    direction: 'top',
+                    className: 'connection-tooltip'
+                });
+                tooltip.setLatLng(latlng);
+                tooltip.setContent(tooltipContent);
+                tooltip.addTo(map);
+                window.currentConnectionTooltip = tooltip;
+            }
+
+            // 隐藏连接线tooltip的函数
+            function hideConnectionTooltip() {
+                if (window.currentConnectionTooltip) {
+                    map.removeLayer(window.currentConnectionTooltip);
+                    window.currentConnectionTooltip = null;
+                }
+            }
+
+            // 遍历所有标记点并添加鼠标悬浮事件
+            roadbookData.markers.forEach(function(markerData) {
+                const icon = createMarkerIcon(markerData.icon, 0);
+                const marker = L.marker([markerData.position[0], markerData.position[1]], {
+                    icon: icon,
+                    draggable: false, // 禁用拖拽
+                    title: markerData.title
+                }).addTo(map);
+
+                // 添加点击弹窗显示详细信息
+                marker.bindPopup(generateMarkerPopupContent(markerData));
+
+                // 添加鼠标悬浮事件
+                marker.on('mouseover', function(e) {
+                    showMarkerTooltip(markerData, e.latlng);
+                });
+
+                // 添加鼠标移出事件
+                marker.on('mouseout', function() {
+                    hideMarkerTooltip();
+                });
+            });
+
+            // 遍历所有连接线并添加鼠标悬浮事件
+            roadbookData.connections.forEach(function(connData) {
+                // 查找起始点和终点
+                const startMarker = roadbookData.markers.find(function(m) { return m.id === connData.startId; });
+                const endMarker = roadbookData.markers.find(function(m) { return m.id === connData.endId; });
+
+                if (!startMarker || !endMarker) return;
+
+                // 创建连接线
+                const polyline = L.polyline([
+                    [startMarker.position[0], startMarker.position[1]],
+                    [endMarker.position[0], endMarker.position[1]]
+                ], {
+                    color: getTransportColor(connData.transportType),
+                    weight: 6,
+                    opacity: 1.0,
+                    smoothFactor: 1.0
+                }).addTo(map);
+
+                // 添加终点标记（小圆点）
+                const endCircle = L.circleMarker([endMarker.position[0], endMarker.position[1]], {
+                    radius: 6,
+                    fillColor: getTransportColor(connData.transportType),
+                    color: '#fff',
+                    weight: 2,
+                    opacity: 1,
+                    fillOpacity: 1
+                }).addTo(map);
+
+                // 创建箭头
+                const arrowHead = createArrowHead([startMarker.position[0], startMarker.position[1]], [endMarker.position[0], endMarker.position[1]], connData.transportType);
+                arrowHead.addTo(map);
+
+                // 计算中点位置并添加交通图标
+                const startLat = parseFloat(startMarker.position[0]);
+                const startLng = parseFloat(startMarker.position[1]);
+                const endLat = parseFloat(endMarker.position[0]);
+                const endLng = parseFloat(endMarker.position[1]);
+
+                if (!isNaN(startLat) && !isNaN(startLng) && !isNaN(endLat) && !isNaN(endLng)) {
+                    const midLat = (startLat + endLat) / 2;
+                    const midLng = (startLng + endLng) / 2;
+                    const transportIcon = getTransportIcon(connData.transportType);
+
+                    const iconMarker = L.marker([midLat, midLng], {
+                        icon: L.divIcon({
+                            className: 'transport-icon',
+                            html: '<div style="background-color: white; border: 2px solid ' + getTransportColor(connData.transportType) + '; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-size: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.3);">' + transportIcon + '</div>',
+                            iconSize: [30, 30],
+                            iconAnchor: [15, 15]
+                        })
+                    }).addTo(map);
+
+                    // 为连接线添加弹窗
+                    polyline.bindPopup(generateConnectionPopupContent(connData, startMarker, endMarker));
+
+                    // 为连接线添加鼠标悬浮事件
+                    polyline.on('mouseover', function(e) {
+                        showConnectionTooltip(connData, e.latlng);
+                    });
+
+                    // 为连接线添加鼠标移出事件
+                    polyline.on('mouseout', function() {
+                        hideConnectionTooltip();
+                    });
                 }
             });
 
