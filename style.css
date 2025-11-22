@@ -1452,3 +1452,85 @@ input[type="color"] {
     color: #999;
     font-style: italic;
 }
+
+/* 下拉菜单样式 */
+.dropdown {
+    position: relative;
+    display: inline-block;
+}
+
+.dropdown-btn {
+    background: linear-gradient(135deg, rgba(255,255,255,0.3), rgba(255,255,255,0.15));
+    color: #fff;
+    border: 2px solid rgba(255,255,255,0.5);
+    padding: 0.6rem 1rem; /* 减少左右内边距 */
+    border-radius: 25px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    margin: 2px;
+    backdrop-filter: blur(10px);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: auto; /* 自动宽度以适应内容 */
+    min-width: 100px; /* 减少最小宽度 */
+    text-align: center;
+}
+
+.dropdown-btn:hover {
+    background: linear-gradient(135deg, rgba(255,255,255,0.4), rgba(255,255,255,0.25));
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0,0,0,0.25);
+}
+
+.dropdown-arrow {
+    font-size: 0.7em; /* 更小的箭头 */
+    margin-left: 0.3rem; /* 减少箭头左边距 */
+    display: inline-block;
+    vertical-align: middle;
+}
+
+.dropdown-content {
+    display: none;
+    position: absolute;
+    background-color: white;
+    min-width: 120px;
+    box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+    z-index: 1002; /* 确保在其他元素之上 */
+    border-radius: 8px;
+    overflow: hidden;
+    top: 100%;
+    left: 0;
+    margin-top: 5px;
+}
+
+.dropdown-content.show {
+    display: block;
+}
+
+.dropdown-item {
+    background: white;
+    color: #333;
+    padding: 0.7rem 1rem;
+    text-decoration: none;
+    display: block;
+    border: none;
+    width: 100%;
+    text-align: left;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    font-size: 0.9rem;
+    border-radius: 0;
+}
+
+.dropdown-item:hover {
+    background-color: #f5f5f5;
+}
+
+.dropdown-item:not(:last-child) {
+    border-bottom: 1px solid #eee;
+}

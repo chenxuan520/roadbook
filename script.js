@@ -14,7 +14,7 @@ class RoadbookApp {
         this.searchMarker = null;  // 搜索结果标记点
         this.searchTimeout = null; // 搜索延时定时器
         this.searchPopupTimeout = null; // 搜索弹窗定时器
-        this.currentSearchMethod = 'auto'; // 当前搜索方式：auto, nominatim, overpass, photon
+        this.currentSearchMethod = 'auto'; // 当前搜索方式：auto, nominatim, overpass, photon, mapsearch
         this.tooltip = null; // 连接线工具提示
         this.connectionLabelTooltip = null; // 连接线标注工具提示
         this.markerTooltip = null; // 标记点工具提示
@@ -367,6 +367,14 @@ class RoadbookApp {
                 console.log('获取位置超时，使用默认位置');
                 // 超时后使用默认位置
                 this.map.setView([39.90923, 116.397428], 10); // 北京天安门
+
+                // 在默认位置添加一个临时标记点来显示定位结果
+                if (this.searchMarker) {
+                    this.map.removeLayer(this.searchMarker);
+                }
+
+                this.searchMarker = L.marker([39.90923, 116.397428])
+                    .addTo(this.map);
             }
         }, 3000); // 3秒超时
 
@@ -388,6 +396,14 @@ class RoadbookApp {
                 // 设置地图视图到用户位置，使用中等缩放级别
                 this.map.setView([latitude, longitude], 13);
 
+                // 在用户位置添加一个临时标记点来显示定位结果
+                if (this.searchMarker) {
+                    this.map.removeLayer(this.searchMarker);
+                }
+
+                this.searchMarker = L.marker([latitude, longitude])
+                    .addTo(this.map);
+
                 console.log(`地图已定位到用户位置: [${latitude}, ${longitude}]`);
             },
             // 失败回调
@@ -405,6 +421,15 @@ class RoadbookApp {
 
                 // 获取失败时，使用默认位置（北京）
                 this.map.setView([39.90923, 116.397428], 10); // 北京天安门
+
+                // 在默认位置添加一个临时标记点来显示定位结果
+                if (this.searchMarker) {
+                    this.map.removeLayer(this.searchMarker);
+                }
+
+                this.searchMarker = L.marker([39.90923, 116.397428])
+                    .addTo(this.map);
+
                 console.log('使用默认位置（北京）');
             },
             {
@@ -456,8 +481,12 @@ class RoadbookApp {
             gaode: {
                 searchable: true,
                 name: '高德地图',
-                searchUrl: 'https://overpass-api.de/api/interpreter',
-                parser: 'overpass' // 使用Overpass API
+                searchUrl: 'https://map.011203.dpdns.org/search', // 使用MapSearch端点
+                params: {
+                    format: 'json',
+                    limit: 10
+                },
+                parser: 'nominatim' // 使用Nominatim格式，因为MapSearch与Nominatim格式一致
             },
             gaode_satellite: {
                 searchable: false, // 高德卫星图禁用搜索
@@ -555,12 +584,54 @@ class RoadbookApp {
             });
         }
 
+        // 绑定导出按钮事件，现在需要处理下拉菜单
+        const exportDropdownBtn = document.getElementById('exportDropdownBtn');
+        const exportDropdownContent = document.getElementById('exportDropdownContent');
         const exportBtn = document.getElementById('exportBtn');
+        const exportHtmlBtn = document.getElementById('exportHtmlBtn');
+
+        // 下拉按钮点击事件 - 显示/隐藏下拉菜单
+        if (exportDropdownBtn) {
+            exportDropdownBtn.addEventListener('click', (e) => {
+                e.stopPropagation(); // 阻止事件冒泡
+                exportDropdownContent.classList.toggle('show');
+            });
+        }
+
+        // 点击导出JSON按钮
         if (exportBtn) {
             exportBtn.addEventListener('click', () => {
                 this.exportRoadbook();
+                // 隐藏下拉菜单
+                if (exportDropdownContent) {
+                    exportDropdownContent.classList.remove('show');
+                }
             });
         }
+
+        // 点击导出HTML按钮
+        if (exportHtmlBtn) {
+            exportHtmlBtn.addEventListener('click', () => {
+                if (window.htmlExporter) {
+                    window.htmlExporter.exportToHtml();
+                } else {
+                    console.error('HTML Exporter not found');
+                }
+                // 隐藏下拉菜单
+                if (exportDropdownContent) {
+                    exportDropdownContent.classList.remove('show');
+                }
+            });
+        }
+
+        // 点击页面其他地方隐藏下拉菜单
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.dropdown')) {
+                if (exportDropdownContent && exportDropdownContent.classList.contains('show')) {
+                    exportDropdownContent.classList.remove('show');
+                }
+            }
+        });
 
 
         const importBtn = document.getElementById('importBtn');
@@ -2665,6 +2736,17 @@ class RoadbookApp {
                     limit: 10
                 },
                 parser: 'photon'
+            };
+        } else if (this.currentSearchMethod === 'mapsearch') {
+            // MapSearch搜索模式
+            searchConfig = {
+                searchable: true,
+                searchUrl: 'https://map.011203.dpdns.org/search',
+                params: {
+                    format: 'json',
+                    limit: 10
+                },
+                parser: 'nominatim' // 使用Nominatim格式，因为MapSearch与Nominatim格式一致
             };
         }
 

@@ -22,6 +22,7 @@
                         <option value="photon">🌃Photon搜索</option>
                         <option value="nominatim">🌆Nominatim搜索</option>
                         <option value="overpass">🏙️Overpass搜索</option>
+                        <option value="mapsearch">🔍MapSearch搜索</option>
                     </select>
                     <!-- 搜索结果下拉框 -->
                     <div id="searchResults" class="search-results" style="display: none;">
@@ -31,8 +32,13 @@
                 <div class="toolbar">
                     <button id="addMarkerBtn" class="btn">添加标记点</button>
                     <button id="connectMarkersBtn" class="btn">连接标记点</button>
-                    <button id="exportBtn" class="btn">导出JSON</button>
-                    <button id="exportHtmlBtn" class="btn">导出HTML</button>
+                    <div class="dropdown">
+                        <button id="exportDropdownBtn" class="btn dropdown-btn">导出路书 <span class="dropdown-arrow">▼</span></button>
+                        <div id="exportDropdownContent" class="dropdown-content">
+                            <button id="exportBtn" class="dropdown-item">导出JSON</button>
+                            <button id="exportHtmlBtn" class="dropdown-item">导出HTML</button>
+                        </div>
+                    </div>
                     <button id="importBtn" class="btn">导入路书</button>
                     <button id="clearCacheBtn" class="btn">清除缓存</button>
                     <select id="mapSourceSelect" class="btn" style="background: linear-gradient(135deg, rgba(255,255,255,0.3), rgba(255,255,255,0.15)); color: #fff; border: 2px solid rgba(255,255,255,0.5); padding: 0.6rem 1.2rem; border-radius: 25px; font-size: 0.9rem; font-weight: 600; cursor: pointer;">
