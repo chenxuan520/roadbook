@@ -1420,15 +1420,10 @@ class RoadbookApp {
 
         polyline.on('mouseover', function(e) {
             self.showConnectionTooltip(connection, e.latlng);
-            // 同时显示连接线的标注信息
-            if (connection.label) {
-                self.showConnectionLabelTooltip(connection, e.latlng);
-            }
         });
 
         polyline.on('mouseout', function() {
             self.hideConnectionTooltip();
-            self.hideConnectionLabelTooltip();
         });
 
         this.connections.push(connection);
@@ -1689,33 +1684,6 @@ class RoadbookApp {
         this.tooltip.addTo(this.map);
     }
 
-    showConnectionLabelTooltip(connection, latlng) {
-        if (!connection.label) return;
-
-        let tooltipContent = `<div style="background: rgba(0,0,0,0.8); color: white; padding: 8px; border-radius: 4px; font-size: 12px;">`;
-        tooltipContent += `<div><strong>连接线标注</strong></div>`;
-        tooltipContent += `<div>${connection.label}</div>`;
-        tooltipContent += `</div>`;
-
-        if (!this.connectionLabelTooltip) {
-            this.connectionLabelTooltip = L.tooltip({
-                permanent: false,
-                direction: 'bottom',
-                className: 'connection-label-tooltip'
-            });
-        }
-
-        this.connectionLabelTooltip.setContent(tooltipContent);
-        this.connectionLabelTooltip.setLatLng(latlng);
-        this.connectionLabelTooltip.addTo(this.map);
-    }
-
-    hideConnectionLabelTooltip() {
-        if (this.connectionLabelTooltip) {
-            this.connectionLabelTooltip.remove();
-            this.connectionLabelTooltip = null;
-        }
-    }
 
     hideConnectionTooltip() {
         if (this.tooltip) {
