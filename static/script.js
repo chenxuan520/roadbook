@@ -481,12 +481,12 @@ class RoadbookApp {
             gaode: {
                 searchable: true,
                 name: '高德地图',
-                searchUrl: 'https://map.011203.dpdns.org/search', // 使用MapSearch端点
+                searchUrl: 'https://map.chenxunaweb.top/api/cnmap/search', // 使用TianSearch端点
                 params: {
                     format: 'json',
                     limit: 10
                 },
-                parser: 'nominatim' // 使用Nominatim格式，因为MapSearch与Nominatim格式一致
+                parser: 'nominatim' // 使用Nominatim格式，因为TianSearch与Nominatim格式一致
             },
             gaode_satellite: {
                 searchable: false, // 高德卫星图禁用搜索
@@ -2747,6 +2747,28 @@ class RoadbookApp {
                     limit: 10
                 },
                 parser: 'nominatim' // 使用Nominatim格式，因为MapSearch与Nominatim格式一致
+            };
+        } else if (this.currentSearchMethod === 'cnsearch') {
+            // CNSearch搜索模式
+            searchConfig = {
+                searchable: true,
+                searchUrl: 'https://map.chenxunaweb.top/api/cnmap/search',
+                params: {
+                    format: 'json',
+                    limit: 10
+                },
+                parser: 'nominatim' // 使用Nominatim格式，因为CNSearch与Nominatim格式一致
+            };
+        } else if (this.currentSearchMethod === 'tiansearch') {
+            // TianSearch搜索模式
+            searchConfig = {
+                searchable: true,
+                searchUrl: 'https://map.chenxunaweb.top/api/tianmap/search',
+                params: {
+                    format: 'json',
+                    limit: 10
+                },
+                parser: 'nominatim' // 使用Nominatim格式，因为TianSearch与Nominatim格式一致
             };
         }
 
