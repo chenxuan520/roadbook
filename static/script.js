@@ -547,6 +547,9 @@ class RoadbookApp {
         // this.currentLayer 已经在 init() 方法中设置好了
         this.mapLayers[this.currentLayer].addTo(this.map);
 
+        // 添加比例尺控件
+        L.control.scale({imperial: false, metric: true}).addTo(this.map);
+
         // 添加地图点击事件
         this.map.on('click', (e) => {
             if (this.currentMode === 'addMarker') {
@@ -566,6 +569,7 @@ class RoadbookApp {
         mapContainer.addEventListener('contextmenu', (e) => {
             e.preventDefault(); // 阻止浏览器默认右键菜单
         });
+
     }
 
     bindEvents() {
@@ -1568,6 +1572,22 @@ class RoadbookApp {
         });
     }
 
+    // 计算两点之间的直线距离（米）
+    calculateLineDistance(latlng1, latlng2) {
+        const R = 6371e3; // 地球半径（米）
+        const φ1 = latlng1[0] * Math.PI/180;
+        const φ2 = latlng2[0] * Math.PI/180;
+        const Δφ = (latlng2[0]-latlng1[0]) * Math.PI/180;
+        const Δλ = (latlng2[1]-latlng1[1]) * Math.PI/180;
+
+        const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+                Math.cos(φ1) * Math.cos(φ2) *
+                Math.sin(Δλ/2) * Math.sin(Δλ/2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+        return R * c; // 距离以米为单位
+    }
+
     getTransportTypeName(type) {
         const names = {
             car: '汽车',
@@ -1659,6 +1679,19 @@ class RoadbookApp {
         let tooltipContent = `<div style="background: rgba(0,0,0,0.8); color: white; padding: 8px; border-radius: 4px; font-size: 12px;">`;
         tooltipContent += `<div><strong>${startTitle} → ${endTitle}</strong></div>`;
         tooltipContent += `<div>${this.getTransportIcon(connection.transportType)} ${this.getTransportTypeName(connection.transportType)}</div>`;
+
+        // 动态计算并添加距离信息（复用已找到的startMarker和endMarker）
+        if (startMarker && endMarker) {
+            const distance = this.calculateLineDistance(startMarker.position, endMarker.position);
+            let distanceStr;
+            if (distance > 1000) {
+                distanceStr = (distance / 1000).toFixed(2) + ' km';
+            } else {
+                distanceStr = Math.round(distance) + ' m';
+            }
+            tooltipContent += `<div>距离: ${distanceStr}</div>`;
+        }
+
         if (connection.duration > 0) {
             tooltipContent += `<div>耗时: ${connection.duration} 小时</div>`;
         }
@@ -1744,8 +1777,19 @@ class RoadbookApp {
             const startTitle = startMarker ? startMarker.title : connectionData.startTitle;
             const endTitle = endMarker ? endMarker.title : connectionData.endTitle;
 
+            // 动态计算并添加距离信息（复用上面已找到的startMarker和endMarker）
+            let distanceStr = '';
+            if (startMarker && endMarker) {
+                const distance = this.calculateLineDistance(startMarker.position, endMarker.position);
+                if (distance > 1000) {
+                    distanceStr = ` | 距离: ${(distance / 1000).toFixed(2)} km`;
+                } else {
+                    distanceStr = ` | 距离: ${Math.round(distance)} m`;
+                }
+            }
+
             markerCoords.textContent =
-                `${startTitle} → ${endTitle} (${this.getTransportIcon(connectionData.transportType)} ${this.getTransportTypeName(connectionData.transportType)})`;
+                `${startTitle} → ${endTitle} (${this.getTransportIcon(connectionData.transportType)} ${this.getTransportTypeName(connectionData.transportType)})${distanceStr}`;
         }
 
         // 设置耗时
@@ -4290,6 +4334,7 @@ class RoadbookApp {
         });
         // 不再调用 closeDateDetail，因为关闭模态框不应该影响当前选中的标记点或连接
     }
+
 }
 
 // 初始化应用

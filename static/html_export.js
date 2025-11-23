@@ -167,6 +167,9 @@ class RoadbookHtmlExporter {
                 mapLayers['gaode'].addTo(map); // 默认高德地图
             }
 
+            // 添加比例尺控件
+            L.control.scale({imperial: false, metric: true}).addTo(map);
+
             // 只读模式下添加标记点
             roadbookData.markers.forEach(markerData => {
                 const icon = createMarkerIcon(markerData.icon, 0);
@@ -357,6 +360,22 @@ class RoadbookHtmlExporter {
                 });
             }
 
+            // 计算两点之间的直线距离（米）
+            function calculateLineDistance(latlng1, latlng2) {
+                const R = 6371e3; // 地球半径（米）
+                const φ1 = latlng1[0] * Math.PI/180;
+                const φ2 = latlng2[0] * Math.PI/180;
+                const Δφ = (latlng2[0]-latlng1[0]) * Math.PI/180;
+                const Δλ = (latlng2[1]-latlng1[1]) * Math.PI/180;
+
+                const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+                        Math.cos(φ1) * Math.cos(φ2) *
+                        Math.sin(Δλ/2) * Math.sin(Δλ/2);
+                const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+                return R * c; // 距离以米为单位
+            }
+
             // 生成标记点弹窗内容
             function generateMarkerPopupContent(markerData) {
                 let content = '<div class="popup-content">';
@@ -385,6 +404,18 @@ class RoadbookHtmlExporter {
                 let content = '<div class="popup-content">';
                 content += '<h3>' + startMarker.title + ' → ' + endMarker.title + '</h3>';
                 content += '<p><strong>交通方式:</strong> ' + getTransportIcon(connData.transportType) + ' ' + getTransportTypeName(connData.transportType) + '</p>';
+
+                // 动态计算并显示距离
+                if (startMarker.position && endMarker.position) {
+                    const distance = calculateLineDistance(startMarker.position, endMarker.position);
+                    let distanceStr;
+                    if (distance > 1000) {
+                        distanceStr = (distance / 1000).toFixed(2) + ' km';
+                    } else {
+                        distanceStr = Math.round(distance) + ' m';
+                    }
+                    content += '<p><strong>距离:</strong> ' + distanceStr + '</p>';
+                }
 
                 if (connData.duration > 0) {
                     content += '<p><strong>耗时:</strong> ' + connData.duration + ' 小时</p>';
