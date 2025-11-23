@@ -2,13 +2,7 @@ name: CI Checks
 
 on:
   push:
-    branches:
-      - main
-      - develop
-  pull_request:
-    branches:
-      - main
-      - develop
+    branches: ['**']
 
 jobs:
   frontend_lint:
@@ -23,11 +17,10 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Run frontend lint
-        run: | # You need to install ESLint or a similar linter in your frontend project first.
-          # Example: npm install
-          # Example: npm run lint
-          echo "Frontend linting placeholder - Please replace with your actual lint command."
+      - name: Run frontend syntax check
+        run: |
+          node -c static/script.js
+          node -c static/html_export.js
 
   backend_build:
     name: Backend Build
