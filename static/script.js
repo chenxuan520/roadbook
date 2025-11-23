@@ -460,7 +460,10 @@ class RoadbookApp {
 
     initMap() {
         // 初始化地图，使用OpenStreetMap作为默认图层
-        this.map = L.map('mapContainer').setView([39.90923, 116.397428], 10); // 北京天安门
+        this.map = L.map('mapContainer', {
+            zoomSnap: 0.2,  // 使缩放级别以0.2为步长进行捕捉，实现更平滑的缩放
+            zoomDelta: 0.2  // 设置缩放增量为0.2
+        }).setView([39.90923, 116.397428], 10); // 北京天安门
 
         // 定义地图搜索能力配置
         this.mapSearchConfig = {
@@ -1737,6 +1740,9 @@ class RoadbookApp {
     }
 
     showConnectionDetail(connectionData) {
+        // 如果当前处于筛选模式，则退出筛选模式但保持当前视图
+        this.checkAndHandleFilterMode();
+
         this.currentConnection = connectionData;
         this.currentMarker = null;
 
@@ -1963,10 +1969,10 @@ class RoadbookApp {
             const dateHeader = document.createElement('div');
             dateHeader.className = 'date-group-header';
             const markers = markersByDate[date] || [];
-            // 默认为展开状态
+            // 默认为收起状态
             if (!this.collapsedDates) this.collapsedDates = {};
-            const isCollapsed = this.collapsedDates[date] || false;
-            const expandIcon = isCollapsed ? '📁' : '📂'; // 收起状态显示▶，展开状态显示▼
+            const isCollapsed = (this.collapsedDates[date] !== undefined) ? this.collapsedDates[date] : true;
+            const expandIcon = isCollapsed ? '📁' : '📂'; // 收起状态显示📁，展开状态显示📂
 
             dateHeader.innerHTML = `
                 <h4 style="display: flex; align-items: center; gap: 8px;">
@@ -1978,12 +1984,17 @@ class RoadbookApp {
 
             // 为日期标题添加展开/收起功能，同时保留筛选功能
             dateHeader.style.cursor = 'pointer';
-            const expandToggle = dateHeader.querySelector('.expand-toggle');
             dateHeader.addEventListener('click', (e) => {
                 // 如果点击的是展开/收起按钮，则只执行展开/收起功能
-                if (e.target.classList.contains('expand-toggle') || e.target === expandToggle) {
+                if (e.target.classList.contains('expand-toggle')) {
                     // 切换展开/收起状态
-                    this.collapsedDates[date] = !this.collapsedDates[date];
+                    // 如果当前状态未定义（默认状态），则从默认收起状态开始，点击后应该展开（false）
+                    // 如果当前状态已定义，则直接取反
+                    if (this.collapsedDates[date] === undefined) {
+                        this.collapsedDates[date] = false; // 从默认收起切换到展开
+                    } else {
+                        this.collapsedDates[date] = !this.collapsedDates[date];
+                    }
                     // 重新渲染整个列表以更新展开/收起状态
                     this.updateMarkerList();
                 } else {
@@ -2001,8 +2012,8 @@ class RoadbookApp {
             // 按最早时间排序该日期的标记点
             const sortedMarkers = this.sortMarkersByEarliestTime(markers, date);
 
-            // 如果未收起，则显示该日期的标记点
-            if (!this.collapsedDates[date]) {
+            // 如果未收起，则显示该日期的标记点 (使用计算后的isCollapsed值)
+            if (!isCollapsed) {
                 // 添加该日期的所有标记点
                 sortedMarkers.forEach(marker => {
                     const item = document.createElement('div');
@@ -2361,25 +2372,50 @@ class RoadbookApp {
     // 退出筛选模式的处理器
     exitFilterModeHandler(e) {
         if (e.originalEvent) {
-            this.exitFilterMode();
+            this.exitFilterMode(false); // 点击地图退出筛选模式时不自动调整视图
         }
     }
 
     exitFilterModeKeyHandler(e) {
         if (e.key === 'Escape') {
-            this.exitFilterMode();
+            this.exitFilterMode(); // ESC键退出筛选模式时自动调整视图
         }
     }
 
     exitFilterModeClickHandler(_e) {
-        this.exitFilterMode();
+        this.exitFilterMode(); // 按钮点击退出筛选模式时自动调整视图
     }
 
     // 退出筛选模式
-    exitFilterMode() {
+    exitFilterMode(shouldFitView = true) {
         if (!this.filterMode) return;
 
         console.log('退出日期筛选模式');
+
+        // 如果日期详情面板是打开的，手动保存内容并关闭面板（防止递归调用）
+        const dateNotesInput = document.getElementById('dateNotesInput');
+        if (dateNotesInput && this.currentDate) {
+            // 手动保存备注内容
+            if (!this.dateNotes) {
+                this.dateNotes = {};
+            }
+            const notes = dateNotesInput.value.trim();
+            this.dateNotes[this.currentDate] = notes;
+
+            // 保存到本地存储
+            this.saveToLocalStorage();
+
+            // 隐藏日期详情面板
+            const dateDetailPanel = document.getElementById('dateDetailPanel');
+            if (dateDetailPanel) {
+                dateDetailPanel.style.display = 'none';
+            }
+
+            // 清除当前状态
+            this.currentDate = null;
+            this.currentMarker = null;
+            this.currentConnection = null;
+        }
 
         this.filterMode = false;
         this.filteredDate = null;
@@ -2416,13 +2452,15 @@ class RoadbookApp {
             btn.removeEventListener('click', this.exitFilterModeClickHandler, true);
         });
 
-        // 隐藏日期备注便签
+        // 隐藏日期备注便签（自动关闭并保存）
         this.hideDateNotesSticky();
 
-        // 退出筛选模式后自动调整视窗以显示所有元素
-        setTimeout(() => {
-            this.autoFitMapView();
-        }, 100); // 稍微延时以确保所有元素都已重新添加到地图
+        // 退出筛选模式后根据参数决定是否调整视图
+        if (shouldFitView) {
+            setTimeout(() => {
+                this.autoFitMapView();
+            }, 100); // 稍微延时以确保所有元素都已重新添加到地图
+        }
     }
 
     // 处理调整视窗按钮点击事件
@@ -3846,7 +3884,43 @@ class RoadbookApp {
         this.saveToLocalStorage();
     }
 
+    // 检查并处理筛选模式 - 如果处于筛选模式则退出但保持当前视图
+    checkAndHandleFilterMode() {
+        if (this.filterMode) {
+            // 如果日期详情面板是打开的，手动保存内容并关闭面板（防止递归调用）
+            const dateNotesInput = document.getElementById('dateNotesInput');
+            if (dateNotesInput && this.currentDate) {
+                // 手动保存备注内容
+                if (!this.dateNotes) {
+                    this.dateNotes = {};
+                }
+                const notes = dateNotesInput.value.trim();
+                this.dateNotes[this.currentDate] = notes;
+
+                // 保存到本地存储
+                this.saveToLocalStorage();
+
+                // 隐藏日期详情面板
+                const dateDetailPanel = document.getElementById('dateDetailPanel');
+                if (dateDetailPanel) {
+                    dateDetailPanel.style.display = 'none';
+                }
+
+                // 清除当前状态
+                this.currentDate = null;
+                this.currentMarker = null;
+                this.currentConnection = null;
+            }
+
+            // 退出筛选模式但不调整视图
+            this.exitFilterMode(false);
+        }
+    }
+
     showMarkerDetail(markerData) {
+        // 如果当前处于筛选模式，则退出筛选模式但保持当前视图
+        this.checkAndHandleFilterMode();
+
         this.currentMarker = markerData;
         this.currentConnection = null;
 
