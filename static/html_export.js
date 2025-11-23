@@ -430,6 +430,22 @@ class RoadbookHtmlExporter {
                     content += '<p><strong>标注:</strong> ' + connData.label + '</p>';
                 }
 
+                // 添加导航链接
+                const startLat = startMarker.position[0];
+                const startLng = startMarker.position[1];
+                const endLat = endMarker.position[0];
+                const endLng = endMarker.position[1];
+                const startTitle = startMarker.title || '起点';
+                const endTitle = endMarker.title || '终点';
+
+                content += '<div class="navigation-links" style="margin-top: 8px; font-size: 0.9rem;">';
+                content += '<p><strong>导航:</strong> ';
+                content += '<a href="http://api.map.baidu.com/direction?origin=latlng:' + startLat + ',' + startLng + '|name:' + encodeURIComponent(startTitle) + '&destination=latlng:' + endLat + ',' + endLng + '|name:' + encodeURIComponent(endTitle) + '&mode=driving&region=中国&output=html&coord_type=gcj02&src=webapp.demo" target="_blank" style="margin: 0 5px; text-decoration: underline;">百度导航</a>';
+                content += '<a href="https://uri.amap.com/navigation?from=' + startLng + ',' + startLat + ',' + encodeURIComponent(startTitle) + '&to=' + endLng + ',' + endLat + ',' + encodeURIComponent(endTitle) + '&mode=car&policy=1&coordinate=gaode" target="_blank" style="margin: 0 5px; text-decoration: underline;">高德导航</a>';
+                content += '<a href="https://apis.map.qq.com/uri/v1/routeplan?type=drive&from=' + encodeURIComponent(startTitle) + '&fromcoord=' + startLat + ',' + startLng + '&to=' + encodeURIComponent(endTitle) + '&tocoord=' + endLat + ',' + endLng + '&referer=myapp" target="_blank" style="margin: 0 5px; text-decoration: underline;">腾讯导航</a>';
+                content += '</p>';
+                content += '</div>';
+
                 content += '</div>';
 
                 return content;
@@ -1790,6 +1806,7 @@ main {
     .date-notes-sticky {
         top: 70px; /* 调整位置避免与菜单按钮重叠 */
     }
+
 }`;
     }
 

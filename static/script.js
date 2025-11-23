@@ -1841,6 +1841,9 @@ class RoadbookApp {
             });
         }
 
+        // 生成导航链接
+        this.updateNavigationLinks(connectionData);
+
         // 隐藏标记点详情面板，显示连接线详情面板
         const markerDetailPanel = document.getElementById('markerDetailPanel');
         if (markerDetailPanel) {
@@ -1849,6 +1852,52 @@ class RoadbookApp {
         const connectionDetailPanel = document.getElementById('connectionDetailPanel');
         if (connectionDetailPanel) {
             connectionDetailPanel.style.display = 'block';
+        }
+    }
+
+    // 更新导航链接
+    updateNavigationLinks(connectionData) {
+        // 通过ID找到当前的标记点对象，获取最新的位置信息
+        const startMarker = this.markers.find(m => m.id === connectionData.startId);
+        const endMarker = this.markers.find(m => m.id === connectionData.endId);
+
+        if (!startMarker || !endMarker) {
+            console.error('无法找到起始或终点标记点');
+            return;
+        }
+
+        // 获取起始点和终点的坐标
+        const startLat = startMarker.position[0];
+        const startLng = startMarker.position[1];
+        const endLat = endMarker.position[0];
+        const endLng = endMarker.position[1];
+
+        // 获取起始点和终点的名称
+        const startTitle = startMarker.title || '起点';
+        const endTitle = endMarker.title || '终点';
+
+        // 生成百度导航链接
+        const baiduLink = `http://api.map.baidu.com/direction?origin=latlng:${startLat},${startLng}|name:${startTitle}&destination=latlng:${endLat},${endLng}|name:${endTitle}&mode=driving&region=中国&output=html&coord_type=gcj02&src=webapp.demo`;
+        const baiduNavLink = document.getElementById('baiduNavLink');
+        if (baiduNavLink) {
+            baiduNavLink.href = baiduLink;
+            baiduNavLink.target = '_blank';
+        }
+
+        // 生成高德导航链接
+        const amapLink = `https://uri.amap.com/navigation?from=${startLng},${startLat},${startTitle}&to=${endLng},${endLat},${endTitle}&mode=car&policy=1&coordinate=gaode`;
+        const amapNavLink = document.getElementById('amapNavLink');
+        if (amapNavLink) {
+            amapNavLink.href = amapLink;
+            amapNavLink.target = '_blank';
+        }
+
+        // 生成腾讯导航链接
+        const qqLink = `https://apis.map.qq.com/uri/v1/routeplan?type=drive&from=${startTitle}&fromcoord=${startLat},${startLng}&to=${endTitle}&tocoord=${endLat},${endLng}&referer=myapp`;
+        const qqNavLink = document.getElementById('qqNavLink');
+        if (qqNavLink) {
+            qqNavLink.href = qqLink;
+            qqNavLink.target = '_blank';
         }
     }
 

@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>路书制作工具</title>
+    <link rel="icon" type="image/png" href="favicon.png">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="style.css">
 </head>
@@ -185,6 +186,14 @@
                         <div class="form-group">
                             <label>标注内容:</label>
                             <textarea id="connectionLabelsInput" rows="3" placeholder="输入连接线标注内容"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>导航链接:</label>
+                            <div class="navigation-links">
+                                <a id="baiduNavLink" href="#" target="_blank" class="nav-link-btn">百度导航</a>
+                                <a id="amapNavLink" href="#" target="_blank" class="nav-link-btn">高德导航</a>
+                                <a id="qqNavLink" href="#" target="_blank" class="nav-link-btn">腾讯导航</a>
+                            </div>
                         </div>
                         <div class="detail-actions">
                             <button id="saveConnectionBtn" class="btn btn-primary">保存</button>
