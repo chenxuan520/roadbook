@@ -75,7 +75,10 @@ class RoadbookHtmlExporter {
     <div class="container">
         <header>
             <div class="header-top">
-                <h1>路书分享</h1>
+                <div style="display: flex; align-items: center; justify-content: center; position: relative; width: 100%;">
+                    <button id="exportHelpBtn" class="help-btn" title="导出界面帮助" style="position: absolute; left: 10px; width: 40px; height: 40px; background: linear-gradient(135deg, #66b3ff 0%, #3a8fd4 100%); border: none; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 18px; color: white; box-shadow: 0 2px 8px rgba(58, 143, 212, 0.4); transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); backdrop-filter: blur(10px); z-index: 1001;">❓</button>
+                    <h1>路书分享</h1>
+                </div>
             </div>
         </header>
 
@@ -1357,6 +1360,49 @@ class RoadbookHtmlExporter {
                     }
                 }
             });
+
+            // 帮助按钮功能
+            (function() {
+                const exportHelpBtn = document.getElementById('exportHelpBtn');
+                const exportHelpModal = document.getElementById('exportHelpModal');
+                const closeExportHelp = document.getElementById('closeExportHelp');
+
+                if (exportHelpBtn) {
+                    exportHelpBtn.onclick = function() {
+                        if (exportHelpModal) {
+                            // 使用内联样式确保覆盖所有CSS规则
+                            exportHelpModal.style.cssText =
+                                'display: flex !important; ' +
+                                'position: fixed !important; ' +
+                                'z-index: 10000 !important; ' +
+                                'left: 0 !important; ' +
+                                'top: 0 !important; ' +
+                                'width: 100% !important; ' +
+                                'height: 100% !important; ' +
+                                'background-color: rgba(0,0,0,0.5) !important; ' +
+                                'align-items: center !important; ' +
+                                'justify-content: center !important; ';
+                        }
+                    };
+                }
+
+                if (closeExportHelp) {
+                    closeExportHelp.onclick = function() {
+                        if (exportHelpModal) {
+                            exportHelpModal.style.display = 'none';
+                        }
+                    };
+                }
+
+                // 点击模态框外部关闭
+                window.onclick = function(event) {
+                    if (event.target === exportHelpModal) {
+                        if (exportHelpModal) {
+                            exportHelpModal.style.display = 'none';
+                        }
+                    }
+                };
+            })();
         });
     </script>
     <script>
@@ -1386,6 +1432,35 @@ class RoadbookHtmlExporter {
             }
         })();
     </script>
+
+    <!-- 帮助模态框 -->
+    <div id="exportHelpModal" class="modal">
+        <div class="modal-content help-modal-content">
+            <span class="close" id="closeExportHelp">&times;</span>
+            <h2>导出界面帮助</h2>
+            <div class="help-content">
+                <h3>功能说明</h3>
+                <ul>
+                    <li><strong>查看标记点</strong> - 点击地图上的标记点可查看详细信息</li>
+                    <li><strong>查看连接线</strong> - 点击连接线可查看路线详情和导航链接</li>
+                    <li><strong>日程列表</strong> - 在右侧面板查看按日期分组的行程安排</li>
+                    <li><strong>地图操作</strong> - 支持缩放、拖拽等基本地图操作</li>
+                    <li><strong>筛选模式</strong> - 点击日期标题可筛选显示特定日期的标记点</li>
+                </ul>
+
+                <h3>操作提示</h3>
+                <ul>
+                    <li>点击左侧日期可筛选当天的行程</li>
+                    <li>点击右侧日程列表可快速定位到对应位置</li>
+                    <li>点击连接线可查看交通方式和导航链接</li>
+                    <li>拖拽地图或使用缩放按钮调整视图</li>
+                </ul>
+
+                <h3>导出功能</h3>
+                <p>此页面为路书导出的静态HTML文件，无需网络连接即可查看完整行程信息。包含所有标记点、连接线和备注信息。</p>
+            </div>
+        </div>
+    </div>
 </body>
 </html>`;
     }
@@ -1807,6 +1882,91 @@ main {
         top: 70px; /* 调整位置避免与菜单按钮重叠 */
     }
 
+    /* 帮助模态框样式 */
+    .modal {
+        display: none;
+        position: fixed;
+        z-index: 10000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0,0,0,0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .modal-content {
+        background-color: white;
+        margin: 5vh auto;
+        padding: 0;
+        border-radius: 10px;
+        width: 90%;
+        max-width: 800px;
+        max-height: 90vh;
+        min-height: 200px;
+        overflow-y: auto;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        position: relative;
+    }
+
+    .help-modal-content {
+        padding: 1.5rem;
+        width: 100%;
+    }
+
+    .modal-content h2 {
+        margin-top: 0;
+        margin-bottom: 1rem;
+        color: #333;
+        padding-bottom: 0.8rem;
+        border-bottom: 2px solid #667eea;
+        font-size: 1.4rem;
+    }
+
+    .close {
+        color: #aaa;
+        float: right;
+        font-size: 28px;
+        font-weight: bold;
+        cursor: pointer;
+        line-height: 1;
+        position: absolute;
+        top: 15px;
+        right: 20px;
+    }
+
+    .close:hover {
+        color: #000;
+    }
+
+    .help-content h3 {
+        color: #333;
+        margin-top: 1.2rem;
+        margin-bottom: 0.8rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid #667eea;
+        font-size: 1.2rem;
+    }
+
+    .help-content ul {
+        margin: 0.8rem 0 1rem 1.2rem;
+        padding-left: 0.8rem;
+    }
+
+    .help-content li {
+        margin-bottom: 0.4rem;
+        line-height: 1.5;
+        font-size: 0.95rem;
+    }
+
+    .help-content p {
+        margin-bottom: 0.8rem;
+        line-height: 1.5;
+        color: #555;
+        font-size: 0.95rem;
+    }
 }`;
     }
 
