@@ -1,4 +1,9 @@
 {
 	"port": 5436,
-	"allowed_origins": []
+	"allowed_origins": [],
+	"jwtSecret": "your_super_secret_jwt_key_here_please_change_this_in_production",
+	"users": {
+		"admin": "password",
+		"testuser": "testpass"
+	}
 }

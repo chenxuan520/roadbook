@@ -1,26 +1,42 @@
 package server
 
 import (
+	"log"     // 导入 log 包用于错误处理
+	"strings" // 新增导入
+
+	"github.com/chenxuan520/roadmap/backend/internal/auth"
 	"github.com/chenxuan520/roadmap/backend/internal/config"
 	"github.com/chenxuan520/roadmap/backend/internal/handler"
+	"github.com/chenxuan520/roadmap/backend/internal/middleware"
+	"github.com/chenxuan520/roadmap/backend/internal/plan" // 导入 plan 包
 	"github.com/gin-gonic/gin"
 )
 
 func NewRouter(cfg config.Config) *gin.Engine {
 	r := gin.Default()
 
+	// CORS 中间件
 	r.Use(func(c *gin.Context) {
 		origin := c.Request.Header.Get("Origin")
 
-		for _, allowedOrigin := range cfg.AllowedOrigins {
-			if origin == allowedOrigin {
-				c.Writer.Header().Set("Access-Control-Allow-Origin", origin)
-				break
+		// 显式允许所有 127.0.0.1 的端口，并设置 Access-Control-Allow-Origin 为 *
+		if strings.HasPrefix(origin, "http://127.0.0.1") || strings.HasPrefix(origin, "https://127.0.0.1") {
+			c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
+		} else {
+			// 检查配置文件中的允许来源
+			for _, allowedOrigin := range cfg.AllowedOrigins {
+				if origin == allowedOrigin {
+					c.Writer.Header().Set("Access-Control-Allow-Origin", origin)
+					break
+				}
 			}
 		}
 
-		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		// TODO: 25-11-24 @chenxuan for test //
+		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
+		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS") // 增加 PUT, DELETE
+		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")     // 增加 Authorization
+		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")                        // 允许携带认证信息
 		if c.Request.Method == "OPTIONS" {
 			c.AbortWithStatus(204)
 			return
@@ -28,6 +44,49 @@ func NewRouter(cfg config.Config) *gin.Engine {
 		c.Next()
 	})
 
+	// 初始化服务和处理器
+	authService := auth.NewService(cfg)
+	planRepo, err := plan.NewFileRepository()
+	if err != nil {
+		log.Fatalf("初始化计划仓库失败: %v", err) // 如果仓库初始化失败，则终止应用
+	}
+
+	authHandler := handler.NewAuthHandler(authService)
+	planHandler := handler.NewPlanHandler(planRepo)
+
+	// API v1 路由组
+	v1 := r.Group("/api/v1")
+	{
+		// 认证接口
+		v1.POST("/login", middleware.RateLimitMiddleware(), authHandler.LoginHandler) // 登录接口应用IP限流
+
+		// 计划分享接口 (无需认证)
+		share := v1.Group("/share")
+		{
+			share.GET("/plans/:id", planHandler.SharePlanHandler)
+		}
+
+		// 需要JWT认证的计划管理接口
+		authenticated := v1.Group("/")
+		authenticated.Use(middleware.JWTAuthMiddleware(authService))
+		{
+			authenticated.POST("/plans", planHandler.CreatePlanHandler)
+			authenticated.GET("/plans", planHandler.ListPlansHandler)
+			authenticated.GET("/plans/:id", planHandler.GetPlanHandler)
+			authenticated.PUT("/plans/:id", planHandler.SavePlanHandler)
+			authenticated.DELETE("/plans/:id", planHandler.DeletePlanHandler)
+		}
+
+		// 现有cnmap/tianmap搜索接口
+		// 如果需要统一到v1，则需要修改，目前保持原有路径
+		// api := r.Group("/api")
+		// {
+		// 	api.GET("/cnmap/search", handler.BaiduSearchHandler)
+		// 	api.GET("/tianmap/search", handler.TianmapSearchHandler)
+		// }
+	}
+
+	// 保留原有 /api 组用于现有搜索接口
 	api := r.Group("/api")
 	{
 		api.GET("/cnmap/search", handler.BaiduSearchHandler)
