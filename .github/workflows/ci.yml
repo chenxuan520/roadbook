@@ -1,0 +1,48 @@
+name: CI Checks
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+      - develop
+
+jobs:
+  frontend_lint:
+    name: Frontend Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Run frontend lint
+        run: | # You need to install ESLint or a similar linter in your frontend project first.
+          # Example: npm install
+          # Example: npm run lint
+          echo "Frontend linting placeholder - Please replace with your actual lint command."
+
+  backend_build:
+    name: Backend Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Build backend
+        run: |
+          cd backend
+          go mod tidy
+          go build -o ../build/roadbook-backend .
