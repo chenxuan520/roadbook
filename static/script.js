@@ -3803,6 +3803,13 @@ class RoadbookApp {
         this.updateMarkerList();
     }
 
+    // 清空路书数据和本地缓存
+    clearRoadbook() {
+        this.clearAll(); // 清除所有地图元素和内部数据
+        localStorage.removeItem('roadbookData'); // 清除本地缓存
+        console.log('路书数据和本地缓存已清空。');
+    }
+
     showMarkerContextMenu(markerData) {
         // 简单的右键菜单
         if (confirm(`要删除标记点"${markerData.title}"吗？`)) {

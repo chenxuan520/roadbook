@@ -375,53 +375,40 @@ class OnlineModeManager {
         const planName = prompt('请输入新计划名称:');
         if (!planName) return;
 
+        let initialContent = null;
+        const localDataString = localStorage.getItem('roadbookData');
+        const hasLocalData = localDataString && localDataString !== '{}' && localDataString !== 'null';
+
+        if (hasLocalData) {
+            const confirmUseLocal = confirm('检测到本地缓存有内容。是否使用本地缓存的内容作为新项目源？');
+            if (confirmUseLocal) {
+                try {
+                    initialContent = JSON.parse(localDataString);
+                } catch (e) {
+                    console.error('解析本地缓存数据失败:', e);
+                    alert('本地缓存数据已损坏，将创建空项目。');
+                    localStorage.removeItem('roadbookData'); // 清空损坏的缓存
+                }
+            } else {
+                // 用户选择不使用本地缓存，清空本地缓存并创建空项目
+                localStorage.removeItem('roadbookData');
+                this.app.clearRoadbook(); // 清空当前应用数据，也会清空本地缓存
+                alert('本地缓存已清空，将创建空项目。');
+            }
+        }
+
         try {
-            // 获取当前app数据
-            const currentData = {
-                version: '2.0',
-                exportTime: new Date().toISOString(),
-                currentLayer: this.app.currentLayer,
-                currentSearchMethod: this.app.currentSearchMethod,
-                markers: this.app.markers.map((m) => ({
-                    id: m.id,
-                    position: m.position,
-                    title: m.title,
-                    labels: m.labels,
-                    createdAt: m.createdAt,
-                    dateTimes: m.dateTimes || [m.dateTime],
-                    icon: m.icon
-                })),
-                connections: this.app.connections.map(c => {
-                    const startMarker = this.app.markers.find(m => m.id === c.startId);
-                    const endMarker = this.app.markers.find(m => m.id === c.endId);
-
-                    return {
-                        id: c.id,
-                        startId: c.startId,
-                        endId: c.endId,
-                        transportType: c.transportType,
-                        dateTime: c.dateTime,
-                        label: c.label,
-                        duration: c.duration || 0,
-                        startTitle: startMarker ? startMarker.title : c.startTitle,
-                        endTitle: endMarker ? endMarker.title : c.endTitle
-                    };
-                }),
-                labels: this.app.labels.map(l => ({
-                    markerIndex: this.app.markers.indexOf(l.marker),
-                    content: l.content
-                })),
-                dateNotes: this.app.dateNotes || {}
-            };
-
-            const response = await this.makeApiRequest('/plans', 'POST', {
+            // 如果initialContent为null，API将创建一个空项目
+            const requestBody = {
                 name: planName,
                 description: `路书计划 - ${new Date().toLocaleDateString()}`,
                 startTime: new Date().toISOString().slice(0, 10).replace(/-/g, ''),
                 endTime: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10).replace(/-/g, ''), // 7天后
                 labels: ['路书', '旅行'],
-                content: currentData
-            });
+                content: initialContent // 使用本地缓存或空内容
+            };
+
+            const response = await this.makeApiRequest('/plans', 'POST', requestBody);
 
             if (response.id) {
                 alert('计划创建成功！');
@@ -429,6 +416,14 @@ class OnlineModeManager {
                 this.currentPlanId = response.id;
                 this.currentPlanName = response.name;
                 this.showEditingIndicator(response.name);
+                
+                // 如果使用了本地缓存作为新项目源，也需要加载到app中
+                if (initialContent) {
+                    this.app.loadRoadbook(initialContent, false);
+                    this.app.saveToLocalStorage(); // 确保本地状态与云端同步
+                }
+
+                this.closePlanManager(); // 添加：成功创建计划后关闭管理界面
             }
         } catch (error) {
             console.error('创建计划失败:', error);
@@ -449,9 +444,29 @@ class OnlineModeManager {
         try {
             const response = await this.makeApiRequest(`/plans/${planId}`, 'GET');
 
-            if (response.plan && response.plan.content) {
-                // 加载计划数据到app
-                this.app.loadRoadbook(response.plan.content, false); // 不显示导入提示
+            if (response.plan) {
+                const cloudContent = response.plan.content;
+
+                // 检查云端项目是否为空或其内容是否为空
+                const isCloudEmpty = !cloudContent ||
+                                     ((!cloudContent.markers || cloudContent.markers.length === 0) &&
+                                      (!cloudContent.connections || cloudContent.connections.length === 0));
+
+                if (isCloudEmpty) {
+                    // 如果云端是空项目
+                    const confirmOverwrite = confirm('您正在打开一个空项目。是否需要覆盖本地缓存？如果选择“是”，当前本地项目将被清空并加载空项目。');
+                    if (confirmOverwrite) {
+                        this.app.clearRoadbook(); // 清空当前应用数据和本地缓存
+                        alert('本地缓存已清空并加载空云端项目。');
+                    } else {
+                        alert('已取消加载空云端项目，本地缓存保持不变。请选择其他项目或新建项目。');
+                        this.closePlanManager(); // 用户选择不覆盖，关闭管理界面
+                        return; // 终止后续操作
+                    }
+                }
+
+                // 加载计划数据到app（如果cloudContent为null/undefined，则传递一个具有正确结构的空对象以加载空状态）
+                this.app.loadRoadbook(cloudContent || { markers: [], connections: [], labels: [], dateNotes: {} }, false); // 不显示导入提示
 
                 // 保存当前计划信息
                 this.currentPlanId = response.plan.id;
@@ -467,10 +482,14 @@ class OnlineModeManager {
                 this.closePlanManager();
 
                 alert('计划加载成功！');
+            } else {
+                alert('获取计划详情失败：计划数据不完整。');
+                this.closePlanManager(); // 数据不完整时也关闭管理界面
             }
         } catch (error) {
             console.error('打开计划失败:', error);
             alert('打开计划失败: ' + error.message);
+            this.closePlanManager(); // 发生错误时关闭管理界面
         }
     }
 
