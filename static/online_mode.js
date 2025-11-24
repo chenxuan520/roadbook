@@ -82,33 +82,46 @@ class OnlineModeManager {
 
     // 切换保存按钮显示
     toggleSaveButton(show) {
-        // 检查是否已存在保存按钮
-        let saveButton = document.getElementById('cloudSaveBtn');
+        const onlineModeActions = document.getElementById('onlineModeActions');
+        if (!onlineModeActions) return;
 
-        if (show && !saveButton) {
-            // 创建保存到云端按钮
-            const modeSelector = document.getElementById('modeSelector');
-            if (modeSelector) {
+        let saveButton = document.getElementById('cloudSaveBtn');
+        let settingsButton = document.getElementById('cloudSettingsBtn');
+
+        if (show) {
+            if (!saveButton) {
                 saveButton = document.createElement('button');
                 saveButton.id = 'cloudSaveBtn';
                 saveButton.className = 'btn';
-                saveButton.textContent = '保存到云端';
-                // 在搜索工具栏中，需要手动设置边距
-                saveButton.style.marginLeft = '0.5rem';
-
+                saveButton.innerHTML = '<span class="icon">💾</span><span>保存到云端</span>'; // 添加图标和文本
                 saveButton.addEventListener('click', () => {
                     this.saveToCloud();
                 });
-
-                // 在模式选择器后面插入保存按钮，并确保有适当间距
-                modeSelector.parentNode.insertBefore(saveButton, modeSelector.nextSibling);
-
-                // 为保存按钮添加一些样式确保不重叠
-                saveButton.style.marginLeft = '5px';
+                onlineModeActions.appendChild(saveButton);
             }
-        } else if (!show && saveButton) {
-            // 移除保存按钮
-            saveButton.remove();
+
+            if (!settingsButton) {
+                settingsButton = document.createElement('button');
+                settingsButton.id = 'cloudSettingsBtn';
+                settingsButton.className = 'btn';
+                settingsButton.innerHTML = '<span class="icon">⚙️</span><span>设置</span>'; // 设置图标和文本
+                settingsButton.addEventListener('click', () => {
+                    this.showPlanManager(); // 点击打开计划管理界面
+                });
+                onlineModeActions.appendChild(settingsButton);
+            }
+            onlineModeActions.style.display = 'flex'; // 显示容器
+        } else {
+            if (saveButton) {
+                saveButton.remove();
+            }
+            if (settingsButton) {
+                settingsButton.remove();
+            }
+            // 如果onlineModeActions中没有其他子元素，则隐藏它
+            if (onlineModeActions.children.length === 0) {
+                onlineModeActions.style.display = 'none';
+            }
         }
     }
 
@@ -277,9 +290,9 @@ class OnlineModeManager {
                     </div>
 
                     <!-- 操作按钮 -->
-                    <div class="plan-actions" style="margin-top: 20px; display: flex; justify-content: space-between;">
-                        <button id="newPlanBtn" class="btn" style="margin-right: 10px;">新建计划</button>
-                        <button id="openPlanBtn" class="btn" style="margin-right: 10px;">打开计划</button>
+                    <div class="plan-actions" style="margin-top: 20px; display: flex;">
+                        <button id="newPlanBtn" class="btn btn-new">新建计划</button>
+                        <button id="openPlanBtn" class="btn btn-open">打开计划</button>
                         <button id="deletePlanBtn" class="btn btn-danger">删除计划</button>
                     </div>
                 </div>
@@ -564,29 +577,21 @@ class OnlineModeManager {
 
     // 显示编辑指示器
     showEditingIndicator(planName) {
-        // 检查是否存在编辑指示器，如果不存在则创建
+        const onlineModeActions = document.getElementById('onlineModeActions');
+        if (!onlineModeActions) return;
+
         let indicator = document.getElementById('editingIndicator');
         if (!indicator) {
             indicator = document.createElement('div');
             indicator.id = 'editingIndicator';
-            indicator.style.cssText = `
-                position: absolute;
-                top: 20px;
-                left: 20px;
-                background: rgba(255, 255, 255, 0.9);
-                padding: 8px 15px;
-                border-radius: 20px;
-                font-size: 14px;
-                font-weight: bold;
-                color: #333;
-                z-index: 1000;
-                box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-            `;
-            document.querySelector('.container').appendChild(indicator);
+            indicator.className = 'editing-indicator'; // 添加类名以便CSS控制
+            // 移除行内样式，通过CSS文件控制
+            onlineModeActions.insertBefore(indicator, onlineModeActions.firstChild); // 插入到最前面
         }
 
         indicator.textContent = `正在编辑: ${planName}`;
         indicator.style.display = 'block';
+        onlineModeActions.style.display = 'flex'; // 确保容器可见
     }
 
     // 隐藏编辑指示器
@@ -594,6 +599,10 @@ class OnlineModeManager {
         const indicator = document.getElementById('editingIndicator');
         if (indicator) {
             indicator.style.display = 'none';
+        }
+        const onlineModeActions = document.getElementById('onlineModeActions');
+        if (onlineModeActions && onlineModeActions.children.length === 0) {
+            onlineModeActions.style.display = 'none';
         }
     }
 
