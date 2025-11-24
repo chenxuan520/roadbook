@@ -354,6 +354,11 @@ main {
     flex: 1;
 }
 
+.btn-open {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+    border: none !important;
+}
+
 .btn-danger {
     background: linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%) !important;
     border: none !important;
@@ -546,6 +551,21 @@ main {
 .form-group textarea {
     resize: vertical;
     min-height: 80px;
+}
+
+.form-control {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 1rem;
+    box-sizing: border-box;
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
 }
 
 .transport-icon {
