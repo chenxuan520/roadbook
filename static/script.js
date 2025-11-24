@@ -461,8 +461,8 @@ class RoadbookApp {
     initMap() {
         // 初始化地图，使用OpenStreetMap作为默认图层
         this.map = L.map('mapContainer', {
-            zoomSnap: 0.2,  // 使缩放级别以0.2为步长进行捕捉，实现更平滑的缩放
-            zoomDelta: 0.2  // 设置缩放增量为0.2
+            zoomSnap: 1,  // 使缩放级别步长进行捕捉，实现更平滑的缩放
+            zoomDelta: 1  // 设置缩放增量
         }).setView([39.90923, 116.397428], 10); // 北京天安门
 
         // 定义地图搜索能力配置
@@ -948,6 +948,12 @@ class RoadbookApp {
                         searchResults.style.display = 'none';
                     }
                 }
+            }
+            // 检查是否按下ESC键退出添加标记点状态
+            else if (e.key === 'Escape' && this.currentMode === 'addMarker') {
+                e.preventDefault();
+                this.setMode('view'); // 退出添加标记点状态，返回查看模式
+                console.log('ESC键 pressed - 退出添加标记点状态');
             }
         });
 

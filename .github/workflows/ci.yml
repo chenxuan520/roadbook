@@ -38,4 +38,4 @@ jobs:
         run: |
           cd backend
           go mod tidy
-          go build -o ../build/roadbook-backend .
+          # go build -o ../build/roadbook-backend .

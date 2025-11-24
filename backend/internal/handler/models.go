@@ -70,7 +70,7 @@ type SavePlanRequest struct {
 	Name        string          `json:"name"`
 	Description string          `json:"description"`
 	StartTime   string          `json:"startTime"`
-	EndTime     string          `json:endTime"`
+	EndTime     string          `json:"endTime"`
 	Labels      []string        `json:"labels"`
 	Content     json.RawMessage `json:"content"`
 }

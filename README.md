@@ -1,5 +1,9 @@
 # 路书制作工具
 
+<p align="center">
+  <img src="static/favicon.png" alt="路书制作工具 Logo" width="100" height="100">
+</p>
+
 路书制作工具是一个基于网页的地图标记和路线规划工具，允许用户在地图上添加标记点、连接路线，并导出分享您的行程规划。
 
 ## 项目简介
