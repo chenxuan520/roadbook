@@ -295,7 +295,7 @@ class RoadbookApp {
     init() {
         // 检测是否为移动设备
         if (this.isMobileDevice()) {
-            alert('提示：当前界面不支持手机端编辑功能，请使用电脑访问以获得完整体验。导出的路书可在手机端正常查看。');
+            this.showSwalAlert('设备提示', '当前界面不支持手机端编辑功能，请使用电脑访问以获得完整体验。导出的路书可在手机端正常查看。', 'info');
             // 可以考虑在移动设备上显示一个更友好的提示页面，而不是完全阻止使用
         }
 
@@ -1267,7 +1267,7 @@ class RoadbookApp {
 
     showConnectModal() {
         if (this.markers.length < 2) {
-            alert('需要至少2个标记点才能连接！');
+            this.showSwalAlert('提示', '需要至少2个标记点才能连接！', 'warning');
             return;
         }
 
@@ -1321,12 +1321,12 @@ class RoadbookApp {
         const transportType = transportSelect.value || 'car'; // 默认汽车
 
         if (startIndex === -1 || endIndex === -1) {
-            alert('请选择有效的标记点！');
+            this.showSwalAlert('提示', '请选择有效的标记点！', 'warning');
             return;
         }
 
         if (startIndex === endIndex) {
-            alert('起始点和目标点不能相同！');
+            this.showSwalAlert('提示', '起始点和目标点不能相同！', 'warning');
             return;
         }
 
@@ -1335,7 +1335,7 @@ class RoadbookApp {
 
         if (!startMarker || !endMarker) {
             console.error('标记点不存在:', startIndex, endIndex);
-            alert('标记点数据错误！');
+            this.showSwalAlert('错误', '标记点数据错误！', 'error');
             return;
         }
 
@@ -1369,7 +1369,7 @@ class RoadbookApp {
         // 计算中点位置 - 添加错误检查
         if (!startMarker.position || !endMarker.position) {
             console.error('标记点位置数据不完整:', startMarker, endMarker);
-            alert('标记点位置数据错误，请重新选择！');
+            this.showSwalAlert('错误', '标记点位置数据错误，请重新选择！', 'error');
             return;
         }
 
@@ -1380,7 +1380,7 @@ class RoadbookApp {
 
         if (isNaN(startLat) || isNaN(startLng) || isNaN(endLat) || isNaN(endLng)) {
             console.error('坐标数据无效:', startMarker.position, endMarker.position);
-            alert('坐标数据错误，请重新选择标记点！');
+            this.showSwalAlert('错误', '坐标数据错误，请重新选择标记点！', 'error');
             return;
         }
 
@@ -1915,7 +1915,7 @@ class RoadbookApp {
 
     showLabelModal() {
         if (this.markers.length === 0) {
-            alert('需要先添加标记点！');
+            this.showSwalAlert('提示', '需要先添加标记点！', 'warning');
             return;
         }
 
@@ -1935,7 +1935,7 @@ class RoadbookApp {
         const content = document.getElementById('labelContent').value.trim();
 
         if (!content) {
-            alert('请输入标注内容！');
+            this.showSwalAlert('提示', '请输入标注内容！', 'warning');
             return;
         }
 
@@ -2055,9 +2055,10 @@ class RoadbookApp {
                     });
 
                     // 删除按钮
-                    item.querySelector('.delete-btn').addEventListener('click', (e) => {
+                    item.querySelector('.delete-btn').addEventListener('click', async (e) => {
                         e.stopPropagation();
-                        if (confirm(`确定要删除标记点"${marker.title}"吗？`)) {
+                        const result = await this.showSwalConfirm('删除确认', `确定要删除标记点"${marker.title}"吗？`, '删除', '取消');
+                        if (result.isConfirmed) {
                             this.removeMarker(marker);
                         }
                     });
@@ -2551,9 +2552,10 @@ class RoadbookApp {
                     this.showMarkerDetail(marker);
                 });
 
-                item.querySelector('.delete-btn').addEventListener('click', (e) => {
+                item.querySelector('.delete-btn').addEventListener('click', async (e) => {
                     e.stopPropagation();
-                    if (confirm(`确定要删除标记点"${marker.title}"吗？`)) {
+                    const result = await this.showSwalConfirm('删除确认', `确定要删除标记点"${marker.title}"吗？`, '删除', '取消');
+                    if (result.isConfirmed) {
                         this.removeMarker(marker);
                     }
                 });
@@ -3037,7 +3039,7 @@ class RoadbookApp {
 
             console.log(`已选择Photon搜索结果: ${name} (${lat}, ${lon})`);
         } else {
-            alert('未能获取有效的地理位置信息');
+            this.showSwalAlert('错误', '未能获取有效的地理位置信息', 'error');
         }
     }
 
@@ -3149,20 +3151,21 @@ class RoadbookApp {
 
             console.log(`已选择搜索结果: ${result.display_name} (${lat}, ${lon})`);
         } else {
-            alert('未能获取有效的地理位置信息');
+            this.showSwalAlert('错误', '未能获取有效的地理位置信息', 'error');
         }
     }
 
-    clearCache() {
-        if (confirm('确定要清除本地缓存吗？此操作将删除所有已保存的数据，无法恢复。')) {
+    async clearCache() {
+        const result = await this.showSwalConfirm('清除确认', '确定要清除本地缓存吗？此操作将删除所有已保存的数据，无法恢复。', '清除', '取消');
+        if (result.isConfirmed) {
             try {
                 localStorage.removeItem('roadbookData');
                 // 清除当前数据
                 this.clearAll();
-                alert('本地缓存已清除！');
+                this.showSwalAlert('成功', '本地缓存已清除！', 'success');
             } catch (error) {
                 console.error('清除本地缓存失败:', error);
-                alert('清除本地缓存失败！');
+                this.showSwalAlert('错误', '清除本地缓存失败！', 'error');
             }
         }
     }
@@ -3262,7 +3265,7 @@ class RoadbookApp {
                 }, 100); // 稍微延时以确保数据加载完成
 
             } catch (error) {
-                alert('文件格式错误！');
+                this.showSwalAlert('错误', '文件格式错误！', 'error');
             }
         };
         reader.readAsText(file);
@@ -3283,7 +3286,7 @@ class RoadbookApp {
                     dataMatch = htmlContent.match(/const roadbookData = JSON\.parse\(`([^`\\]*(\\.[^`\\]*)*)`\)/);
 
                     if (!dataMatch) {
-                        alert('HTML文件中未找到路书数据！');
+                        this.showSwalAlert('错误', 'HTML文件中未找到路书数据！', 'error');
                         return;
                     }
 
@@ -3305,7 +3308,7 @@ class RoadbookApp {
 
             } catch (error) {
                 console.error('导入HTML失败:', error);
-                alert('HTML文件格式错误或数据损坏！');
+                this.showSwalAlert('错误', 'HTML文件格式错误或数据损坏！', 'error');
             }
         };
         reader.readAsText(file);
@@ -3549,7 +3552,7 @@ class RoadbookApp {
 
         // 只在手动导入文件时显示提示
         if (isImport) {
-            alert(`路书导入成功！\n标记点: ${markerCount} 个\n连接线: ${connectionCount} 条`);
+            this.showSwalAlert('导入成功', `路书导入成功！\n标记点: ${markerCount} 个\n连接线: ${connectionCount} 条`, 'success');
         }
 
         // 自动调整视窗以包含所有元素（取代定位到第一个标记点）
@@ -3810,9 +3813,10 @@ class RoadbookApp {
         console.log('路书数据和本地缓存已清空。');
     }
 
-    showMarkerContextMenu(markerData) {
+    async showMarkerContextMenu(markerData) {
         // 简单的右键菜单
-        if (confirm(`要删除标记点"${markerData.title}"吗？`)) {
+        const result = await this.showSwalConfirm('删除确认', `要删除标记点"${markerData.title}"吗？`, '删除', '取消');
+        if (result.isConfirmed) {
             this.removeMarker(markerData);
         }
     }
@@ -4044,13 +4048,14 @@ class RoadbookApp {
     }
 
     // 删除标记点时间
-    deleteMarkerDateTime(index) {
+    async deleteMarkerDateTime(index) {
         if (!this.currentMarker || !this.currentMarker.dateTimes || this.currentMarker.dateTimes.length <= 1) {
-            alert('至少需要保留一个时间点！');
+            this.showSwalAlert('提示', '至少需要保留一个时间点！', 'warning');
             return;
         }
 
-        if (confirm('确定要删除这个时间点吗？')) {
+        const result = await this.showSwalConfirm('删除确认', '确定要删除这个时间点吗？', '删除', '取消');
+        if (result.isConfirmed) {
             this.currentMarker.dateTimes.splice(index, 1);
             this.currentMarker.dateTime = this.currentMarker.dateTimes[0]; // 更新主时间
 
@@ -4333,19 +4338,21 @@ class RoadbookApp {
         this.saveToLocalStorage();
     }
 
-    deleteCurrentMarker() {
+    async deleteCurrentMarker() {
         if (!this.currentMarker) return;
 
-        if (confirm(`确定要删除标记点"${this.currentMarker.title}"吗？`)) {
+        const result = await this.showSwalConfirm('删除确认', `确定要删除标记点"${this.currentMarker.title}"吗？`, '删除', '取消');
+        if (result.isConfirmed) {
             this.removeMarker(this.currentMarker);
             this.hideMarkerDetail();
         }
     }
 
-    deleteCurrentConnection() {
+    async deleteCurrentConnection() {
         if (!this.currentConnection) return;
 
-        if (confirm(`确定要删除连接线"${this.currentConnection.startTitle} → ${this.currentConnection.endTitle}"吗？`)) {
+        const result = await this.showSwalConfirm('删除确认', `确定要删除连接线"${this.currentConnection.startTitle} → ${this.currentConnection.endTitle}"吗？`, '删除', '取消');
+        if (result.isConfirmed) {
             this.removeConnection(this.currentConnection);
             this.hideConnectionDetail();
         }
@@ -4461,6 +4468,48 @@ class RoadbookApp {
         // 如果当前处于筛选模式，则退出筛选模式
         if (this.filterMode) {
             this.exitFilterMode();
+        }
+    }
+
+    // SweetAlert2 工具函数
+    showSwalAlert(title, text, icon = 'info', position = 'center') {
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                title: title,
+                text: text,
+                icon: icon,
+                position: position,
+                showConfirmButton: true,
+                confirmButtonText: '确定',
+                confirmButtonColor: '#667eea',
+                timer: icon === 'success' ? 2000 : undefined,
+                toast: position === 'top-end',
+                background: icon === 'success' ? '#4caf50' : '#fff',
+                color: icon === 'success' ? '#fff' : '#333',
+                iconColor: icon === 'success' ? '#fff' : undefined
+            });
+        } else {
+            // 如果SweetAlert2不可用，回退到普通alert
+            alert(text);
+        }
+    }
+
+    // SweetAlert2 确认对话框
+    showSwalConfirm(title, text, confirmText = '确定', cancelText = '取消') {
+        if (typeof Swal !== 'undefined') {
+            return Swal.fire({
+                title: title,
+                text: text,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: confirmText,
+                cancelButtonText: cancelText,
+                confirmButtonColor: '#667eea',
+                cancelButtonColor: '#6c757d'
+            });
+        } else {
+            // 如果SweetAlert2不可用，回退到普通confirm
+            return Promise.resolve({ isConfirmed: confirm(text) });
         }
     }
 

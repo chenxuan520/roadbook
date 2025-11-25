@@ -289,7 +289,7 @@ class OnlineModeManager {
         const password = document.getElementById('loginPassword').value.trim();
 
         if (!username || !password) {
-            alert('请输入账号和密码');
+            this.showSwalAlert('输入错误', '请输入账号和密码', 'warning');
             return;
         }
 
@@ -311,7 +311,7 @@ class OnlineModeManager {
                 // 显示计划管理界面
                 this.showPlanManager();
             } else {
-                alert('登录失败: ' + (response.message || '未知错误'));
+                this.showSwalAlert('登录失败', response.message || '未知错误', 'error');
                 // 登录失败时切换回离线模式
                 this.mode = 'offline';
                 this.updateUIForMode('offline');
@@ -319,7 +319,7 @@ class OnlineModeManager {
             }
         } catch (error) {
             console.error('登录错误:', error);
-            alert('登录失败: ' + error.message);
+            this.showSwalAlert('登录失败', error.message, 'error');
             // 登录失败时切换回离线模式
             this.mode = 'offline';
             this.updateUIForMode('offline');
@@ -328,8 +328,9 @@ class OnlineModeManager {
     }
 
     // 退出登录
-    logout() {
-        if (!confirm('确定要退出登录吗？退出后将切换到离线模式。')) {
+    async logout() {
+        const result = await this.showSwalConfirm('退出登录', '确定要退出登录吗？退出后将切换到离线模式。', '确定', '取消');
+        if (!result.isConfirmed) {
             return;
         }
 
@@ -357,7 +358,7 @@ class OnlineModeManager {
         // 重新加载页面数据，可能需要清空当前应用数据
         this.app.loadFromLocalStorage(); // 重新加载本地数据
 
-        alert('已退出登录，切换到离线模式。');
+        this.showSwalAlert('退出登录', '已退出登录，切换到离线模式', 'info');
     }
 
     // 检查token有效性
@@ -660,7 +661,7 @@ class OnlineModeManager {
             const useLocalData = document.getElementById('useLocalData').checked;
 
             if (!name || !startTime || !endTime) {
-                alert('请填写所有必填字段！');
+                this.showSwalAlert('输入错误', '请填写所有必填字段！', 'warning');
                 return;
             }
 
@@ -684,16 +685,16 @@ class OnlineModeManager {
                         initialContent = JSON.parse(localDataString);
                     } catch (e) {
                         console.error('解析本地缓存数据失败:', e);
-                        if (!confirm('本地缓存数据已损坏，是否创建空项目？')) {
+                        if (!await this.showSwalConfirm("提示", "本地缓存数据已损坏，是否创建空项目？", "是", "否").then(result => result.isConfirmed)) {
                             return;
                         }
                         localStorage.removeItem('roadbookData');
                         initialContent = null;
                     }
                 } else {
-                    alert('没有本地缓存数据，将创建空项目。');
+                    this.showSwalAlert('提示', '没有本地缓存数据，将创建空项目。', 'info');
                 }
-            } else if (confirm('是否使用空白项目？(这将清空当前路书和本地缓存)')) {
+            } else if (await this.showSwalConfirm('提示', '是否使用空白项目？(这将清空当前路书和本地缓存)', '是', '否').then(result => result.isConfirmed)) {
                 this.app.clearRoadbook(); // 清空当前应用数据和本地缓存
             }
 
@@ -710,7 +711,7 @@ class OnlineModeManager {
                 const response = await this.makeApiRequest('/plans', 'POST', requestBody);
 
                 if (response.id) {
-                    alert('计划创建成功！');
+                    this.showSwalAlert('创建成功', '计划创建成功！', 'success', 'top-end');
                     newPlanModal.remove(); // 关闭创建计划弹窗
                     this.loadPlanList(); // 重新加载计划列表
                     this.currentPlanId = response.id;
@@ -728,7 +729,7 @@ class OnlineModeManager {
                 }
             } catch (error) {
                 console.error('创建计划失败:', error);
-                alert('创建计划失败: ' + error.message);
+                this.showSwalAlert('创建失败', '创建计划失败: ' + error.message, 'error');
             }
         });
 
@@ -739,7 +740,7 @@ class OnlineModeManager {
     async openSelectedPlan() {
         const selectedRadio = document.querySelector('input[name="selectedPlan"]:checked');
         if (!selectedRadio) {
-            alert('请先选择一个计划');
+            this.showSwalAlert('提示', '请先选择一个计划', 'warning');
             return;
         }
 
@@ -758,12 +759,12 @@ class OnlineModeManager {
 
                 if (isCloudEmpty) {
                     // 如果云端是空项目
-                    const confirmOverwrite = confirm('您正在打开一个空项目。是否需要覆盖本地缓存？如果选择“是”，当前本地项目将被清空并加载空项目。');
-                    if (confirmOverwrite) {
+                    const result = await this.showSwalConfirm('空项目提示', '您正在打开一个空项目。是否需要覆盖本地缓存？如果选择"是"，当前本地项目将被清空并加载空项目。', '是', '否');
+                    if (result.isConfirmed) {
                         this.app.clearRoadbook(); // 清空当前应用数据和本地缓存
-                        alert('本地缓存已清空并加载空云端项目。');
+                        this.showSwalAlert("提示", "本地缓存已清空并加载空云端项目。", "info");
                     } else {
-                        alert('已取消加载空云端项目，本地缓存保持不变。请选择其他项目或新建项目。');
+                        this.showSwalAlert("提示", "已取消加载空云端项目，本地缓存保持不变。请选择其他项目或新建项目。", "info");
                         this.closePlanManager(); // 用户选择不覆盖，关闭管理界面
                         return; // 终止后续操作
                     }
@@ -786,14 +787,14 @@ class OnlineModeManager {
                 // 关闭计划管理界面
                 this.closePlanManager();
 
-                alert('计划加载成功！');
+                this.showSwalAlert('成功', '计划加载成功！', 'success');
             } else {
-                alert('获取计划详情失败：计划数据不完整。');
+                this.showSwalAlert('错误', '获取计划详情失败：计划数据不完整。', 'error');
                 this.closePlanManager(); // 数据不完整时也关闭管理界面
             }
         } catch (error) {
             console.error('打开计划失败:', error);
-            alert('打开计划失败: ' + error.message);
+            this.showSwalAlert('错误', '打开计划失败: ' + error.message, 'error');
             this.closePlanManager(); // 发生错误时关闭管理界面
         }
     }
@@ -802,7 +803,7 @@ class OnlineModeManager {
     async editSelectedPlan() {
         const selectedRadio = document.querySelector('input[name="selectedPlan"]:checked');
         if (!selectedRadio) {
-            alert('请先选择一个计划');
+            this.showSwalAlert('提示', '请先选择一个计划', 'warning');
             return;
         }
 
@@ -814,11 +815,11 @@ class OnlineModeManager {
             if (response.plan) {
                 this.showEditPlanModal(response.plan);
             } else {
-                alert('获取计划详情失败');
+                this.showSwalAlert('错误', '获取计划详情失败', 'error');
             }
         } catch (error) {
             console.error('获取计划详情失败:', error);
-            alert('获取计划详情失败: ' + error.message);
+            this.showSwalAlert('错误', '获取计划详情失败: ' + error.message, 'error');
         }
     }
 
@@ -907,7 +908,7 @@ class OnlineModeManager {
             const labelsInput = document.getElementById('editPlanLabels').value.trim();
 
             if (!name || !startTime || !endTime) {
-                alert('请填写所有必填字段！');
+                this.showSwalAlert('输入错误', '请填写所有必填字段！', 'warning');
                 return;
             }
 
@@ -976,7 +977,7 @@ class OnlineModeManager {
                 const response = await this.makeApiRequest(`/plans/${plan.id}`, 'PUT', requestBody);
 
                 if (response.id) {
-                    alert('计划更新成功！');
+                    this.showSwalAlert('成功', '计划更新成功！', 'success');
                     editPlanModal.remove(); // 关闭编辑计划弹窗
                     this.loadPlanList(); // 重新加载计划列表
 
@@ -988,8 +989,7 @@ class OnlineModeManager {
                     }
                 }
             } catch (error) {
-                console.error('更新计划失败:', error);
-                alert('更新计划失败: ' + error.message);
+                this.showSwalAlert('错误', '更新计划失败: ' + error.message, 'error');
             }
         });
 
@@ -1000,14 +1000,13 @@ class OnlineModeManager {
     async deleteSelectedPlan() {
         const selectedRadio = document.querySelector('input[name="selectedPlan"]:checked');
         if (!selectedRadio) {
-            alert('请先选择一个计划');
+            this.showSwalAlert('提示', '请先选择一个计划', 'warning');
             return;
         }
 
         const planId = selectedRadio.value;
         const planName = selectedRadio.parentElement.querySelector('strong').textContent;
-
-        if (!confirm(`确定要删除计划 "${planName}" 吗？此操作不可恢复。`)) {
+        if (!await this.showSwalConfirm('删除确认', `确定要删除计划 "${planName}" 吗？此操作不可恢复。`, '删除', '取消').then(result => result.isConfirmed)) {
             return;
         }
 
@@ -1015,7 +1014,7 @@ class OnlineModeManager {
             const response = await this.makeApiRequest(`/plans/${planId}`, 'DELETE');
 
             if (response.message) {
-                alert('计划删除成功！');
+                this.showSwalAlert('成功', '计划删除成功！', 'success');
                 this.loadPlanList(); // 重新加载计划列表
 
                 // 如果删除的是当前正在编辑的计划，清空当前计划信息
@@ -1027,15 +1026,14 @@ class OnlineModeManager {
                 }
             }
         } catch (error) {
-            console.error('删除计划失败:', error);
-            alert('删除计划失败: ' + error.message);
+            this.showSwalAlert('错误', '删除计划失败: ' + error.message, 'error');
         }
     }
 
     // 保存到云端
     async saveToCloud() {
         if (!this.currentPlanId) {
-            alert('当前没有打开的计划，请先打开或创建一个计划');
+            this.showSwalAlert('提示', '当前没有打开的计划，请先打开或创建一个计划', 'warning');
             return;
         }
 
@@ -1094,11 +1092,11 @@ class OnlineModeManager {
                 this.lastSavedHash = this.getContentHash();
                 // 立即更新UI状态
                 this.updateEditingIndicator(false);
-                alert('计划保存成功！');
+                // 显示右上角成功提示
+                this.showSaveSuccessToast();
             }
         } catch (error) {
-            console.error('保存到云端失败:', error);
-            alert('保存失败: ' + error.message);
+            this.showSwalAlert('保存失败', '保存失败: ' + error.message, 'error');
         }
     }
 
@@ -1239,6 +1237,71 @@ class OnlineModeManager {
             indicator.classList.add('unsaved'); // 添加未保存状态的CSS类
         } else {
             indicator.classList.remove('unsaved'); // 移除未保存状态的CSS类
+        }
+    }
+
+    // 显示保存成功提示
+    showSaveSuccessToast() {
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                position: 'top-end',
+                icon: 'success',
+                title: '保存成功',
+                text: '计划已保存到云端',
+                showConfirmButton: false,
+                timer: 2000,
+                toast: true,
+                background: '#4caf50',
+                color: '#fff',
+                iconColor: '#fff',
+                customClass: {
+                    popup: 'save-success-toast'
+                }
+            });
+        } else {
+            console.log('保存成功：计划已保存到云端');
+        }
+    }
+
+    // SweetAlert2 工具函数
+    showSwalAlert(title, text, icon = 'info', position = 'center') {
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                title: title,
+                text: text,
+                icon: icon,
+                position: position,
+                showConfirmButton: true,
+                confirmButtonText: '确定',
+                confirmButtonColor: '#667eea',
+                timer: icon === 'success' ? 2000 : undefined,
+                toast: position === 'top-end',
+                background: icon === 'success' ? '#4caf50' : '#fff',
+                color: icon === 'success' ? '#fff' : '#333',
+                iconColor: icon === 'success' ? '#fff' : undefined
+            });
+        } else {
+            // 如果SweetAlert2不可用，回退到普通alert
+            alert(text);
+        }
+    }
+
+    // SweetAlert2 确认对话框
+    showSwalConfirm(title, text, confirmText = '确定', cancelText = '取消') {
+        if (typeof Swal !== 'undefined') {
+            return Swal.fire({
+                title: title,
+                text: text,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: confirmText,
+                cancelButtonText: cancelText,
+                confirmButtonColor: '#667eea',
+                cancelButtonColor: '#6c757d'
+            });
+        } else {
+            // 如果SweetAlert2不可用，回退到普通confirm
+            return Promise.resolve({ isConfirmed: confirm(text) });
         }
     }
 
