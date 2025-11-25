@@ -1194,6 +1194,9 @@ class RoadbookApp {
 
         // 保存到本地存储
         this.saveToLocalStorage();
+
+        // 自动显示新添加标记点的详情面板
+        this.showMarkerDetail(markerData);
     }
 
     showIconModal() {
@@ -1458,6 +1461,9 @@ class RoadbookApp {
 
         // 保存到本地存储
         this.saveToLocalStorage();
+
+        // 自动显示新创建连接线的详情面板
+        this.showConnectionDetail(connection);
 
         console.log('连接线创建成功，连接数:', this.connections.length);
     }
