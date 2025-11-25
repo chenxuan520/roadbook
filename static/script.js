@@ -1,3 +1,14 @@
+const apiBaseUrl = (() => {
+    const hostname = window.location.hostname || '';
+    const protocol = window.location.protocol || '';
+
+    if (hostname === 'localhost' || hostname === '127.0.0.1' || protocol === 'file:') {
+        return 'http://127.0.0.1:5436';
+    } else {
+        return window.location.origin;
+    }
+})();
+
 class RoadbookApp {
     constructor() {
         this.map = null;
@@ -683,7 +694,7 @@ class RoadbookApp {
             gaode: {
                 searchable: true,
                 name: '高德地图',
-                searchUrl: 'https://map.chenxuanweb.top/api/cnmap/search', // 使用TianSearch端点
+                searchUrl: apiBaseUrl + '/api/cnmap/search', // 使用TianSearch端点
                 params: {
                     format: 'json',
                     limit: 10
@@ -3143,7 +3154,7 @@ class RoadbookApp {
             // CNSearch搜索模式
             searchConfig = {
                 searchable: true,
-                searchUrl: 'https://map.chenxuanweb.top/api/cnmap/search',
+                searchUrl: apiBaseUrl + '/api/cnmap/search',
                 params: {
                     format: 'json',
                     limit: 10
@@ -3154,7 +3165,7 @@ class RoadbookApp {
             // TianSearch搜索模式
             searchConfig = {
                 searchable: true,
-                searchUrl: 'https://map.chenxuanweb.top/api/tianmap/search',
+                searchUrl: apiBaseUrl + '/api/tianmap/search',
                 params: {
                     format: 'json',
                     limit: 10
