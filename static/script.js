@@ -688,8 +688,18 @@ class RoadbookApp {
                 parser: 'nominatim' // 使用Nominatim API
             },
             satellite: {
-                searchable: false, // 卫星图禁用搜索
-                name: 'ESRI卫星图'
+                searchable: true,
+                name: 'ESRI影像图',
+                searchUrl: apiBaseUrl + '/api/cnmap/search',
+                params: { format: 'json', limit: 10 },
+                parser: 'nominatim'
+            },
+            esri_street: {
+                searchable: true,
+                name: 'ESRI街道图',
+                searchUrl: apiBaseUrl + '/api/cnmap/search',
+                params: { format: 'json', limit: 10 },
+                parser: 'nominatim'
             },
             gaode: {
                 searchable: true,
@@ -702,8 +712,11 @@ class RoadbookApp {
                 parser: 'nominatim' // 使用Nominatim格式，因为TianSearch与Nominatim格式一致
             },
             gaode_satellite: {
-                searchable: false, // 高德卫星图禁用搜索
-                name: '高德卫星图'
+                searchable: true,
+                name: '高德卫星图',
+                searchUrl: apiBaseUrl + '/api/cnmap/search',
+                params: { format: 'json', limit: 10 },
+                parser: 'nominatim'
             },
             google: {
                 searchable: true,
@@ -715,8 +728,18 @@ class RoadbookApp {
                 parser: 'photon' // 使用Photon API
             },
             google_satellite: {
-                searchable: false, // Google卫星图禁用搜索
-                name: 'Google卫星图'
+                searchable: true,
+                name: 'Google卫星图',
+                searchUrl: apiBaseUrl + '/api/cnmap/search',
+                params: { format: 'json', limit: 10 },
+                parser: 'nominatim'
+            },
+            tencent: {
+                searchable: true,
+                name: '腾讯地图',
+                searchUrl: apiBaseUrl + '/api/cnmap/search',
+                params: { format: 'json', limit: 10 },
+                parser: 'nominatim'
             }
         };
 
@@ -728,6 +751,10 @@ class RoadbookApp {
             }),
             satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
                 attribution: 'Tiles © Esri',
+                maxZoom: 19
+            }),
+            esri_street: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+                attribution: 'Tiles &copy; Esri',
                 maxZoom: 19
             }),
             // 高德地图矢量地图 - 无需key，直接访问瓦片
@@ -753,6 +780,11 @@ class RoadbookApp {
                 attribution: '© Google Maps',
                 maxZoom: 19,
                 subdomains: ['0', '1', '2', '3']
+            }),
+            tencent: L.tileLayer('https://rt{s}.map.gtimg.com/realtimerender?z={z}&x={x}&y={-y}&type=vector&styleid=3', {
+                attribution: '&copy; Tencent',
+                maxZoom: 18,
+                subdomains: ['0', '1', '2']
             })
         };
 
