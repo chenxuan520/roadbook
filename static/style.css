@@ -1638,6 +1638,23 @@ input[type="color"] {
     background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
 }
 
+/* 分享链接弹窗样式 */
+#shareModal .modal-content {
+    background: linear-gradient(135deg, rgba(255,255,255,0.95), rgba(240,240,240,0.95));
+    backdrop-filter: blur(10px);
+}
+
+#shareLinkInput {
+    background: rgba(255,255,255,0.8);
+    border: 2px solid rgba(102, 126, 234, 0.3) !important;
+    font-family: monospace;
+}
+
+#shareLinkInput:focus {
+    border-color: rgba(102, 126, 234, 0.6) !important;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2) !important;
+}
+
 /* 模式选择器容器 */
 .mode-selector-container {
     display: inline-block;

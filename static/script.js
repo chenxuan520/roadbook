@@ -311,17 +311,41 @@ class RoadbookApp {
             this.currentSearchMethod = 'auto';
         }
 
-        // 现在初始化地图时会使用正确的设置
+        // 检查URL中是否有分享ID参数
+        const urlParams = new URLSearchParams(window.location.search);
+        const shareID = urlParams.get('shareID');
+
+        // 首先进行正常的地图初始化（无论是否有分享ID）
         this.initMap();
         this.bindEvents();
-        this.loadFromLocalStorage(); // 初始化时加载本地缓存
-        this.updateSearchInputState(); // 初始化搜索框状态
 
-        // 检查是否是首次进入（没有标记点、连接线和日期备注）
-        const savedData = localStorage.getItem('roadbookData');
-        if (!savedData) {
-            // 首次进入，尝试获取用户位置并定位
-            this.locateUserAndFitView();
+        if (shareID) {
+            // 如果有分享ID，先正常加载本地数据，然后处理分享数据
+            this.loadFromLocalStorage(); // 先加载本地缓存
+            this.updateSearchInputState(); // 初始化搜索框状态
+
+            // 检查本地缓存
+            const hasLocalData = this.checkLocalCache();
+            if (hasLocalData) {
+                // 本地有数据，询问用户是否覆盖
+                this.askUserToImportSharedData(shareID);
+            } else {
+                // 本地无数据，直接导入分享数据
+                this.importSharedData(shareID);
+            }
+            // 清除分享参数，避免重复触发
+            window.history.replaceState({}, document.title, window.location.pathname);
+        } else {
+            // 正常初始化流程
+            this.loadFromLocalStorage(); // 初始化时加载本地缓存
+            this.updateSearchInputState(); // 初始化搜索框状态
+
+            // 检查是否是首次进入（没有标记点、连接线和日期备注）
+            const savedData = localStorage.getItem('roadbookData');
+            if (!savedData) {
+                // 首次进入，尝试获取用户位置并定位
+                this.locateUserAndFitView();
+            }
         }
     }
 
@@ -456,6 +480,181 @@ class RoadbookApp {
             console.error('从本地存储加载设置失败:', error);
         }
         return null;
+    }
+
+    // 检查本地缓存是否存在且不为空
+    checkLocalCache() {
+        try {
+            const savedData = localStorage.getItem('roadbookData');
+            if (!savedData || savedData === '{}' || savedData === 'null') {
+                return false;
+            }
+            const data = JSON.parse(savedData);
+            // 检查是否有实际的标记点或连接线数据
+            return (data.markers && data.markers.length > 0) ||
+                   (data.connections && data.connections.length > 0) ||
+                   (data.labels && data.labels.length > 0);
+        } catch (error) {
+            console.error('检查本地缓存失败:', error);
+            return false;
+        }
+    }
+
+    // 询问用户是否导入分享数据
+    askUserToImportSharedData(shareID) {
+        // 延迟显示确认对话框，确保页面完全加载
+        setTimeout(() => {
+            this.showSwalConfirm('发现分享链接', '检测到分享链接，当前本地已有数据。是否导入分享数据？这将覆盖当前本地数据。', '导入', '取消')
+                .then(result => {
+                    if (result.isConfirmed) {
+                        this.importSharedData(shareID);
+                    } else {
+                        // 用户选择不导入，正常初始化
+                        this.showSwalAlert('提示', '已取消导入分享数据', 'info');
+                    }
+                })
+                .catch(error => {
+                    console.error('显示确认对话框失败:', error);
+                    // 如果显示对话框失败，继续正常初始化
+                    this.showSwalAlert('提示', '已取消导入分享数据', 'info');
+                });
+        }, 1000); // 延迟1秒，确保所有UI元素都加载完成
+    }
+
+    // 导入分享数据
+    async importSharedData(shareID) {
+        try {
+            // 显示加载提示（延迟显示，确保UI已经初始化）
+            setTimeout(() => {
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        title: '正在导入',
+                        text: '正在加载分享数据...',
+                        icon: 'info',
+                        showConfirmButton: false,
+                        allowOutsideClick: false,
+                        didOpen: () => {
+                            Swal.showLoading();
+                        }
+                    });
+                }
+            }, 100);
+
+            // 调用分享接口获取数据
+            const response = await this.fetchShareData(shareID);
+
+            if (response && response.plan && response.plan.content) {
+                // 提取实际的路线图数据内容
+                const shareContent = response.plan.content;
+
+                // 确保数据结构完整，提供默认值
+                if (!shareContent.markers) {
+                    shareContent.markers = [];
+                }
+                if (!shareContent.connections) {
+                    shareContent.connections = [];
+                }
+                if (!shareContent.labels) {
+                    shareContent.labels = [];
+                }
+                if (!shareContent.dateNotes) {
+                    shareContent.dateNotes = {};
+                }
+
+                // 验证数据结构
+                if (!Array.isArray(shareContent.markers)) {
+                    throw new Error('分享数据中的markers必须是数组');
+                }
+                if (!Array.isArray(shareContent.connections)) {
+                    throw new Error('分享数据中的connections必须是数组');
+                }
+
+                // 加载分享的数据
+                this.loadRoadbook(shareContent, false);
+
+                // 保存到本地缓存
+                this.saveToLocalStorage();
+
+                // 关闭加载提示并显示成功消息
+                if (typeof Swal !== 'undefined') {
+                    Swal.close();
+                }
+
+                setTimeout(() => {
+                    this.showSwalAlert('成功', `分享数据导入成功！导入了 ${shareContent.markers.length} 个标记点和 ${shareContent.connections.length} 条连接线`, 'success');
+                }, 200);
+
+                // 继续正常初始化流程
+                this.continueNormalInit();
+            } else {
+                throw new Error('分享数据格式不正确，缺少plan或plan.content字段');
+            }
+        } catch (error) {
+            // 关闭加载提示
+            if (typeof Swal !== 'undefined') {
+                Swal.close();
+            }
+
+            this.showSwalAlert('错误', '导入分享数据失败: ' + error.message, 'error');
+
+            // 导入失败，继续正常初始化
+            this.continueNormalInit();
+        }
+    }
+
+    // 从分享接口获取数据
+    async fetchShareData(shareID) {
+        try {
+            // 构建分享接口URL
+            const baseUrl = this.getShareApiBaseUrl();
+            const shareUrl = `${baseUrl}/share/plans/${shareID}`;
+
+            const response = await fetch(shareUrl, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.message || `获取分享数据失败: ${response.status} ${response.statusText}`);
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error('获取分享数据失败:', error);
+            throw error;
+        }
+    }
+
+    // 获取分享API基础URL
+    getShareApiBaseUrl() {
+        // 检查是否是本地开发环境
+        const hostname = window.location.hostname || '';
+        const protocol = window.location.protocol || '';
+
+        if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '0.0.0.0' || protocol === 'file:') {
+            return 'http://127.0.0.1:5436/api/v1';
+        } else {
+            // 生产环境使用当前域名
+            return `${protocol}//${hostname}/api/v1`;
+        }
+    }
+
+    // 继续正常初始化流程
+    continueNormalInit() {
+        this.initMap();
+        this.bindEvents();
+        this.loadFromLocalStorage(); // 初始化时加载本地缓存
+        this.updateSearchInputState(); // 初始化搜索框状态
+
+        // 检查是否是首次进入（没有标记点、连接线和日期备注）
+        const savedData = localStorage.getItem('roadbookData');
+        if (!savedData) {
+            // 首次进入，尝试获取用户位置并定位
+            this.locateUserAndFitView();
+        }
     }
 
     initMap() {

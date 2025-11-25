@@ -131,6 +131,9 @@ class OnlineModeManager {
         // 显示或隐藏保存按钮
         this.toggleSaveButton(mode === 'online');
 
+        // 显示或隐藏分享按钮（在在线模式下显示）
+        this.toggleShareButton(mode === 'online');
+
         // 如果退出在线模式，清空当前计划信息
         if (mode !== 'online') {
             this.currentPlanId = null;
@@ -198,6 +201,119 @@ class OnlineModeManager {
                 onlineModeActions.style.display = 'none';
             }
         }
+    }
+
+    // 切换分享按钮显示
+    toggleShareButton(show) {
+        const onlineModeActions = document.getElementById('onlineModeActions');
+        if (!onlineModeActions) return;
+
+        let shareButton = document.getElementById('shareBtn');
+
+        if (show) {
+            if (!shareButton) {
+                shareButton = document.createElement('button');
+                shareButton.id = 'shareBtn';
+                shareButton.className = 'btn';
+                shareButton.innerHTML = '<span class="icon">🔗</span><span>一键分享</span>'; // 分享图标和文本
+                shareButton.addEventListener('click', () => {
+                    this.generateShareLink();
+                });
+                onlineModeActions.appendChild(shareButton);
+            }
+        } else {
+            if (shareButton) {
+                shareButton.remove();
+            }
+        }
+    }
+
+    // 生成分享链接
+    async generateShareLink() {
+        if (!this.currentPlanId) {
+            this.showSwalAlert('提示', '当前没有打开的计划，请先打开或创建一个计划', 'warning');
+            return;
+        }
+
+        try {
+            // 首先保存当前计划到云端，确保分享的是最新内容
+            await this.saveToCloud();
+
+            // 生成分享链接
+            const baseUrl = window.location.origin + window.location.pathname;
+            const shareUrl = `${baseUrl}?shareID=${this.currentPlanId}`;
+
+            // 显示分享链接对话框
+            this.showShareLinkDialog(shareUrl);
+        } catch (error) {
+            console.error('生成分享链接失败:', error);
+            this.showSwalAlert('错误', '生成分享链接失败: ' + error.message, 'error');
+        }
+    }
+
+    // 显示分享链接对话框
+    showShareLinkDialog(shareUrl) {
+        // 创建分享链接弹窗
+        let shareModal = document.getElementById('shareModal');
+        if (shareModal) {
+            shareModal.remove();
+        }
+
+        shareModal = document.createElement('div');
+        shareModal.id = 'shareModal';
+        shareModal.className = 'modal';
+        shareModal.innerHTML = `
+            <div class="modal-content" style="width: 500px; max-width: 90vw;">
+                <span class="close" id="closeShareModal">&times;</span>
+                <h3>分享计划</h3>
+                <div class="form-group">
+                    <label>分享链接:</label>
+                    <div style="display: flex; gap: 10px;">
+                        <input type="text" id="shareLinkInput" value="${shareUrl}" readonly
+                               style="flex: 1; padding: 0.8rem; border: 2px solid #e1e5e9; border-radius: 8px; font-size: 0.9rem;">
+                        <button id="copyShareLinkBtn" class="btn" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; padding: 0.8rem 1.2rem; border-radius: 8px; cursor: pointer;">复制</button>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <p style="color: #666; font-size: 0.9rem; margin: 0;">
+                        任何人都可以通过此链接查看您的计划，无需登录。
+                    </p>
+                </div>
+                <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+                    <button id="closeShareBtn" class="btn" style="background: #ccc; color: #333; border: none; padding: 0.6rem 1.2rem; border-radius: 8px; cursor: pointer;">关闭</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(shareModal);
+
+        // 绑定事件
+        document.getElementById('closeShareModal').addEventListener('click', () => {
+            shareModal.remove();
+        });
+
+        document.getElementById('closeShareBtn').addEventListener('click', () => {
+            shareModal.remove();
+        });
+
+        // 点击弹窗外部区域也关闭弹窗
+        shareModal.addEventListener('click', (e) => {
+            if (e.target === shareModal) {
+                shareModal.remove();
+            }
+        });
+
+        // 复制链接功能
+        document.getElementById('copyShareLinkBtn').addEventListener('click', async () => {
+            const shareLinkInput = document.getElementById('shareLinkInput');
+            try {
+                await navigator.clipboard.writeText(shareLinkInput.value);
+                this.showSwalAlert('成功', '分享链接已复制到剪贴板！', 'success', 'top-end');
+            } catch (err) {
+                this.showSwalAlert('提示', '请手动复制链接', 'info');
+            }
+        });
+
+        shareModal.style.display = 'block';
     }
 
     // 显示登录弹窗
@@ -481,9 +597,9 @@ class OnlineModeManager {
 
             // 检查名称、标签、时间范围或创建时间中是否包含搜索词
             const matches = planName.includes(searchLower) ||
-                           planLabels.includes(searchLower) ||
-                           planTimeRange.includes(searchLower) ||
-                           planCreatedAt.includes(searchLower);
+                planLabels.includes(searchLower) ||
+                planTimeRange.includes(searchLower) ||
+                planCreatedAt.includes(searchLower);
 
             if (matches) {
                 item.style.display = 'block';
@@ -1301,7 +1417,7 @@ class OnlineModeManager {
             });
         } else {
             // 如果SweetAlert2不可用，回退到普通confirm
-            return Promise.resolve({ isConfirmed: confirm(text) });
+            return Promise.resolve({isConfirmed: confirm(text)});
         }
     }
 
