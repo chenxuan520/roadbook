@@ -64,6 +64,12 @@
             <div id="mapContainer" style="height: 100%; width: 100%;">
                 <!-- 地图和帮助控制按钮 -->
                 <div class="map-controls">
+                    <div id="dateRangePicker" class="date-range-picker" style="display: none;">
+                        <input type="date" id="startDate">
+                        <span>→</span>
+                        <input type="date" id="endDate">
+                        <button id="applyDateRangeFilter" class="btn">应用</button>
+                    </div>
                     <button id="fitViewBtn" class="map-control-btn" title="调整视窗以显示所有元素">
                         🎯
                     </button>

@@ -639,6 +639,39 @@ main {
     align-items: flex-end; /* 确保按钮右对齐 */
 }
 
+.date-range-picker {
+    background: rgba(255, 255, 255, 0.95);
+    padding: 10px;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    z-index: 1001;
+    backdrop-filter: blur(5px);
+}
+
+.date-range-picker input[type="date"] {
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    padding: 5px;
+    color: #333; /* 确保日期文字颜色 */
+    background-color: white; /* 确保背景色 */
+}
+
+.date-range-picker span {
+    color: #333;
+    font-weight: bold;
+}
+
+.date-range-picker .btn {
+    padding: 5px 10px;
+    font-size: 0.8rem;
+    background: #667eea;
+    color: white !important; /* 确保文字颜色 */
+    border: none;
+}
+
 .map-control-btn {
     width: 44px;
     height: 44px;

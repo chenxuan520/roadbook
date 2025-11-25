@@ -37,6 +37,8 @@ class RoadbookApp {
         this.history = []; // 操作历史栈
         this.historyLimit = 50; // 历史记录最大数量
         this.dateNotes = {}; // 日期备注信息
+        this.hoverTimeout = null; // 聚焦按钮的悬浮计时器
+        this.lastDateRange = null; // 上次使用的日期范围
 
         this.init();
     }
@@ -788,6 +790,13 @@ class RoadbookApp {
             })
         };
 
+        // 验证当前图层是否存在，如果不存在则回退到默认值
+        if (!this.mapLayers[this.currentLayer]) {
+            console.warn(`缓存的地图源 "${this.currentLayer}" 已失效，自动切换到默认地图。`);
+            this.currentLayer = 'gaode'; // 默认高德地图
+            this.saveToLocalStorage(); // 更新缓存，防止下次再出错
+        }
+
         // 添加当前图层到地图
         // this.currentLayer 已经在 init() 方法中设置好了
         this.mapLayers[this.currentLayer].addTo(this.map);
@@ -1130,7 +1139,57 @@ class RoadbookApp {
         const fitViewBtn = document.getElementById('fitViewBtn');
         if (fitViewBtn) {
             fitViewBtn.addEventListener('click', () => {
+                const picker = document.getElementById('dateRangePicker');
+                if (picker && picker.style.display === 'flex') {
+                    return; // 如果选择器可见，则不执行默认聚焦，防止冲突
+                }
                 this.handleFitViewClick();
+            });
+
+            // 添加悬浮事件
+            fitViewBtn.addEventListener('mouseover', () => {
+                clearTimeout(this.hoverTimeout); // 清除可能存在的计时器
+                    this.hoverTimeout = setTimeout(() => {
+                        const picker = document.getElementById('dateRangePicker');
+                        // 如果已经打开则不执行任何操作
+                        if (picker.style.display === 'flex') return;
+
+                        // 设置默认日期为最近一个月
+                        const startDate = new Date();
+                        startDate.setMonth(startDate.getMonth() - 1);
+
+                        const startDateInput = document.getElementById('startDate');
+                        const endDateInput = document.getElementById('endDate');
+
+                        if (this.lastDateRange && this.lastDateRange.start && this.lastDateRange.end) {
+                            // 如果有保存的日期范围，则使用它
+                            startDateInput.value = this.lastDateRange.start;
+                            endDateInput.value = this.lastDateRange.end;
+                        } else {
+                            // 否则，设置默认日期为最近一个月
+                            const endDate = new Date();
+                            const startDate = new Date();
+                            startDate.setMonth(startDate.getMonth() - 1);
+
+                            if (startDateInput && typeof startDateInput.valueAsDate !== 'undefined') {
+                                startDateInput.valueAsDate = startDate;
+                            } else if(startDateInput) {
+                                startDateInput.value = startDate.toISOString().split('T')[0];
+                            }
+
+                            if (endDateInput && typeof endDateInput.valueAsDate !== 'undefined') {
+                                endDateInput.valueAsDate = endDate;
+                            } else if (endDateInput) {
+                                endDateInput.value = endDate.toISOString().split('T')[0];
+                            }
+                        }
+
+                        picker.style.display = 'flex';
+                    }, 1000); // 1秒后显示
+            });
+
+            fitViewBtn.addEventListener('mouseout', () => {
+                clearTimeout(this.hoverTimeout);
             });
         }
 
@@ -1237,6 +1296,30 @@ class RoadbookApp {
                 this.hideDateNotesSticky();
             });
         }
+
+        // 日期范围选择器应用按钮
+        const applyDateRangeFilterBtn = document.getElementById('applyDateRangeFilter');
+        if (applyDateRangeFilterBtn) {
+            applyDateRangeFilterBtn.addEventListener('click', () => {
+                const startDate = document.getElementById('startDate').value;
+                const endDate = document.getElementById('endDate').value;
+                if (startDate && endDate) {
+                    this.fitViewByDateRange(startDate, endDate);
+                    document.getElementById('dateRangePicker').style.display = 'none';
+                } else {
+                    this.showSwalAlert('提示', '请选择起始和结束日期。', 'warning');
+                }
+            });
+        }
+
+        // 点击页面其他地方隐藏日期选择器
+        document.addEventListener('click', (e) => {
+            const picker = document.getElementById('dateRangePicker');
+            const fitBtn = document.getElementById('fitViewBtn');
+            if (picker && picker.style.display === 'flex' && !picker.contains(e.target) && !fitBtn.contains(e.target)) {
+                picker.style.display = 'none';
+            }
+        });
 
         // 点击模态框外部关闭
         window.addEventListener('click', (e) => {
@@ -2810,6 +2893,57 @@ class RoadbookApp {
         this.autoFitMapView();
     }
 
+    // 根据日期范围调整视图
+    fitViewByDateRange(startDateStr, endDateStr) {
+        const startDate = new Date(startDateStr);
+        startDate.setHours(0, 0, 0, 0); // 设置为当天的开始
+
+        const endDate = new Date(endDateStr);
+        endDate.setHours(23, 59, 59, 999); // 设置为当天的结束
+
+        if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+            this.showSwalAlert('错误', '无效的日期格式。', 'error');
+            return;
+        }
+
+        if (startDate > endDate) {
+            this.showSwalAlert('错误', '开始日期不能晚于结束日期。', 'error');
+            return;
+        }
+
+        const filteredMarkers = this.markers.filter(marker => {
+            const markerDates = (marker.dateTimes && marker.dateTimes.length > 0) ? marker.dateTimes : [marker.dateTime];
+            return markerDates.some(dtStr => {
+                if (!dtStr) return false;
+                const dt = new Date(dtStr);
+                return dt >= startDate && dt <= endDate;
+            });
+        });
+
+        const filteredConnections = this.connections.filter(conn => {
+            if (!conn.dateTime) return false;
+            const connDate = new Date(conn.dateTime);
+            return connDate >= startDate && connDate <= endDate;
+        });
+
+        if (filteredMarkers.length === 0 && filteredConnections.length === 0) {
+            this.showSwalAlert('提示', '该日期范围内没有找到任何地点或路线。', 'info');
+            return;
+        }
+
+        const bounds = L.latLngBounds();
+        filteredMarkers.forEach(marker => bounds.extend(marker.position));
+        filteredConnections.forEach(conn => bounds.extend(conn.polyline.getLatLngs()));
+
+        if (bounds.isValid()) {
+            this.map.fitBounds(bounds, { padding: [50, 50], maxZoom: 16, animate: true });
+        }
+
+        // 保存本次使用的日期范围
+        this.lastDateRange = { start: startDateStr, end: endDateStr };
+        this.saveToLocalStorage();
+    }
+
     // 更新筛选模式下的标记点列表
     updateMarkerListForFilter() {
         const listContainer = document.getElementById('markerList');
@@ -2974,7 +3108,8 @@ class RoadbookApp {
                 markerIndex: this.markers.indexOf(l.marker),
                 content: l.content
             })),
-            dateNotes: this.dateNotes || {} // 保存日期备注信息
+            dateNotes: this.dateNotes || {}, // 保存日期备注信息
+            lastDateRange: this.lastDateRange // 保存上次使用的日期范围
         };
 
         try {
@@ -3021,6 +3156,11 @@ class RoadbookApp {
                     this.dateNotes = data.dateNotes;
                 } else {
                     this.dateNotes = {};
+                }
+
+                // 加载上次使用的日期范围
+                if (data.lastDateRange) {
+                    this.lastDateRange = data.lastDateRange;
                 }
 
                 // 恢复地图源和搜索方式（如果存在）
