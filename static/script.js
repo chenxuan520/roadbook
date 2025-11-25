@@ -2117,6 +2117,14 @@ class RoadbookApp {
             qqNavLink.target = '_blank';
         }
 
+        // 生成Google导航链接
+        const googleLink = `https://www.google.com/maps/dir/?api=1&origin=${startLat},${startLng}&destination=${endLat},${endLng}`;
+        const googleNavLink = document.getElementById('googleNavLink');
+        if (googleNavLink) {
+            googleNavLink.href = googleLink;
+            googleNavLink.target = '_blank';
+        }
+
         // 更新购票服务链接
         this.updateTicketBookingLinks(connectionData, startTitle, endTitle);
     }
