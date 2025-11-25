@@ -1911,6 +1911,67 @@ class RoadbookApp {
             qqNavLink.href = qqLink;
             qqNavLink.target = '_blank';
         }
+
+        // 更新购票服务链接
+        this.updateTicketBookingLinks(connectionData, startTitle, endTitle);
+    }
+
+    // 更新购票服务链接
+    updateTicketBookingLinks(connectionData, startTitle, endTitle) {
+        const ticketBookingSection = document.getElementById('ticketBookingSection');
+        const ctripTrainLink = document.getElementById('ctripTrainLink');
+        const planeTicketBtn = document.getElementById('planeTicketBtn');
+
+        if (!ticketBookingSection || !ctripTrainLink || !planeTicketBtn) {
+            console.error('购票服务元素不存在');
+            return;
+        }
+
+        // 获取连接线的日期
+        let travelDate = '';
+        if (connectionData.dateTime) {
+            try {
+                const date = new Date(connectionData.dateTime);
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                travelDate = `${year}-${month}-${day}`;
+            } catch (error) {
+                console.error('日期解析错误:', error);
+                travelDate = new Date().toISOString().split('T')[0]; // 默认今天
+            }
+        } else {
+            travelDate = new Date().toISOString().split('T')[0]; // 默认今天
+        }
+
+        // 根据交通方式显示相应的购票服务
+        if (connectionData.transportType === 'train') {
+            // 显示火车票购买链接
+            ticketBookingSection.style.display = 'block';
+            ctripTrainLink.style.display = 'inline-block';
+            planeTicketBtn.style.display = 'none';
+
+            // 生成携程火车票链接
+            const ctripLink = `https://trains.ctrip.com/webapp/train/list?ticketType=0&dStation=${encodeURIComponent(startTitle)}&aStation=${encodeURIComponent(endTitle)}&dDate=${travelDate}&rDate=&trainsType=gaotie-dongche`;
+            ctripTrainLink.href = ctripLink;
+            ctripTrainLink.target = '_blank';
+        } else if (connectionData.transportType === 'plane') {
+            // 显示飞机票按钮（敬请期待）
+            ticketBookingSection.style.display = 'block';
+            ctripTrainLink.style.display = 'none';
+            planeTicketBtn.style.display = 'inline-block';
+
+            // 绑定飞机票按钮点击事件（只绑定一次）
+            if (!planeTicketBtn.hasAttribute('data-event-bound')) {
+                planeTicketBtn.addEventListener('click', () => {
+                    this.showSwalAlert('敬请期待', '飞机票购买功能正在开发中，敬请期待！', 'info');
+                });
+                planeTicketBtn.setAttribute('data-event-bound', 'true');
+            }
+        } else {
+            // 其他交通方式不显示购票服务
+            ticketBookingSection.style.display = 'none';
+        }
     }
 
     showLabelModal() {

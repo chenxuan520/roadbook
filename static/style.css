@@ -1612,6 +1612,32 @@ input[type="color"] {
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
+/* 购票服务样式 */
+.ticket-booking-links {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+#ctripTrainLink {
+    background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
+}
+
+#ctripTrainLink:hover {
+    background: linear-gradient(135deg, #f7931e 0%, #ff6b35 100%);
+}
+
+#planeTicketBtn {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    width: 100%;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+#planeTicketBtn:hover {
+    background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+}
+
 /* 模式选择器容器 */
 .mode-selector-container {
     display: inline-block;
