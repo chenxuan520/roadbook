@@ -6,6 +6,8 @@ class OnlineModeManager {
         this.token = localStorage.getItem('online_token') || null;
         this.currentPlanId = null;
         this.currentPlanName = null;
+        this.lastSavedHash = null; // 最后保存的内容哈希
+        this.contentCheckInterval = null; // 内容检查定时器
         this.initialize();
         this.restoreState(); // 初始化后恢复状态
     }
@@ -26,6 +28,7 @@ class OnlineModeManager {
             mode: this.mode,
             currentPlanId: this.currentPlanId,
             currentPlanName: this.currentPlanName,
+            lastSavedHash: this.lastSavedHash, // 保存内容哈希
             timestamp: Date.now() // 添加时间戳，用于过期检查（可选）
         };
         localStorage.setItem('online_mode_state', JSON.stringify(state));
@@ -47,6 +50,11 @@ class OnlineModeManager {
                 if (state.currentPlanId) {
                     this.currentPlanId = state.currentPlanId;
                     this.currentPlanName = state.currentPlanName;
+                }
+
+                // 恢复内容哈希
+                if (state.lastSavedHash) {
+                    this.lastSavedHash = state.lastSavedHash;
                 }
 
                 // 更新UI以匹配恢复的状态
@@ -127,6 +135,7 @@ class OnlineModeManager {
         if (mode !== 'online') {
             this.currentPlanId = null;
             this.currentPlanName = null;
+            this.lastSavedHash = null;
             this.hideEditingIndicator();
         }
     }
@@ -1081,6 +1090,10 @@ class OnlineModeManager {
             if (response.id) {
                 // 保存成功后也更新本地缓存
                 this.app.saveToLocalStorage();
+                // 更新保存的哈希值
+                this.lastSavedHash = this.getContentHash();
+                // 立即更新UI状态
+                this.updateEditingIndicator(false);
                 alert('计划保存成功！');
             }
         } catch (error) {
@@ -1106,6 +1119,9 @@ class OnlineModeManager {
         indicator.textContent = `正在编辑: ${planName}`;
         indicator.style.display = 'block';
         onlineModeActions.style.display = 'flex'; // 确保容器可见
+
+        // 启动内容变化检测
+        this.startContentMonitoring();
     }
 
     // 隐藏编辑指示器
@@ -1117,6 +1133,112 @@ class OnlineModeManager {
         const onlineModeActions = document.getElementById('onlineModeActions');
         if (onlineModeActions && onlineModeActions.children.length === 0) {
             onlineModeActions.style.display = 'none';
+        }
+
+        // 停止内容变化检测
+        this.stopContentMonitoring();
+    }
+
+    // 计算内容哈希值（完整JSON序列化版本）
+    getContentHash() {
+        try {
+            // 完整序列化所有相关内容，包括属性变化
+            const data = {
+                markers: this.app.markers.map(m => {
+                    // 确保包含所有可能影响保存的属性
+                    const markerData = {
+                        id: m.id,
+                        position: m.position,
+                        title: m.title,
+                        labels: m.labels || [],
+                        icon: m.icon,
+                        createdAt: m.createdAt,
+                        dateTimes: m.dateTimes || [],
+                        dateTime: m.dateTime
+                    };
+                    return JSON.stringify(markerData, Object.keys(markerData).sort());
+                }).sort(), // 排序确保顺序一致
+                connections: this.app.connections.map(c => {
+                    const connData = {
+                        id: c.id,
+                        startId: c.startId,
+                        endId: c.endId,
+                        transportType: c.transportType,
+                        dateTime: c.dateTime,
+                        label: c.label || '',
+                        duration: c.duration || 0,
+                        startTitle: c.startTitle,
+                        endTitle: c.endTitle
+                    };
+                    return JSON.stringify(connData, Object.keys(connData).sort());
+                }).sort(), // 排序确保顺序一致
+                labels: this.app.labels.map(l => ({
+                    markerIndex: this.app.markers.indexOf(l.marker),
+                    content: l.content
+                })),
+                dateNotes: this.app.dateNotes || {},
+                currentLayer: this.app.currentLayer,
+                currentSearchMethod: this.app.currentSearchMethod
+            };
+
+            // 使用稳定的JSON序列化，确保属性顺序一致
+            return JSON.stringify(data, Object.keys(data).sort());
+        } catch (error) {
+            console.error('计算内容哈希失败:', error);
+            return null;
+        }
+    }
+
+    // 启动内容变化检测（简化版本）
+    startContentMonitoring() {
+        if (this.contentCheckInterval) {
+            clearInterval(this.contentCheckInterval);
+        }
+
+        // 初始化最后保存的哈希值
+        this.lastSavedHash = this.getContentHash();
+
+        // 每5秒检查一次内容变化
+        this.contentCheckInterval = setInterval(() => {
+            if (this.mode === 'online' && this.currentPlanId) {
+                this.checkContentChanges();
+            }
+        }, 5000);
+    }
+
+    // 停止内容变化检测
+    stopContentMonitoring() {
+        if (this.contentCheckInterval) {
+            clearInterval(this.contentCheckInterval);
+            this.contentCheckInterval = null;
+        }
+    }
+
+    // 检查内容变化并更新UI
+    checkContentChanges() {
+        const currentHash = this.getContentHash();
+        if (!currentHash || !this.lastSavedHash) {
+            return;
+        }
+
+        const hasChanges = currentHash !== this.lastSavedHash;
+        this.updateEditingIndicator(hasChanges);
+    }
+
+    // 更新编辑指示器
+    updateEditingIndicator(hasChanges) {
+        const indicator = document.getElementById('editingIndicator');
+        if (!indicator) return;
+
+        const planName = this.currentPlanName || '未命名计划';
+        const unsavedText = hasChanges ? ' (未保存)' : '';
+        indicator.textContent = `正在编辑: ${planName}${unsavedText}`;
+
+        // 根据是否有未保存的更改来设置CSS类
+        if (hasChanges) {
+            indicator.classList.add('unsaved'); // 添加未保存状态的CSS类
+        } else {
+            indicator.classList.remove('unsaved'); // 移除未保存状态的CSS类
         }
     }
 

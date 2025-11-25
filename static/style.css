@@ -1672,6 +1672,15 @@ input[type="color"] {
     white-space: nowrap;
     z-index: 1000; /* 恢复z-index */
     display: none; /* 默认隐藏 */
+    transition: all 0.3s ease; /* 添加过渡效果 */
+}
+
+/* 未保存状态的样式 - 柔和的淡黄色 */
+.editing-indicator.unsaved {
+    background-color: #fff9c4; /* 柔和的淡黄色背景 */
+    color: #5d4037; /* 深棕色文字，提高可读性 */
+    border: 1px solid #ffd54f; /* 浅黄色边框 */
+    box-shadow: 0 2px 4px rgba(255, 193, 7, 0.3); /* 添加轻微阴影效果 */
 }
 
 /* 计划管理界面样式 */
