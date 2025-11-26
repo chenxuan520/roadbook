@@ -5,9 +5,8 @@
 ## ✨ 特性
 - **零成本**：完全依赖 Cloudflare 免费版（Workers + KV）。
 - **极速响应**：数据预加载至边缘存储（KV），查询时无需请求 GitHub。
-- **数据源**：
-  - 机场：[mwgg/Airports](https://github.com/mwgg/Airports)
-  - 高铁站：[epcm/TrainVis](https://github.com/epcm/TrainVis)
+- **自定义数据源**：使用托管在 GitHub Release 的优化数据集。
+  - 来源：`chenxuan520/gh-action-shell`
 - **双模更新**：支持手动 URL 触发更新或 Cron 定时自动更新。
 
 ---

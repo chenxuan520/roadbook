@@ -290,7 +290,8 @@ class RoadbookHtmlExporter {
                     subway: '#9C27B0',  // 地铁 - 紫色
                     plane: '#4CAF50',
                     walk: '#FF9800',
-                    bus: '#795548'  // 公交 - 棕色
+                    bus: '#795548',  // 公交 - 棕色
+                    cruise: '#00BCD4' // 游轮 - 青色
                 };
                 return colors[type] || '#666';
             }
@@ -303,7 +304,8 @@ class RoadbookHtmlExporter {
                     subway: '🚇',  // 地铁
                     plane: '✈️',
                     walk: '🚶',
-                    bus: '🚌'  // 公交
+                    bus: '🚌',  // 公交
+                    cruise: '🚢' // 游轮
                 };
                 return icons[type] || '•';
             }
@@ -464,7 +466,8 @@ class RoadbookHtmlExporter {
                     subway: '地铁',
                     plane: '飞机',
                     walk: '步行',
-                    bus: '公交'
+                    bus: '公交',
+                    cruise: '游轮'
                 };
                 return names[type] || '其他';
             }
