@@ -1246,37 +1246,37 @@ class RoadbookApp {
                 this.undo(); // 执行撤销
             }
             // 检查是否按下A键添加标记点
-            else if (e.key.toLowerCase() === 'a' &&
+            else if (!e.ctrlKey && !e.metaKey && e.key.toLowerCase() === 'a' &&
                      !['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
                 e.preventDefault();
                 this.setMode('addMarker'); // 进入添加标记点模式
             }
             // 检查是否按下C键连接标记点
-            else if (e.key.toLowerCase() === 'c' &&
+            else if (!e.ctrlKey && !e.metaKey && e.key.toLowerCase() === 'c' &&
                      !['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
                 e.preventDefault();
                 this.showConnectModal(); // 打开连接标记点界面
             }
             // 检查是否按下H键或?键显示帮助
-            else if ((e.key.toLowerCase() === 'h' || e.key === '?') &&
+            else if (!e.ctrlKey && !e.metaKey && (e.key.toLowerCase() === 'h' || e.key === '?') &&
                      !['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
                 e.preventDefault();
                 this.showHelpModal(); // 显示帮助弹窗
             }
             // 检查是否按下D键删除选中的标记点或连接线
-            else if (e.key.toLowerCase() === 'd' &&
+            else if (!e.ctrlKey && !e.metaKey && e.key.toLowerCase() === 'd' &&
                      !['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
                 e.preventDefault();
                 this.deleteCurrentElement(); // 删除当前选中的元素
             }
             // 检查是否按下F键自动调整视窗
-            else if (e.key.toLowerCase() === 'f' &&
+            else if (!e.ctrlKey && !e.metaKey && e.key.toLowerCase() === 'f' &&
                      !['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
                 e.preventDefault();
                 this.handleFitViewClick(); // 执行视窗调整（与右上角按钮相同的功能）
             }
             // 检查是否按下/键聚焦到搜索框
-            else if (e.key === '/' &&
+            else if (!e.ctrlKey && !e.metaKey && e.key === '/' &&
                      !['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
                 e.preventDefault();
                 const searchInput = document.getElementById('searchInput');
@@ -3532,6 +3532,11 @@ class RoadbookApp {
                 .bindPopup(name)
                 .openPopup();
 
+            // 添加点击事件以聚焦视图
+            this.searchMarker.on('click', () => {
+                this.map.setView([lat, lon], 15);
+            });
+
             // 3秒后自动关闭弹窗
             if (this.searchPopupTimeout) {
                 clearTimeout(this.searchPopupTimeout);
@@ -3643,6 +3648,11 @@ class RoadbookApp {
                 .addTo(this.map)
                 .bindPopup(result.display_name)
                 .openPopup();
+
+            // 添加点击事件以聚焦视图
+            this.searchMarker.on('click', () => {
+                this.map.setView([lat, lon], 15);
+            });
 
             // 3秒后自动关闭弹窗
             if (this.searchPopupTimeout) {
