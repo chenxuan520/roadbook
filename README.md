@@ -70,7 +70,7 @@ go run main.go
 
 3. **配置Nginx** (可选但推荐)
 ```bash
-sudo cp nginx.conf /etc/nginx/sites-available/roadbook
+sudo cp ./nginx.prod.conf /etc/nginx/sites-available/roadbook
 sudo ln -s /etc/nginx/sites-available/roadbook /etc/nginx/sites-enabled/
 sudo nginx -t && sudo systemctl reload nginx
 ```
@@ -78,7 +78,60 @@ sudo nginx -t && sudo systemctl reload nginx
 4. **访问应用**
 打开浏览器访问 `http://localhost` 即可使用
 
-详细部署指南请参考 [DEPLOYMENT.md](doc/DEPLOYMENT.md)
+#### Docker 部署 (直接拉取镜像)
+您也可以直接从 Docker Hub 拉取预构建的镜像并运行。
+
+1.  **拉取镜像**
+    使用以下命令从 Docker Hub 拉取最新镜像：
+    ```bash
+    docker pull chenxuan520/roadbook:latest
+    ```
+    或者拉取特定版本的镜像，例如 `v1.0.0`：
+    ```bash
+    docker pull chenxuan520/roadbook:v1.0.0
+    ```
+
+2.  **（可选）准备外部配置文件**
+    如果你想自定义配置（例如更改端口、JWT密钥等），可以先在宿主机上创建一个 `config.json` 文件。如果跳过此步，容器将使用镜像内置的默认配置。
+    ```bash
+    # 从项目中复制一份配置文件模板到当前目录，并重命名
+    cp backend/configs/config.json my-config.json
+    # 然后根据你的需求编辑 my-config.json 文件
+    ```
+
+3.  **运行容器**
+    使用 `docker run` 命令启动容器。下面的命令演示了如何映射端口、挂载数据卷以及**可选的**配置文件。
+
+    > **挂载行为说明**：使用 `-v` 进行文件或目录挂载时，**宿主机（外部）的文件/目录会覆盖容器内（内部）的同名文件/目录**。
+
+    ```bash
+    docker run -d \
+      --name roadbook \
+      -p 80:80 \
+      -v roadbook_data:/app/data \
+      -v $(pwd)/my-config.json:/app/configs/config.json:ro \
+      chenxuan520/roadbook:latest
+    ```
+    -   `-d`: 后台运行容器。
+    -   `--name roadbook`: 为容器指定一个名称。
+    -   `-p 80:80`: 将宿主机的 `80` 端口映射到容器的 `80` 端口。
+    -   `-v roadbook_data:/app/data`: 创建并挂载一个名为 `roadbook_data` 的 Docker 卷，用于**持久化**路书数据。
+    -   `-v $(pwd)/my-config.json:/app/configs/config.json:ro`: (可选) 将外部的 `my-config.json` 以**只读**方式挂载到容器内，以覆盖默认配置。
+
+4.  **访问应用**
+    打开浏览器访问 `http://localhost` 或 `http://your_server_ip` 即可使用。
+
+5.  **查看日志**
+    如果容器运行有异常，可以使用以下命令查看日志：
+    ```bash
+    docker logs roadbook
+    ```
+
+6.  **停止和删除容器**
+    ```bash
+    docker stop roadbook
+    docker rm roadbook
+    ```
 
 ## 📋 使用教程
 
