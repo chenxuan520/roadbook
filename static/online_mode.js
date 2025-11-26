@@ -1436,7 +1436,7 @@ class OnlineModeManager {
             return 'http://127.0.0.1:5436/api/v1';
         } else {
             // 生产环境使用当前域名
-            const url = `${protocol}//${hostname}/api/v1`;
+            const url = window.location.origin + '/api/v1';
             console.log('生产环境API URL:', url);
             return url;
         }

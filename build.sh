@@ -15,4 +15,4 @@ docker build -t roadbook .
 echo ""
 echo "--- Build complete! ---"
 echo "You can now run your application with:"
-echo "docker run --rm -p 8080:80 roadbook"
+echo "docker run -d -p 5215:80 roadbook"
