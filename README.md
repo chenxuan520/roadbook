@@ -280,7 +280,6 @@ roadbook/
 
 ### 待开发 🚧
 - Markdown格式支持
-- 支持黑暗模式
 - 飞机查询功能
   - 机场数据：https://raw.githubusercontent.com/jbrooksuk/JSON-Airports/master/airports.json
   - 航班计算：https://flights.ctrip.com/itinerary/oneway/{FROM}-{TO}?date={DATE}

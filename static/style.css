@@ -2254,20 +2254,20 @@ body.dark-mode .date-range-picker span {
     font-size: 14px !important;
     font-weight: 500 !important;
     box-shadow: 0 4px 12px var(--shadow-light) !important;
-    background: var(--bg-secondary) !important;
-    color: var(--text-primary) !important;
+    background: var(--gradient-success) !important;
+    color: white !important;
 }
 
 .save-success-toast .swal2-title {
     font-size: 16px !important;
     margin-bottom: 4px !important;
-    color: var(--text-primary) !important;
+    color: white !important;
 }
 
 .save-success-toast .swal2-content {
     font-size: 13px !important;
     line-height: 1.4 !important;
-    color: var(--text-secondary) !important;
+    color: white !important;
 }
 
 /* 计划管理界面样式 */
@@ -2323,4 +2323,9 @@ body.dark-mode .date-range-picker span {
         border: none !important;
         color: white !important;
     }
+
+/* Dark mode for map tiles */
+body.dark-mode .leaflet-tile {
+    filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%);
+}
 

@@ -157,7 +157,7 @@ class OnlineModeManager {
                 saveButton = document.createElement('button');
                 saveButton.id = 'cloudSaveBtn';
                 saveButton.className = 'btn';
-                saveButton.innerHTML = '<span class="icon">💾</span><span>保存到云端</span>'; // 添加图标和文本
+                saveButton.innerHTML = '<span class="icon">💾</span><span>云端保存</span>'; // 添加图标和文本
                 saveButton.addEventListener('click', () => {
                     this.saveToCloud();
                 });
@@ -168,7 +168,7 @@ class OnlineModeManager {
                 settingsButton = document.createElement('button');
                 settingsButton.id = 'cloudSettingsBtn';
                 settingsButton.className = 'btn';
-                settingsButton.innerHTML = '<span class="icon">⚙️</span><span>设置</span>'; // 设置图标和文本
+                settingsButton.innerHTML = '<span class="icon">⚙️</span><span>管理</span>'; // 设置图标和文本
                 settingsButton.addEventListener('click', () => {
                     this.showPlanManager(); // 点击打开计划管理界面
                 });
@@ -215,7 +215,7 @@ class OnlineModeManager {
                 shareButton = document.createElement('button');
                 shareButton.id = 'shareBtn';
                 shareButton.className = 'btn';
-                shareButton.innerHTML = '<span class="icon">🔗</span><span>一键分享</span>'; // 分享图标和文本
+                shareButton.innerHTML = '<span class="icon">🔗</span><span>分享</span>'; // 分享图标和文本
                 shareButton.addEventListener('click', () => {
                     this.generateShareLink();
                 });
@@ -671,6 +671,18 @@ class OnlineModeManager {
                             label.style.boxShadow = '0 2px 5px rgba(0,0,0,0.05)';
                             label.style.background = 'rgba(255, 255, 255, 0.7)';
                         });
+
+                        // 添加双击事件直接打开计划
+                        label.addEventListener('dblclick', () => {
+                            // 找到关联的单选按钮并选中
+                            const radio = label.querySelector('input[type="radio"]');
+                            if (radio) {
+                                radio.checked = true;
+                            }
+                            // 调用打开计划的方法
+                            this.openSelectedPlan();
+                        });
+
                         planList.appendChild(planItem);
                     });
 
@@ -888,6 +900,20 @@ class OnlineModeManager {
 
                 // 加载计划数据到app（如果cloudContent为null/undefined，则传递一个具有正确结构的空对象以加载空状态）
                 this.app.loadRoadbook(cloudContent || {markers: [], connections: [], labels: [], dateNotes: {}}, false); // 不显示导入提示
+
+                // 恢复地图源和搜索模式
+                if (cloudContent) {
+                    if (cloudContent.currentLayer) {
+                        this.app.switchMapSource(cloudContent.currentLayer);
+                        const mapSourceSelect = document.getElementById('mapSourceSelect');
+                        if (mapSourceSelect) mapSourceSelect.value = cloudContent.currentLayer;
+                    }
+                    if (cloudContent.currentSearchMethod) {
+                        this.app.currentSearchMethod = cloudContent.currentSearchMethod;
+                        const searchMethodSelect = document.getElementById('searchMethodSelect');
+                        if (searchMethodSelect) searchMethodSelect.value = cloudContent.currentSearchMethod;
+                    }
+                }
 
                 // 保存当前计划信息
                 this.currentPlanId = response.plan.id;
