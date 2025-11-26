@@ -190,6 +190,10 @@
                                     <span class="icon">🚶</span>
                                     <span class="label">步行</span>
                                 </button>
+                                <button type="button" class="transport-btn" data-transport="bus">
+                                    <span class="icon">🚌</span>
+                                    <span class="label">公交</span>
+                                </button>
                             </div>
                         </div>
                         <div class="form-group">
@@ -278,6 +282,10 @@
                     <button type="button" class="transport-btn" data-transport="walk">
                         <span class="icon">🚶</span>
                         <span class="label">步行</span>
+                    </button>
+                    <button type="button" class="transport-btn" data-transport="bus">
+                        <span class="icon">🚌</span>
+                        <span class="label">公交</span>
                     </button>
                 </div>
                 <input type="hidden" id="transportType" value="car">
@@ -405,10 +413,14 @@
     <div id="helpModal" class="modal">
         <div class="modal-content help-modal-content">
             <span class="close" id="closeHelp">&times;</span>
-            <h2>路书制作工具 - 帮助</h2>
+            <div class="help-header">
+                <img src="favicon.png" alt="路书制作工具 Logo" class="help-logo">
+                <h2>路书制作工具 - 帮助</h2>
+            </div>
             <div class="help-content">
                 <h3>项目介绍</h3>
                 <p>路书制作工具是一个基于网页的地图标记和路线规划工具，允许用户在地图上添加标记点、连接路线，并导出分享您的行程规划。</p>
+                <p>项目地址: <a href="https://github.com/chenxuan520/roadbook" target="_blank" rel="noopener noreferrer">GitHub - chenxuan520/roadbook</a></p>
 
                 <h3>基本功能</h3>
                 <ul>
@@ -422,6 +434,17 @@
                     <li><strong>搜索框聚焦</strong> - 使用快捷键 <kbd>/</kbd> 聚焦到搜索框</li>
                     <li><strong>退出添加状态</strong> - 在添加标记点模式下按 <kbd>ESC</kbd> 键退出添加状态</li>
                     <li><strong>导入导出</strong> - 保存和加载路书数据</li>
+                </ul>
+
+                <h3>交通方式</h3>
+                <p>支持多种交通方式连接标记点：</p>
+                <ul>
+                    <li>🚗 <strong>汽车</strong> - 自驾出行，红色连接线</li>
+                    <li>🚄 <strong>火车</strong> - 铁路交通，蓝色连接线</li>
+                    <li>🚇 <strong>地铁</strong> - 城市轨道交通，紫色连接线</li>
+                    <li>✈️ <strong>飞机</strong> - 航空出行，绿色连接线</li>
+                    <li>🚶 <strong>步行</strong> - 步行路线，橙色连接线</li>
+                    <li>🚌 <strong>公交</strong> - 公共汽车，棕色连接线</li>
                 </ul>
 
                 <h3>快捷键</h3>
@@ -460,14 +483,110 @@
                     </tr>
                 </table>
 
-                <h3>使用说明</h3>
+                <h3>详细使用说明</h3>
+
+                <h4>🗺️ 地图操作</h4>
+                <ul>
+                    <li><strong>地图源切换</strong>：支持7种地图源，包括OpenStreetMap、高德地图、Google地图、ESRI影像图、腾讯地图等</li>
+                    <li><strong>缩放和移动</strong>：鼠标滚轮缩放，拖拽移动地图</li>
+                    <li><strong>自动定位</strong>：首次使用会自动获取您的位置（需要授权）</li>
+                    <li><strong>视窗调整</strong>：按 <kbd>F</kbd> 键自动调整视窗显示所有标记点</li>
+                </ul>
+
+                <h4>📍 标记点管理</h4>
                 <ol>
-                    <li>点击工具栏上的"添加标记点"按钮或按 <kbd>A</kbd> 键</li>
-                    <li>在地图上点击以放置标记点（按 <kbd>ESC</kbd> 键可退出添加模式）</li>
-                    <li>点击工具栏上的"连接标记点"按钮或按 <kbd>C</kbd> 键</li>
-                    <li>选择两个标记点并连接它们</li>
-                    <li>使用右侧面板编辑标记点和连接线的详细信息</li>
-                    <li>使用"导出路书"按钮保存您的规划</li>
+                    <li><strong>添加标记点</strong>：点击"添加标记点"按钮或按 <kbd>A</kbd> 键，然后在地图上点击</li>
+                    <li><strong>编辑标记点</strong>：点击标记点打开详情面板，可修改标题、图标、时间、坐标等</li>
+                    <li><strong>拖拽移动</strong>：直接拖拽标记点到新位置，连接线会自动更新</li>
+                    <li><strong>删除标记点</strong>：选中标记点后按 <kbd>D</kbd> 键或点击删除按钮</li>
+                    <li><strong>右键菜单</strong>：右键点击标记点可显示上下文菜单</li>
+                    <li><strong>多时间点支持</strong>：每个标记点可设置多个时间点，支持按日期分组显示</li>
+                    <li><strong>自定义图标</strong>：支持数字、emoji、自定义图标和颜色</li>
+                </ol>
+
+                <h4>🔗 连接线功能</h4>
+                <ol>
+                    <li><strong>创建连接</strong>：点击"连接标记点"按钮或按 <kbd>C</kbd> 键</li>
+                    <li><strong>选择方式</strong>：在弹出的对话框中选择起始点和目标点</li>
+                    <li><strong>交通方式</strong>：选择6种交通方式之一（汽车、火车、地铁、飞机、步行、公交）</li>
+                    <li><strong>连接线样式</strong>：每种交通方式有独特的颜色和图标</li>
+                    <li><strong>详细信息</strong>：点击连接线可编辑标注、耗时、时间等信息</li>
+                    <li><strong>导航集成</strong>：支持生成百度、高德、腾讯导航链接</li>
+                </ol>
+
+                <h4>🔍 搜索功能</h4>
+                <ul>
+                    <li><strong>智能搜索</strong>：在搜索框输入地点名称，支持实时搜索</li>
+                    <li><strong>多搜索源</strong>：支持Photon、Nominatim、Overpass、百度地图、天地图等</li>
+                    <li><strong>搜索方式</strong>：可手动选择搜索源或使用自动分配</li>
+                    <li><strong>结果展示</strong>：搜索结果以下拉列表形式展示，点击可定位</li>
+                </ul>
+
+                <h4>📅 日期和时间管理</h4>
+                <ul>
+                    <li><strong>时间规划</strong>：为每个标记点设置具体时间点</li>
+                    <li><strong>多时间支持</strong>：单个标记点可设置多个时间点</li>
+                    <li><strong>日期分组</strong>：标记点按日期自动分组显示</li>
+                    <li><strong>日期筛选</strong>：支持按日期范围筛选显示标记点</li>
+                    <li><strong>日期备注</strong>：可为特定日期添加备注说明</li>
+                    <li><strong>时间线视图</strong>：在侧边栏按时间顺序显示所有标记点</li>
+                </ul>
+
+                <h4>💾 数据管理</h4>
+                <ul>
+                    <li><strong>本地存储</strong>：自动保存到浏览器本地存储，刷新不丢失</li>
+                    <li><strong>JSON导入/导出</strong>：支持完整数据的导入导出，便于备份</li>
+                    <li><strong>HTML导出</strong>：生成独立HTML文件，包含完整地图和数据</li>
+                    <li><strong>分享功能</strong>：生成分享链接，他人可导入您的路书</li>
+                    <li><strong>在线模式</strong>：支持云端保存和管理路书计划（需要登录）</li>
+                </ul>
+
+                <h4>⌨️ 快捷键系统</h4>
+                <p>支持丰富的键盘快捷键，提高操作效率：</p>
+                <ul>
+                    <li><strong><kbd>A</kbd></strong> - 进入添加标记点模式</li>
+                    <li><strong><kbd>C</kbd></strong> - 打开连接标记点对话框</li>
+                    <li><strong><kbd>D</kbd></strong> - 删除选中的标记点或连接线</li>
+                    <li><strong><kbd>F</kbd></strong> - 自动调整视窗显示所有元素</li>
+                    <li><strong><kbd>H</kbd> 或 <kbd>?</kbd></strong> - 显示帮助面板</li>
+                    <li><strong><kbd>/</kbd></strong> - 聚焦到搜索框</li>
+                    <li><strong><kbd>ESC</kbd></strong> - 退出添加标记点模式</li>
+                    <li><strong><kbd>Ctrl</kbd> + <kbd>Z</kbd></strong> - 撤销上一步操作</li>
+                </ul>
+
+                <h4>🌐 在线模式功能</h4>
+                <ul>
+                    <li><strong>用户认证</strong>：支持用户登录，JWT token认证</li>
+                    <li><strong>云端保存</strong>：路书计划可保存到云端</li>
+                    <li><strong>计划管理</strong>：支持创建、读取、更新、删除路书计划</li>
+                    <li><strong>自动同步</strong>：在线模式下自动保存编辑内容</li>
+                    <li><strong>内容检查</strong>：定期检查内容变化，提示保存状态</li>
+                </ul>
+
+                <h4>📱 移动端适配</h4>
+                <ul>
+                    <li><strong>设备检测</strong>：自动检测移动设备并提供相应提示</li>
+                    <li><strong>响应式设计</strong>：界面适配不同屏幕尺寸</li>
+                    <li><strong>触摸优化</strong>：支持触摸操作</li>
+                </ul>
+
+                <h4>🔧 高级功能</h4>
+                <ul>
+                    <li><strong>撤销重做</strong>：支持操作历史记录，可撤销多步操作</li>
+                    <li><strong>坐标转换</strong>：自动处理中国地图坐标系转换</li>
+                    <li><strong>距离计算</strong>：自动计算连接线距离</li>
+                    <li><strong>导航集成</strong>：一键生成各种导航应用链接</li>
+                    <li><strong>购票服务</strong>：集成携程火车票查询功能</li>
+                </ul>
+
+                <h4>💡 使用技巧</h4>
+                <ol>
+                    <li><strong>快速开始</strong>：先添加几个标记点，然后用连接线串联起来</li>
+                    <li><strong>时间规划</strong>：为标记点设置合理的时间，便于行程安排</li>
+                    <li><strong>图标选择</strong>：使用emoji图标让标记点更直观</li>
+                    <li><strong>颜色搭配</strong>：不同交通方式使用不同颜色，便于区分</li>
+                    <li><strong>定期保存</strong>：虽然自动保存，但重要修改后建议手动导出备份</li>
+                    <li><strong>分享协作</strong>：使用分享功能与他人协作编辑路书</li>
                 </ol>
             </div>
         </div>

@@ -151,7 +151,6 @@ roadbook/
 │   │   └── ...
 │   ├── configs/            # 配置文件
 │   └── go.mod             # Go模块文件
-├── nginx/                  # Nginx配置
 ├── doc/                    # 文档
 └── README.md              # 项目说明
 ```
