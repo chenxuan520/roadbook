@@ -2324,6 +2324,31 @@ body.dark-mode .date-range-picker span {
         color: white !important;
     }
 
+body.dark-mode .leaflet-control-scale .leaflet-control-scale-line {
+    background: #000000; /* Dark background to hide white defaults */
+    color: #ffffff;    /* White text for visibility */
+    border-color: #333333; /* Dark border */
+}
+
+body.dark-mode .custom-marker div {
+    background-color: #000000 !important; /* Force black background in dark mode */
+    border-color: var(--border-light) !important; /* Use theme's dark border for custom markers */
+}
+
+/* Dark mode: Transport icon circle background */
+body.dark-mode .transport-icon div {
+    background-color: #000000 !important; /* Force black background in dark mode */
+}
+
+body.dark-mode #mapContainer {
+    background: #000000;
+}
+
+/* 调整连接标记点弹窗的垂直位置 */
+#connectModal .modal-content {
+    margin: 5% auto;
+}
+
 /* Dark mode for map tiles */
 body.dark-mode .leaflet-tile {
     filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%);
