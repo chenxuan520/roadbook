@@ -4,9 +4,57 @@
     box-sizing: border-box;
 }
 
+/* CSS变量定义 - 明亮模式 */
+:root {
+    --bg-primary: #f5f5f5;
+    --bg-secondary: #ffffff;
+    --bg-header: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --text-primary: #333333;
+    --text-secondary: #666666;
+    --text-light: #868e96;
+    --border-color: #dddddd;
+    --border-light: #e1e5e9;
+    --shadow-light: rgba(0,0,0,0.1);
+    --shadow-medium: rgba(0,0,0,0.2);
+    --accent-primary: #667eea;
+    --accent-secondary: #764ba2;
+    --accent-danger: #dc3545;
+    --accent-success: #28a745;
+    --accent-info: #4a90e2;
+    --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --gradient-danger: linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%);
+    --gradient-success: linear-gradient(135deg, #28a745 0%, #219a3a 100%);
+    --gradient-info: linear-gradient(135deg, #4a90e2 0%, #357abd 100%);
+}
+
+/* 暗色模式变量 */
+body.dark-mode {
+    --bg-primary: #1a1a1a;
+    --bg-secondary: #2d2d2d;
+    --bg-header: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+    --text-primary: #e9ecef;
+    --text-secondary: #adb5bd;
+    --text-light: #6c757d;
+    --border-color: #495057;
+    --border-light: #343a40;
+    --shadow-light: rgba(0,0,0,0.3);
+    --shadow-medium: rgba(0,0,0,0.5);
+    --accent-primary: #5a6fd8;
+    --accent-secondary: #6a4190;
+    --accent-danger: #e74c3c;
+    --accent-success: #27ae60;
+    --accent-info: #3498db;
+    --gradient-primary: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+    --gradient-danger: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+    --gradient-success: linear-gradient(135deg, #27ae60 0%, #229954 100%);
+    --gradient-info: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+}
+
 body {
     font-family: 'Microsoft YaHei', Arial, sans-serif;
-    background-color: #f5f5f5;
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 .container {
@@ -16,10 +64,10 @@ body {
 }
 
 header {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: var(--bg-header);
     color: white;
     padding: 0.5rem 0; /* 减少上下padding */
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    box-shadow: 0 2px 10px var(--shadow-light);
     position: relative; /* 添加相对定位以提供定位上下文 */
 }
 
@@ -132,9 +180,9 @@ header h1 {
     top: 100%;
     left: 0;
     width: 250px; /* 匹配搜索框宽度 */
-    background: white;
+    background: var(--bg-secondary);
     border-radius: 8px;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+    box-shadow: 0 4px 16px var(--shadow-medium);
     z-index: 1001; /* 提高层级，确保在地图控件之上 */
     max-height: 300px;
     overflow-y: auto;
@@ -150,12 +198,12 @@ header h1 {
 .search-results li {
     padding: 12px 15px;
     cursor: pointer;
-    border-bottom: 1px solid #eee;
+    border-bottom: 1px solid var(--border-light);
     transition: background-color 0.2s;
 }
 
 .search-results li:hover {
-    background-color: #f5f5f5;
+    background-color: var(--bg-primary);
 }
 
 .search-results li:last-child {
@@ -164,12 +212,12 @@ header h1 {
 
 .search-results li .result-title {
     font-weight: bold;
-    color: #333;
+    color: var(--text-primary);
 }
 
 .search-results li .result-address {
     font-size: 0.9em;
-    color: #666;
+    color: var(--text-secondary);
     margin-top: 4px;
 }
 
@@ -234,8 +282,8 @@ main {
 .sidebar {
     width: 100%;
     height: 100%;
-    background: white;
-    border-left: 1px solid #ddd;
+    background: var(--bg-secondary);
+    border-left: 1px solid var(--border-color);
     padding: 1rem;
     overflow-y: auto;
     position: absolute;
@@ -246,18 +294,18 @@ main {
 .detail-panel {
     width: 100%;
     height: 100%;
-    background: white;
-    border-left: 1px solid #ddd;
+    background: var(--bg-secondary);
+    border-left: 1px solid var(--border-color);
     padding: 0;
     overflow-y: auto;
-    box-shadow: -2px 0 10px rgba(0,0,0,0.1);
+    box-shadow: -2px 0 10px var(--shadow-light);
     position: absolute;
     top: 0;
     left: 0;
 }
 
 .detail-header {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: var(--gradient-primary);
     color: white;
     padding: 1rem;
     display: flex;
@@ -302,7 +350,7 @@ main {
     display: block;
     margin-bottom: 0.5rem;
     font-weight: 600;
-    color: #333;
+    color: var(--text-primary);
     font-size: 0.9rem;
 }
 
@@ -311,11 +359,13 @@ main {
 .detail-content textarea {
     width: 100%;
     padding: 0.8rem;
-    border: 2px solid #e1e5e9;
+    border: 2px solid var(--border-light);
     border-radius: 8px;
     font-size: 0.9rem;
     transition: border-color 0.3s ease;
     font-family: inherit;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
 }
 
 .detail-content input[type="text"]:focus,
@@ -333,11 +383,11 @@ main {
 
 .detail-content div {
     padding: 0.8rem;
-    background: #f8f9fa;
+    background: var(--bg-primary);
     border-radius: 8px;
     font-size: 0.9rem;
-    color: #666;
-    border: 1px solid #e9ecef;
+    color: var(--text-secondary);
+    border: 1px solid var(--border-light);
 }
 
 .detail-actions {
@@ -345,11 +395,11 @@ main {
     gap: 1rem;
     margin-top: 2rem;
     padding-top: 1rem;
-    border-top: 1px solid #e9ecef;
+    border-top: 1px solid var(--border-light);
 }
 
 .btn-primary {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+    background: var(--gradient-primary) !important;
     border: none !important;
     flex: 1;
 }
@@ -360,9 +410,43 @@ main {
 }
 
 .btn-danger {
-    background: linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%) !important;
+    background: var(--gradient-danger) !important;
     border: none !important;
     flex: 1;
+}
+
+/* 次要按钮样式 */
+.btn-secondary {
+    background: linear-gradient(135deg, rgba(255,255,255,0.8), rgba(255,255,255,0.6));
+    color: var(--text-primary) !important;
+    border: 2px solid rgba(255,255,255,0.8);
+    font-weight: 600;
+}
+
+.btn-secondary:hover {
+    background: linear-gradient(135deg, rgba(255,255,255,0.9), rgba(255,255,255,0.7));
+}
+
+/* 黑暗模式下的次要按钮 */
+body.dark-mode .btn-secondary {
+    background: linear-gradient(135deg, rgba(52, 58, 64, 0.8), rgba(33, 37, 41, 0.8));
+    color: var(--text-primary) !important;
+    border-color: rgba(255,255,255,0.3);
+}
+
+body.dark-mode .btn-secondary:hover {
+    background: linear-gradient(135deg, rgba(73, 80, 87, 0.9), rgba(52, 58, 64, 0.9));
+}
+
+/* 普通按钮的黑暗模式样式 */
+body.dark-mode .btn:not(.btn-primary):not(.btn-danger):not(.btn-secondary):not(#confirmConnect):not(#confirmIcon) {
+    background: linear-gradient(135deg, rgba(52, 58, 64, 0.8), rgba(33, 37, 41, 0.8));
+    border-color: rgba(255,255,255,0.3);
+    color: var(--text-primary);
+}
+
+body.dark-mode .btn:not(.btn-primary):not(.btn-danger):not(.btn-secondary):not(#confirmConnect):not(#confirmIcon):hover {
+    background: linear-gradient(135deg, rgba(73, 80, 87, 0.9), rgba(52, 58, 64, 0.9));
 }
 
 /* 侧边栏标题区域样式 */
@@ -378,7 +462,7 @@ main {
 
 .sidebar-header h3 {
     margin: 0;
-    color: #333;
+    color: var(--text-primary);
     font-size: 1.1rem;
 }
 
@@ -417,12 +501,12 @@ main {
 
 .sidebar h3 {
     margin: 0;
-    color: #333;
+    color: var(--text-primary);
 }
 
 .marker-item {
-    background: #f8f9fa;
-    border: 1px solid #dee2e6;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-light);
     border-radius: 8px;
     padding: 0.8rem;
     margin-bottom: 0.5rem;
@@ -434,9 +518,9 @@ main {
 }
 
 .marker-item:hover {
-    background: #e9ecef;
+    background: var(--bg-secondary);
     transform: translateX(5px);
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    box-shadow: 0 2px 8px var(--shadow-light);
 }
 
 .marker-info {
@@ -445,20 +529,20 @@ main {
 
 .marker-item .title {
     font-weight: bold;
-    color: #495057;
+    color: var(--text-primary);
     margin-bottom: 0.2rem;
     font-size: 0.9rem;
 }
 
 .marker-item .coords {
     font-size: 0.75rem;
-    color: #6c757d;
+    color: var(--text-secondary);
     margin-bottom: 0.1rem;
 }
 
 .marker-item .date {
     font-size: 0.7rem;
-    color: #868e96;
+    color: var(--text-light);
 }
 
 .marker-actions {
@@ -468,8 +552,8 @@ main {
 }
 
 .edit-btn, .delete-btn {
-    background: rgba(255,255,255,0.8);
-    border: 1px solid #dee2e6;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-light);
     border-radius: 4px;
     padding: 0.3rem;
     cursor: pointer;
@@ -483,15 +567,15 @@ main {
 }
 
 .edit-btn:hover {
-    background: #667eea;
+    background: var(--accent-primary);
     color: white;
-    border-color: #667eea;
+    border-color: var(--accent-primary);
 }
 
 .delete-btn:hover {
-    background: #dc3545;
+    background: var(--accent-danger);
     color: white;
-    border-color: #dc3545;
+    border-color: var(--accent-danger);
 }
 
 .modal {
@@ -506,17 +590,18 @@ main {
 }
 
 .modal-content {
-    background-color: white;
+    background-color: var(--bg-secondary);
     margin: 15% auto;
     padding: 2rem;
     border-radius: 10px;
     width: 400px;
     max-width: 90%;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    box-shadow: 0 10px 30px var(--shadow-medium);
+    color: var(--text-primary);
 }
 
 .close {
-    color: #aaa;
+    color: var(--text-secondary);
     float: right;
     font-size: 28px;
     font-weight: bold;
@@ -525,7 +610,7 @@ main {
 }
 
 .close:hover {
-    color: #000;
+    color: var(--text-primary);
 }
 
 .form-group {
@@ -536,16 +621,18 @@ main {
     display: block;
     margin-bottom: 0.5rem;
     font-weight: bold;
-    color: #333;
+    color: var(--text-primary);
 }
 
 .form-group select,
 .form-group textarea {
     width: 100%;
     padding: 0.5rem;
-    border: 1px solid #ddd;
+    border: 1px solid var(--border-color);
     border-radius: 5px;
     font-size: 1rem;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
 }
 
 .form-group textarea {
@@ -556,15 +643,17 @@ main {
 .form-control {
     width: 100%;
     padding: 8px;
-    border: 1px solid #ccc;
+    border: 1px solid var(--border-color);
     border-radius: 4px;
     font-size: 1rem;
     box-sizing: border-box;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
 }
 
 .form-control:focus {
     outline: none;
-    border-color: #667eea;
+    border-color: var(--accent-primary);
     box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
 }
 
@@ -831,8 +920,8 @@ main {
 
 /* 搜索结果项悬停效果增强 */
 .search-results li:hover {
-    background-color: #f0f8ff;
-    border-left: 3px solid #667eea;
+    background-color: var(--bg-primary);
+    border-left: 3px solid var(--accent-primary);
     padding-left: 12px;
 }
 
@@ -904,7 +993,7 @@ main {
     text-align: center;
     margin-bottom: 2rem;
     padding-bottom: 1rem;
-    border-bottom: 2px solid #e9ecef;
+    border-bottom: 2px solid var(--border-light);
 }
 
 .help-logo {
@@ -916,7 +1005,7 @@ main {
 }
 
 .help-header h2 {
-    color: #333;
+    color: var(--text-primary);
     margin: 0;
     font-size: 1.8rem;
     font-weight: 600;
@@ -924,29 +1013,29 @@ main {
 
 /* GitHub链接样式 */
 .help-content a {
-    color: #667eea;
+    color: var(--accent-primary);
     text-decoration: none;
     font-weight: 500;
     transition: color 0.3s ease;
 }
 
 .help-content a:hover {
-    color: #5a6fd8;
+    color: var(--accent-secondary);
     text-decoration: underline;
 }
 
 .help-content h3 {
-    color: #333;
+    color: var(--text-primary);
     margin-top: 1.5rem;
     margin-bottom: 1rem;
     padding-bottom: 0.5rem;
-    border-bottom: 2px solid #667eea;
+    border-bottom: 2px solid var(--accent-primary);
 }
 
 .help-content p {
     margin-bottom: 1rem;
     line-height: 1.6;
-    color: #555;
+    color: var(--text-secondary);
 }
 
 .help-content ul {
@@ -957,6 +1046,7 @@ main {
 .help-content li {
     margin-bottom: 0.5rem;
     line-height: 1.6;
+    color: var(--text-secondary);
 }
 
 .help-content ol {
@@ -967,22 +1057,24 @@ main {
 .help-content ol li {
     margin-bottom: 0.5rem;
     line-height: 1.6;
+    color: var(--text-secondary);
 }
 
 .shortcut-table {
     width: 100%;
     border-collapse: collapse;
     margin: 1rem 0;
-    background: white;
+    background: var(--bg-secondary);
     border-radius: 8px;
     overflow: hidden;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    box-shadow: 0 2px 8px var(--shadow-light);
 }
 
 .shortcut-table td {
     padding: 0.6rem;
-    border-bottom: 1px solid #eee;
+    border-bottom: 1px solid var(--border-light);
     text-align: left;
+    color: var(--text-primary);
 }
 
 .shortcut-table tr:last-child td {
@@ -990,17 +1082,18 @@ main {
 }
 
 .shortcut-table tr:nth-child(even) {
-    background-color: #f8f9fa;
+    background-color: var(--bg-primary);
 }
 
 .shortcut-table kbd {
-    background-color: #f0f0f0;
-    border: 1px solid #ccc;
+    background-color: var(--bg-primary);
+    border: 1px solid var(--border-color);
     border-radius: 3px;
     padding: 2px 6px;
     font-family: monospace;
     font-size: 0.9em;
-    box-shadow: 0 1px 1px rgba(0,0,0,0.2);
+    box-shadow: 0 1px 1px var(--shadow-light);
+    color: var(--text-primary);
 }
 
 /* Header顶部样式 - 使用flex布局，标题居中，按钮在右侧 */
@@ -1103,6 +1196,73 @@ main {
     font-size: 1.1rem;
 }
 
+/* 主题切换按钮容器 - 定位在标题和GitHub角标之间 */
+.theme-toggle-container {
+    position: absolute;
+    top: 50%;
+    right: 90px; /* 在GitHub角标左边，留出适当间距 */
+    transform: translateY(-50%);
+    z-index: 1000;
+}
+
+/* 主题切换按钮样式 */
+.theme-toggle-btn {
+    width: 44px;
+    height: 44px;
+    background: linear-gradient(135deg, rgba(255,255,255,0.3), rgba(255,255,255,0.15));
+    border: 2px solid rgba(255,255,255,0.5);
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    color: white;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    backdrop-filter: blur(10px);
+    position: relative;
+    overflow: hidden;
+}
+
+.theme-toggle-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+    transition: left 0.6s ease;
+}
+
+.theme-toggle-btn:hover {
+    background: linear-gradient(135deg, rgba(255,255,255,0.4), rgba(255,255,255,0.25));
+    transform: translateY(-3px) scale(1.05);
+    box-shadow: 0 6px 16px rgba(0,0,0,0.25);
+}
+
+.theme-toggle-btn:hover::before {
+    left: 100%;
+}
+
+.theme-toggle-btn:active {
+    transform: translateY(-1px) scale(0.98);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+}
+
+/* 暗色模式下的主题切换按钮样式 */
+body.dark-mode .theme-toggle-btn {
+    background: linear-gradient(135deg, rgba(52, 58, 64, 0.8), rgba(33, 37, 41, 0.8));
+    border-color: rgba(255,255,255,0.3);
+    color: #f8f9fa;
+}
+
+body.dark-mode .theme-toggle-btn:hover {
+    background: linear-gradient(135deg, rgba(73, 80, 87, 0.9), rgba(52, 58, 64, 0.9));
+    box-shadow: 0 6px 16px rgba(0,0,0,0.4);
+}
+
 /* GitHub角标样式 - 经典右上角Octocat */
 .github-corner {
     position: absolute;
@@ -1188,7 +1348,7 @@ main {
         width: 100%;
         height: 200px;
         border-left: none;
-        border-top: 1px solid #ddd;
+        border-top: 1px solid var(--border-color);
     }
 
     .toolbar {
@@ -1206,6 +1366,8 @@ main {
     max-height: 80vh;
     overflow-y: auto;
     margin: 5% auto;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
 }
 
 .icon-section {
@@ -1214,7 +1376,7 @@ main {
 
 .icon-section h4 {
     margin-bottom: 10px;
-    color: #333;
+    color: var(--text-primary);
     font-size: 16px;
 }
 
@@ -1223,7 +1385,7 @@ main {
     grid-template-columns: repeat(4, 1fr);
     gap: 15px;
     padding: 15px;
-    background: #f8f9fa;
+    background: var(--bg-primary);
     border-radius: 8px;
     max-height: 150px;
     overflow-y: auto;
@@ -1252,21 +1414,21 @@ main {
     flex-direction: column;
     align-items: center;
     padding: 12px;
-    border: 2px solid #dee2e6;
+    border: 2px solid var(--border-light);
     border-radius: 8px;
     cursor: pointer;
     transition: all 0.3s ease;
-    background: white;
+    background: var(--bg-secondary);
 }
 
 .icon-option:hover {
-    border-color: #667eea;
+    border-color: var(--accent-primary);
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    box-shadow: 0 4px 12px var(--shadow-light);
 }
 
 .icon-option.selected {
-    border-color: #667eea;
+    border-color: var(--accent-primary);
     background: rgba(102, 126, 234, 0.1);
 }
 
@@ -1285,12 +1447,12 @@ main {
 
 .icon-option span {
     font-size: 12px;
-    color: #666;
+    color: var(--text-secondary);
     text-align: center;
 }
 
 .icon-option.selected span {
-    color: #667eea;
+    color: var(--accent-primary);
     font-weight: bold;
 }
 
@@ -1298,12 +1460,15 @@ main {
 #customIcon {
     text-align: center;
     font-size: 18px;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
 }
 
 /* 确认选择按钮样式 */
 #confirmIcon {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: #000 !important; /* 黑色文字 */
+    background: var(--gradient-primary);
+    color: var(--text-primary) !important;
     border: none;
     font-weight: bold;
     margin-top: 15px;
@@ -1321,9 +1486,9 @@ main {
     gap: 0.5rem;
     margin-bottom: 0.5rem;
     padding: 0.5rem;
-    background: #f8f9fa;
+    background: var(--bg-primary);
     border-radius: 6px;
-    border: 1px solid #dee2e6;
+    border: 1px solid var(--border-light);
 }
 
 .date-time-item input[type="datetime-local"] {
@@ -1332,7 +1497,7 @@ main {
 }
 
 .delete-time-btn {
-    background: #dc3545;
+    background: var(--accent-danger);
     color: white;
     border: none;
     border-radius: 4px;
@@ -1343,12 +1508,13 @@ main {
 }
 
 .delete-time-btn:hover {
-    background: #c82333;
+    background: var(--accent-danger);
+    opacity: 0.9;
 }
 
 /* 日期分组标题样式 - 添加悬停效果 */
 .date-group-header {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: var(--gradient-primary);
     color: white;
     padding: 0.8rem 1rem;
     margin: 1rem 0 0.5rem 0;
@@ -1356,20 +1522,21 @@ main {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    box-shadow: 0 2px 8px var(--shadow-light);
     cursor: pointer;
     transition: all 0.3s ease;
 }
 
 .date-group-header:hover {
-    background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+    background: var(--gradient-primary);
+    opacity: 0.9;
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    box-shadow: 0 4px 12px var(--shadow-light);
 }
 
 .date-group-header:active {
     transform: translateY(0);
-    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    box-shadow: 0 2px 6px var(--shadow-light);
 }
 
 .date-group-header h4 {
@@ -1404,36 +1571,42 @@ main {
 
 /* 筛选模式下的日期分组标题 */
 .filter-mode-header {
-    background: linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%) !important;
+    background: var(--gradient-danger) !important;
     animation: pulse 2s infinite;
 }
 
 @keyframes pulse {
     0% {
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        box-shadow: 0 2px 8px var(--shadow-light);
     }
     50% {
         box-shadow: 0 4px 16px rgba(255,107,107,0.3);
     }
     100% {
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        box-shadow: 0 2px 8px var(--shadow-light);
     }
 }
 
 /* 时间信息显示样式 */
 .time-info {
     font-size: 0.75rem;
-    color: #6c757d;
+    color: var(--text-light);
     margin-top: 0.2rem;
     font-weight: 500;
 }
 
-/* 确认连接按钮样式 - 修改文字颜色为黑色 */
+/* 确认连接按钮样式 */
 #confirmConnect {
-    color: #000 !important; /* 黑色文字，提高可读性 */
+    color: var(--text-primary) !important;
     background: linear-gradient(135deg, rgba(255,255,255,0.8), rgba(255,255,255,0.6));
     border: 2px solid rgba(255,255,255,0.8);
     font-weight: 600;
+}
+
+body.dark-mode #confirmConnect {
+    color: var(--text-primary) !important;
+    background: linear-gradient(135deg, rgba(52, 58, 64, 0.8), rgba(33, 37, 41, 0.8));
+    border-color: rgba(255,255,255,0.3);
 }
 
 #confirmConnect:hover {
@@ -1447,6 +1620,7 @@ input[type="color"] {
     border: none;
     border-radius: 8px;
     cursor: pointer;
+    background: var(--bg-secondary);
 }
 
 /* 交通方式切换按钮 */
@@ -1461,24 +1635,25 @@ input[type="color"] {
     flex: 1;
     min-width: 80px;
     padding: 10px;
-    border: 2px solid #dee2e6;
+    border: 2px solid var(--border-light);
     border-radius: 8px;
-    background: white;
+    background: var(--bg-secondary);
     cursor: pointer;
     transition: all 0.3s ease;
     text-align: center;
     font-size: 14px;
+    color: var(--text-primary);
 }
 
 .transport-btn:hover {
-    border-color: #667eea;
+    border-color: var(--accent-primary);
     transform: translateY(-1px);
 }
 
 .transport-btn.active {
-    border-color: #667eea;
+    border-color: var(--accent-primary);
     background: rgba(102, 126, 234, 0.1);
-    color: #667eea;
+    color: var(--accent-primary);
     font-weight: bold;
 }
 
@@ -1491,6 +1666,7 @@ input[type="color"] {
 .transport-btn .label {
     display: block;
     font-size: 12px;
+    color: var(--text-primary);
 }
 
 /* 日期备注便签样式 */
@@ -1499,16 +1675,15 @@ input[type="color"] {
     top: 10px; /* 恢复原始位置 */
     left: 10px;
     z-index: 2000; /* 提高z-index值以覆盖Leaflet控件 */
-    background: white;
-    border: 1px solid #ddd;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
     border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    box-shadow: 0 4px 12px var(--shadow-medium);
     width: 250px;
     max-height: 300px;
     display: flex;
     flex-direction: column;
     backdrop-filter: blur(10px);
-    background: rgba(255, 255, 255, 0.95);
 }
 
 /* 确保地图容器为相对定位以便定位便签 */
@@ -1553,7 +1728,7 @@ input[type="color"] {
     max-height: 200px;
     font-size: 0.9rem;
     line-height: 1.4;
-    color: #333;
+    color: var(--text-primary);
     white-space: pre-wrap; /* 保持换行 */
     word-wrap: break-word; /* 允许长单词换行 */
 }
@@ -1561,7 +1736,7 @@ input[type="color"] {
 /* 当便签内容为空时的样式 */
 .date-notes-content:empty::before {
     content: "暂无备注";
-    color: #999;
+    color: var(--text-light);
     font-style: italic;
 }
 
@@ -1609,9 +1784,9 @@ input[type="color"] {
 .dropdown-content {
     display: none;
     position: absolute;
-    background-color: white;
+    background-color: var(--bg-secondary);
     min-width: 120px;
-    box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+    box-shadow: 0 8px 16px var(--shadow-medium);
     z-index: 1002; /* 确保在其他元素之上 */
     border-radius: 8px;
     overflow: hidden;
@@ -1625,8 +1800,8 @@ input[type="color"] {
 }
 
 .dropdown-item {
-    background: white;
-    color: #333;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
     padding: 0.7rem 1rem;
     text-decoration: none;
     display: block;
@@ -1640,11 +1815,11 @@ input[type="color"] {
 }
 
 .dropdown-item:hover {
-    background-color: #f5f5f5;
+    background-color: var(--bg-primary);
 }
 
 .dropdown-item:not(:last-child) {
-    border-bottom: 1px solid #eee;
+    border-bottom: 1px solid var(--border-light);
 }
 
 /* 导航链接样式 */
@@ -1657,7 +1832,7 @@ input[type="color"] {
 .nav-link-btn {
     display: inline-block;
     padding: 0.6rem 1rem;
-    background: linear-gradient(135deg, #4a90e2 0%, #357abd 100%);
+    background: var(--gradient-info);
     color: white !important;
     text-decoration: none !important;
     border-radius: 8px;
@@ -1667,18 +1842,19 @@ input[type="color"] {
     transition: all 0.3s ease;
     border: none;
     cursor: pointer;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    box-shadow: 0 2px 6px var(--shadow-light);
 }
 
 .nav-link-btn:hover {
-    background: linear-gradient(135deg, #357abd 0%, #2a5a94 100%);
+    background: var(--gradient-info);
+    opacity: 0.9;
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    box-shadow: 0 4px 12px var(--shadow-light);
 }
 
 .nav-link-btn:active {
     transform: translateY(0);
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    box-shadow: 0 2px 4px var(--shadow-light);
 }
 
 /* 购票服务样式 */
@@ -1689,34 +1865,37 @@ input[type="color"] {
 }
 
 #ctripTrainLink {
-    background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
+    background: var(--gradient-danger);
 }
 
 #ctripTrainLink:hover {
-    background: linear-gradient(135deg, #f7931e 0%, #ff6b35 100%);
+    background: var(--gradient-danger);
+    opacity: 0.9;
 }
 
 #planeTicketBtn {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: var(--gradient-primary);
     width: 100%;
     font-size: 0.9rem;
     font-weight: 500;
 }
 
 #planeTicketBtn:hover {
-    background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+    background: var(--gradient-primary);
+    opacity: 0.9;
 }
 
 /* 分享链接弹窗样式 */
 #shareModal .modal-content {
-    background: linear-gradient(135deg, rgba(255,255,255,0.95), rgba(240,240,240,0.95));
+    background: linear-gradient(135deg, var(--bg-secondary), var(--bg-primary));
     backdrop-filter: blur(10px);
 }
 
 #shareLinkInput {
-    background: rgba(255,255,255,0.8);
+    background: var(--bg-primary);
     border: 2px solid rgba(102, 126, 234, 0.3) !important;
     font-family: monospace;
+    color: var(--text-primary);
 }
 
 #shareLinkInput:focus {
@@ -1732,23 +1911,25 @@ input[type="color"] {
 
 /* 模式选择器下拉选项样式 */
 .mode-selector-container select option {
-    color: #333;
-    background: white;
+    color: var(--text-primary);
+    background: var(--bg-secondary);
 }
 
 /* 登录表单样式 */
 .login-input {
     width: 100%;
     padding: 10px;
-    border: 1px solid #ddd;
+    border: 1px solid var(--border-color);
     border-radius: 4px;
     font-size: 14px;
     margin-top: 5px;
     box-sizing: border-box;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
 }
 
 .login-btn {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+    background: var(--gradient-primary) !important;
     color: white !important;
     border: 2px solid rgba(255,255,255,0.3) !important;
     padding: 0.6rem 1.2rem !important;
@@ -1762,25 +1943,26 @@ input[type="color"] {
 }
 
 .login-btn:hover {
-    background: linear-gradient(135deg, #768eea 0%, #865baa 100%) !important;
+    background: var(--gradient-primary) !important;
+    opacity: 0.9 !important;
     transform: translateY(-2px) !important;
-    box-shadow: 0 6px 16px rgba(0,0,0,0.25) !important;
+    box-shadow: 0 6px 16px var(--shadow-medium) !important;
 }
 
 .login-btn:active {
     transform: translateY(0) !important;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.2) !important;
+    box-shadow: 0 2px 6px var(--shadow-light) !important;
 }
 
 /* 编辑指示器样式 */
 .editing-indicator {
-    background: rgba(255, 255, 255, 0.9);
+    background: var(--bg-secondary);
     padding: 8px 15px;
     border-radius: 20px;
     font-size: 14px;
     font-weight: bold;
-    color: #333;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+    color: var(--text-primary);
+    box-shadow: 0 2px 10px var(--shadow-light);
     white-space: nowrap;
     z-index: 1000; /* 恢复z-index */
     display: none; /* 默认隐藏 */
@@ -1795,22 +1977,297 @@ input[type="color"] {
     box-shadow: 0 2px 4px rgba(255, 193, 7, 0.3); /* 添加轻微阴影效果 */
 }
 
+body.dark-mode .editing-indicator.unsaved {
+    background-color: #4a4a00; /* 暗色模式下的黄色背景 */
+    color: #fff9c4; /* 亮黄色文字 */
+    border-color: #b8860b; /* 深黄色边框 */
+}
+
+/* 在线模式黑暗模式样式 */
+body.dark-mode .mode-selector-container select {
+    background: linear-gradient(135deg, rgba(52, 58, 64, 0.8), rgba(33, 37, 41, 0.8)) !important;
+    border-color: rgba(255,255,255,0.3) !important;
+    color: var(--text-primary) !important;
+}
+
+body.dark-mode #shareLinkInput {
+    background: var(--bg-secondary);
+    border-color: var(--border-light);
+    color: var(--text-primary);
+}
+
+body.dark-mode #planManager .modal-content {
+    background: linear-gradient(135deg, var(--bg-secondary), var(--bg-primary)) !important;
+}
+
+body.dark-mode #planManager h3 {
+    color: var(--text-primary);
+}
+
+body.dark-mode #planManager label {
+    color: var(--text-primary);
+}
+
+body.dark-mode #planManager input[type="text"] {
+    background: var(--bg-secondary);
+    border-color: var(--border-light);
+    color: var(--text-primary);
+}
+
+body.dark-mode #planManager .plan-item label {
+    background: rgba(0, 0, 0, 0.2);
+    border-color: var(--border-light);
+}
+
+body.dark-mode #planManager .plan-item strong {
+    color: var(--text-primary);
+}
+
+body.dark-mode #planManager .plan-item span {
+    color: var(--text-secondary);
+}
+
+body.dark-mode #planManager .plan-item div[style*="color: #555"] {
+    color: var(--text-secondary) !important;
+}
+
+body.dark-mode #planManager .plan-item div[style*="color: #666"] {
+    color: var(--text-light) !important;
+}
+
+body.dark-mode #planManager .plan-item div[style*="color: #888"] {
+    color: var(--text-light) !important;
+}
+
+body.dark-mode #planManager .plan-item div[style*="color: #667eea"] {
+    color: var(--accent-primary) !important;
+}
+
+body.dark-mode #planManager .plan-item p[style*="color: #999"] {
+    color: var(--text-light) !important;
+}
+
+/* 修复计划框框的背景和边框 */
+body.dark-mode #planManager .plan-item label {
+    background: rgba(0, 0, 0, 0.2) !important;
+    border-color: var(--border-light) !important;
+    box-shadow: 0 2px 5px var(--shadow-light) !important;
+}
+
+body.dark-mode #planManager .plan-item label:hover {
+    background: rgba(0, 0, 0, 0.3) !important;
+    border-color: var(--accent-primary) !important;
+}
+
+/* 修复计划列表容器的背景 */
+body.dark-mode #planManager .plan-list {
+    background: rgba(0, 0, 0, 0.1) !important;
+}
+
+/* 修复悬停效果 - 覆盖JavaScript动态样式 */
+body.dark-mode #planManager .plan-item label:hover {
+    background: rgba(0, 0, 0, 0.3) !important;
+    border-color: var(--accent-primary) !important;
+    box-shadow: 0 4px 12px var(--shadow-light) !important;
+    transform: translateY(-2px) !important;
+}
+
+/* 确保悬停后不会变回白色背景 */
+body.dark-mode #planManager .plan-item label[style*="background: rgba(255, 255, 255, 0.7)"] {
+    background: rgba(0, 0, 0, 0.2) !important;
+}
+
+body.dark-mode #planManager .plan-item label[style*="background: rgba(102, 126, 234, 0.1)"] {
+    background: rgba(102, 126, 234, 0.2) !important;
+    border-color: var(--accent-primary) !important;
+}
+
+body.dark-mode #planManager .plan-list-container {
+    background: transparent !important;
+}
+
+/* 在线模式按钮黑暗模式样式 */
+body.dark-mode #copyShareLinkBtn {
+    background: var(--gradient-primary) !important;
+    color: white !important;
+}
+
+body.dark-mode #closeShareBtn {
+    background: linear-gradient(135deg, rgba(73, 80, 87, 0.8), rgba(52, 58, 64, 0.8)) !important;
+    color: var(--text-primary) !important;
+    border-color: rgba(255,255,255,0.3) !important;
+}
+
+body.dark-mode #cancelNewPlanBtn,
+body.dark-mode #cancelEditPlanBtn {
+    background: linear-gradient(135deg, rgba(73, 80, 87, 0.8), rgba(52, 58, 64, 0.8)) !important;
+    color: var(--text-primary) !important;
+    border-color: rgba(255,255,255,0.3) !important;
+}
+
+body.dark-mode #planSearchInput {
+    background: var(--bg-secondary);
+    border-color: var(--border-light);
+    color: var(--text-primary);
+}
+
+body.dark-mode #closePlanManager {
+    color: var(--accent-primary) !important;
+}
+
+/* 修复计划管理标题颜色 */
+body.dark-mode #planManager h3[style*="color: #333"] {
+    color: var(--text-primary) !important;
+}
+
+/* 修复计划管理中的其他文字颜色 */
+body.dark-mode #planManager strong[style*="color: #333"] {
+    color: var(--text-primary) !important;
+}
+
+body.dark-mode #planManager div[style*="color: #555"] {
+    color: var(--text-secondary) !important;
+}
+
+body.dark-mode #planManager div[style*="color: #666"] {
+    color: var(--text-light) !important;
+}
+
+body.dark-mode #planManager div[style*="color: #888"] {
+    color: var(--text-light) !important;
+}
+
+body.dark-mode #planManager p[style*="color: #999"] {
+    color: var(--text-light) !important;
+}
+
+body.dark-mode .mode-selector-container select option {
+    background: var(--bg-secondary) !important;
+    color: var(--text-primary) !important;
+}
+
+/* 修复在线模式中的文字颜色 */
+body.dark-mode #planSearchInput {
+    background: var(--bg-secondary);
+    border-color: var(--border-light);
+    color: var(--text-primary);
+}
+
+body.dark-mode #planSearchInput::placeholder {
+    color: var(--text-light);
+}
+
+body.dark-mode #planSearchInput {
+    background: rgba(0, 0, 0, 0.2) !important;
+    border-color: var(--border-light) !important;
+    color: var(--text-primary) !important;
+}
+
+/* 修复分享弹窗中的文字颜色 */
+body.dark-mode #shareModal .modal-content {
+    background: linear-gradient(135deg, var(--bg-secondary), var(--bg-primary)) !important;
+}
+
+body.dark-mode #shareModal h3 {
+    color: var(--text-primary);
+}
+
+body.dark-mode #shareModal p[style*="color: #666"] {
+    color: var(--text-secondary) !important;
+}
+
+/* 修复SweetAlert2弹窗颜色 */
+body.dark-mode .swal2-popup {
+    background: var(--bg-secondary) !important;
+}
+
+body.dark-mode .swal2-title {
+    color: var(--text-primary) !important;
+}
+
+body.dark-mode .swal2-content {
+    color: var(--text-secondary) !important;
+}
+
+body.dark-mode .swal2-html-container {
+    color: var(--text-secondary) !important;
+}
+
+/* 修复模态框标题颜色 */
+body.dark-mode .modal-content h3 {
+    color: var(--text-primary);
+}
+
+/* 修复详情面板标题 */
+body.dark-mode #detailTitle {
+    color: var(--text-primary);
+}
+
+/* 修复侧边栏标题 */
+body.dark-mode .sidebar-header h3 {
+    color: var(--text-primary);
+}
+
+/* 搜索框和选择框黑暗模式样式 */
+body.dark-mode #searchInput {
+    background: var(--bg-secondary);
+    border-color: var(--border-light);
+    color: var(--text-primary);
+}
+
+body.dark-mode #searchInput::placeholder {
+    color: var(--text-light);
+}
+
+body.dark-mode #searchMethodSelect,
+body.dark-mode #mapSourceSelect {
+    background: linear-gradient(135deg, rgba(52, 58, 64, 0.8), rgba(33, 37, 41, 0.8)) !important;
+    border-color: rgba(255,255,255,0.3) !important;
+    color: var(--text-primary) !important;
+}
+
+body.dark-mode #searchMethodSelect option,
+body.dark-mode #mapSourceSelect option {
+    background: var(--bg-secondary) !important;
+    color: var(--text-primary) !important;
+}
+
+/* 日期范围选择器黑暗模式 */
+body.dark-mode .date-range-picker {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+}
+
+body.dark-mode .date-range-picker input[type="date"] {
+    background: var(--bg-secondary);
+    border-color: var(--border-light);
+    color: var(--text-primary);
+}
+
+body.dark-mode .date-range-picker span {
+    color: var(--text-primary);
+}
+
 /* SweetAlert2 保存成功提示样式 */
 .save-success-toast {
     border-radius: 8px !important;
     font-size: 14px !important;
     font-weight: 500 !important;
-    box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3) !important;
+    box-shadow: 0 4px 12px var(--shadow-light) !important;
+    background: var(--bg-secondary) !important;
+    color: var(--text-primary) !important;
 }
 
 .save-success-toast .swal2-title {
     font-size: 16px !important;
     margin-bottom: 4px !important;
+    color: var(--text-primary) !important;
 }
 
 .save-success-toast .swal2-content {
     font-size: 13px !important;
     line-height: 1.4 !important;
+    color: var(--text-secondary) !important;
 }
 
 /* 计划管理界面样式 */
@@ -1818,9 +2275,10 @@ input[type="color"] {
     max-height: 400px;
     overflow-y: auto;
     margin: 15px 0;
-    border: 1px solid #ddd;
+    border: 1px solid var(--border-color);
     border-radius: 4px;
     padding: 10px;
+    background: var(--bg-primary);
 }
 
 #planManager .plan-item {
@@ -1838,28 +2296,30 @@ input[type="color"] {
     }
 
     #newPlanBtn {
-        background: linear-gradient(135deg, #4a90e2 0%, #357abd 100%) !important; /* 蓝色背景 */
+        background: var(--gradient-info) !important; /* 蓝色背景 */
         color: white !important;
         border: none !important;
     }
 
     #newPlanBtn:hover {
-        background: linear-gradient(135deg, #357abd 0%, #2a5a94 100%) !important;
+        background: var(--gradient-info) !important;
+        opacity: 0.9 !important;
     }
 
     #openPlanBtn {
-        background: linear-gradient(135deg, #28a745 0%, #219a3a 100%) !important; /* 绿色背景 */
+        background: var(--gradient-success) !important; /* 绿色背景 */
         color: white !important;
         border: none !important;
     }
 
     #openPlanBtn:hover {
-        background: linear-gradient(135deg, #219a3a 0%, #1e7e34 100%) !important;
+        background: var(--gradient-success) !important;
+        opacity: 0.9 !important;
     }
 
     /* 删除按钮保持原有样式，但需要继承等宽和间距 */
     #deletePlanBtn {
-        background: linear-gradient(135deg, #ff6b6b, #ee5a52) !important;
+        background: var(--gradient-danger) !important;
         border: none !important;
         color: white !important;
     }

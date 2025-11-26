@@ -14,6 +14,11 @@
             <div class="header-top">
                 <h1 id="mainTitle">RoadbookMaker</h1>
                 <div id="onlineModeActions" class="online-mode-actions"></div>
+                <div class="theme-toggle-container">
+                    <button id="themeToggleBtn" class="theme-toggle-btn" title="切换主题">
+                        <span id="themeIcon">☀️</span>
+                    </button>
+                </div>
             </div>
             <!-- 日期备注便签 -->
             <div class="search-toolbar">
@@ -121,7 +126,7 @@
                             <div id="dateTimesContainer">
                                 <!-- 时间点列表将在这里动态生成 -->
                             </div>
-                            <button type="button" id="addDateTimeBtn" class="btn" style="margin-top: 0.5rem; color: #000 !important;">添加时间点</button>
+                            <button type="button" id="addDateTimeBtn" class="btn btn-secondary" style="margin-top: 0.5rem;">添加时间点</button>
                         </div>
                         <div class="form-group">
                             <label>坐标:</label>
@@ -131,7 +136,7 @@
                             <label>标记点图标:</label>
                             <div style="display: flex; gap: 10px; align-items: center;">
                                 <div id="currentIconPreview" style="width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 20px; border: 2px solid #667eea;"></div>
-                                <button type="button" id="changeIconBtn" class="btn" style="margin: 0; color: #000 !important;">更换图标</button>
+                                <button type="button" id="changeIconBtn" class="btn btn-secondary" style="margin: 0;">更换图标</button>
                             </div>
                         </div>
                         <div class="form-group">

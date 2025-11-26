@@ -39,8 +39,49 @@ class RoadbookApp {
         this.dateNotes = {}; // 日期备注信息
         this.hoverTimeout = null; // 聚焦按钮的悬浮计时器
         this.lastDateRange = null; // 上次使用的日期范围
+        this.isDarkMode = false; // 主题模式状态
 
         this.init();
+    }
+
+    // 主题切换相关方法
+    initTheme() {
+        // 从本地存储加载主题设置
+        const savedTheme = localStorage.getItem('roadbook-theme');
+        if (savedTheme === 'dark') {
+            this.enableDarkMode();
+        } else {
+            this.enableLightMode();
+        }
+    }
+
+    toggleTheme() {
+        if (this.isDarkMode) {
+            this.enableLightMode();
+        } else {
+            this.enableDarkMode();
+        }
+    }
+
+    enableDarkMode() {
+        document.body.classList.add('dark-mode');
+        this.isDarkMode = true;
+        localStorage.setItem('roadbook-theme', 'dark');
+        this.updateThemeIcon();
+    }
+
+    enableLightMode() {
+        document.body.classList.remove('dark-mode');
+        this.isDarkMode = false;
+        localStorage.setItem('roadbook-theme', 'light');
+        this.updateThemeIcon();
+    }
+
+    updateThemeIcon() {
+        const themeIcon = document.getElementById('themeIcon');
+        if (themeIcon) {
+            themeIcon.textContent = this.isDarkMode ? '🌙' : '☀️';
+        }
     }
 
     // 添加方法到类中
@@ -311,6 +352,9 @@ class RoadbookApp {
             this.showSwalAlert('设备提示', '当前界面不支持手机端编辑功能，请使用电脑访问以获得完整体验。导出的路书可在手机端正常查看。', 'info');
             // 可以考虑在移动设备上显示一个更友好的提示页面，而不是完全阻止使用
         }
+
+        // 初始化主题
+        this.initTheme();
 
         // 先尝试从本地存储加载设置，以获取保存的地图源和搜索方式
         const cachedData = this.loadSettingsFromCache();
@@ -1328,6 +1372,14 @@ class RoadbookApp {
                 this.closeHelpModal();
             }
         });
+
+        // 主题切换按钮事件
+        const themeToggleBtn = document.getElementById('themeToggleBtn');
+        if (themeToggleBtn) {
+            themeToggleBtn.addEventListener('click', () => {
+                this.toggleTheme();
+            });
+        }
     }
 
     switchMapSource(newSource) {
