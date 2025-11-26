@@ -65,7 +65,7 @@ class RoadbookHtmlExporter {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>路书分享 - ${new Date().toLocaleDateString('zh-CN')}</title>
+    <title>RoadbookMaker Share - ${new Date().toLocaleDateString('zh-CN')}</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         ${this.generateCssStyles()}
@@ -77,7 +77,7 @@ class RoadbookHtmlExporter {
             <div class="header-top">
                 <div style="display: flex; align-items: center; justify-content: center; position: relative; width: 100%;">
                     <button id="exportHelpBtn" class="help-btn" title="导出界面帮助" style="position: absolute; left: 10px; width: 40px; height: 40px; background: linear-gradient(135deg, #66b3ff 0%, #3a8fd4 100%); border: none; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 18px; color: white; box-shadow: 0 2px 8px rgba(58, 143, 212, 0.4); transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); backdrop-filter: blur(10px); z-index: 1001;">❓</button>
-                    <h1>路书分享</h1>
+                    <h1>RoadbookMaker Share</h1>
                 </div>
             </div>
         </header>
@@ -1462,7 +1462,7 @@ class RoadbookHtmlExporter {
                 </ul>
 
                 <h3>导出功能</h3>
-                <p>此页面为路书导出的静态HTML文件，无需网络连接即可查看完整行程信息。包含所有标记点、连接线和备注信息。</p>
+                <p>此页面为RoadbookMaker Share导出的静态HTML文件，无需网络连接即可查看完整行程信息。包含所有标记点、连接线和备注信息。</p>
             </div>
         </div>
     </div>
@@ -1991,7 +1991,7 @@ main {
                     dataMatch = htmlContent.match(/const roadbookData = JSON\.parse\(`([^`\\]*(\\.[^`\\]*)*)`\)/);
 
                     if (!dataMatch) {
-                        alert('HTML文件中未找到路书数据！');
+                        alert('HTML文件中未找到RoadbookMaker数据！');
                         return;
                     }
 

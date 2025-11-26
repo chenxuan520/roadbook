@@ -2849,7 +2849,7 @@ class RoadbookApp {
         // 恢复标题
         const headerTitle = document.querySelector('header h1');
         if (headerTitle) {
-            headerTitle.textContent = '路书制作工具';
+            headerTitle.textContent = 'RoadbookMaker';
             headerTitle.style.cursor = 'default';
             headerTitle.title = '';
             headerTitle.onclick = null;

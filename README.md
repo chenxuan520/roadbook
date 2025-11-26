@@ -1,10 +1,10 @@
-# 路书制作工具
+# RoadbookMaker
 
 <p align="center">
-  <img src="static/favicon.png" alt="路书制作工具 Logo" width="300" height="300">
+  <img src="static/favicon.png" alt="RoadbookMaker Logo" width="300" height="300">
 </p>
 
-路书制作工具是一个功能强大的基于网页的地图标记和路线规划工具，允许用户在地图上添加标记点、连接路线，并导出分享您的行程规划。
+RoadbookMaker是一个功能强大的基于网页的地图标记和路线规划工具，允许用户在地图上添加标记点、连接路线，并导出分享您的行程规划。
 
 ## 🌟 核心功能
 
@@ -279,12 +279,7 @@ roadbook/
 - 快捷键支持
 
 ### 待开发 🚧
-- 支持Docker部署
 - Markdown格式支持
-- 搜索框bug修复
-- 按钮底部对齐
-- 按时间过滤
-- 添加其他地图源
 - 支持黑暗模式
 - 飞机查询功能
   - 机场数据：https://raw.githubusercontent.com/jbrooksuk/JSON-Airports/master/airports.json
