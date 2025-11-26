@@ -2307,11 +2307,37 @@ class RoadbookApp {
         }
 
         // 更新购票服务链接
-        this.updateTicketBookingLinks(connectionData, startTitle, endTitle);
+        this.updateTicketBookingLinks(connectionData);
     }
 
-    // 更新购票服务链接
-    updateTicketBookingLinks(connectionData, startTitle, endTitle) {
+    // 获取交通枢纽信息
+    async getTrafficInfo(lat, lon) {
+        if (lat === undefined || lon === undefined) {
+            throw new Error("无效的坐标");
+        }
+        const response = await fetch(`https://trafficpos.011203.dpdns.org/?lat=${lat}&lon=${lon}`);
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`交通信息API请求失败: ${response.status} ${errorText}`);
+        }
+        return await response.json();
+    }
+
+    // 获取交通枢纽信息
+    async getTrafficInfo(lat, lon) {
+        if (lat === undefined || lon === undefined) {
+            throw new Error("无效的坐标");
+        }
+        const response = await fetch(`https://trafficpos.011203.dpdns.org/?lat=${lat}&lon=${lon}`);
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`交通信息API请求失败: ${response.status} ${errorText}`);
+        }
+        return await response.json();
+    }
+
+    // 更新购票服务链接的显示和事件绑定
+    updateTicketBookingLinks(connectionData) {
         const ticketBookingSection = document.getElementById('ticketBookingSection');
         const ctripTrainLink = document.getElementById('ctripTrainLink');
         const planeTicketBtn = document.getElementById('planeTicketBtn');
@@ -2321,50 +2347,110 @@ class RoadbookApp {
             return;
         }
 
-        // 获取连接线的日期
-        let travelDate = '';
-        if (connectionData.dateTime) {
-            try {
-                const date = new Date(connectionData.dateTime);
-                const year = date.getFullYear();
-                const month = String(date.getMonth() + 1).padStart(2, '0');
-                const day = String(date.getDate()).padStart(2, '0');
-                travelDate = `${year}-${month}-${day}`;
-            } catch (error) {
-                console.error('日期解析错误:', error);
-                travelDate = new Date().toISOString().split('T')[0]; // 默认今天
-            }
-        } else {
-            travelDate = new Date().toISOString().split('T')[0]; // 默认今天
-        }
+        // 重置状态
+        ticketBookingSection.style.display = 'none';
+        ctripTrainLink.style.display = 'none';
+        planeTicketBtn.style.display = 'none';
 
-        // 根据交通方式显示相应的购票服务
-        if (connectionData.transportType === 'train') {
-            // 显示火车票购买链接
+        const transportType = connectionData.transportType;
+
+        if (transportType === 'train') {
             ticketBookingSection.style.display = 'block';
             ctripTrainLink.style.display = 'inline-block';
-            planeTicketBtn.style.display = 'none';
-
-            // 生成携程火车票链接
-            const ctripLink = `https://trains.ctrip.com/webapp/train/list?ticketType=0&dStation=${encodeURIComponent(startTitle)}&aStation=${encodeURIComponent(endTitle)}&dDate=${travelDate}&rDate=&trainsType=gaotie-dongche`;
-            ctripTrainLink.href = ctripLink;
-            ctripTrainLink.target = '_blank';
-        } else if (connectionData.transportType === 'plane') {
-            // 显示飞机票按钮（敬请期待）
+            ctripTrainLink.textContent = '🚄 携程火车票';
+            // 为<a>标签绑定点击事件来触发异步逻辑
+            ctripTrainLink.onclick = (e) => {
+                e.preventDefault(); // 阻止<a>标签的默认跳转行为
+                this.handleTrainTicketClick(connectionData);
+            };
+        } else if (transportType === 'plane') {
             ticketBookingSection.style.display = 'block';
-            ctripTrainLink.style.display = 'none';
             planeTicketBtn.style.display = 'inline-block';
+            planeTicketBtn.textContent = '✈️ 查询飞机票';
+            // 为<button>标签绑定点击事件
+            planeTicketBtn.onclick = () => {
+                this.handlePlaneTicketClick(connectionData);
+            };
+        }
+    }
 
-            // 绑定飞机票按钮点击事件（只绑定一次）
-            if (!planeTicketBtn.hasAttribute('data-event-bound')) {
-                planeTicketBtn.addEventListener('click', () => {
-                    this.showSwalAlert('敬请期待', '飞机票购买功能正在开发中，敬请期待！', 'info');
-                });
-                planeTicketBtn.setAttribute('data-event-bound', 'true');
+    // 处理火车票点击
+    async handleTrainTicketClick(connectionData) {
+        Swal.fire({
+            title: '正在查询火车站...',
+            allowOutsideClick: false,
+            didOpen: () => Swal.showLoading()
+        });
+
+        try {
+            const startMarker = this.markers.find(m => m.id === connectionData.startId);
+            const endMarker = this.markers.find(m => m.id === connectionData.endId);
+
+            if (!startMarker || !endMarker) throw new Error('无法找到路线的起点或终点。');
+
+            const [startInfo, endInfo] = await Promise.all([
+                this.getTrafficInfo(startMarker.position[0], startMarker.position[1]),
+                this.getTrafficInfo(endMarker.position[0], endMarker.position[1])
+            ]);
+
+            const startStation = startInfo.nearest_station.name;
+            const endStation = endInfo.nearest_station.name;
+            if (!startStation || !endStation) throw new Error('未能获取有效的火车站名称。');
+
+            let travelDate = new Date().toISOString().split('T')[0];
+            if (connectionData.dateTime) {
+                try {
+                    const date = new Date(connectionData.dateTime);
+                    travelDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+                } catch (e) { /* 忽略错误，使用默认日期 */ }
             }
-        } else {
-            // 其他交通方式不显示购票服务
-            ticketBookingSection.style.display = 'none';
+
+            const ctripLink = `https://trains.ctrip.com/webapp/train/list?ticketType=0&dStation=${encodeURIComponent(startStation)}&aStation=${encodeURIComponent(endStation)}&dDate=${travelDate}&rDate=&trainsType=gaotie-dongche`;
+
+            Swal.close();
+            window.open(ctripLink, '_blank');
+        } catch (error) {
+            Swal.fire('查询失败', error.message, 'error');
+        }
+    }
+
+    // 处理飞机票点击
+    async handlePlaneTicketClick(connectionData) {
+        Swal.fire({
+            title: '正在查询机场信息...',
+            allowOutsideClick: false,
+            didOpen: () => Swal.showLoading()
+        });
+
+        try {
+            const startMarker = this.markers.find(m => m.id === connectionData.startId);
+            const endMarker = this.markers.find(m => m.id === connectionData.endId);
+
+            if (!startMarker || !endMarker) throw new Error('无法找到路线的起点或终点。');
+
+            const [startInfo, endInfo] = await Promise.all([
+                this.getTrafficInfo(startMarker.position[0], startMarker.position[1]),
+                this.getTrafficInfo(endMarker.position[0], endMarker.position[1])
+            ]);
+
+            const startAirportCode = startInfo.nearest_airport.code;
+            const endAirportCode = endInfo.nearest_airport.code;
+            if (!startAirportCode || !endAirportCode) throw new Error('未能获取有效的机场代码。');
+
+            let travelDate = new Date().toISOString().split('T')[0];
+            if (connectionData.dateTime) {
+                try {
+                    const date = new Date(connectionData.dateTime);
+                    travelDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+                } catch (e) { /* 忽略错误，使用默认日期 */ }
+            }
+
+            const ctripLink = `https://flights.ctrip.com/online/list/oneway-${startAirportCode}-${endAirportCode}?deptDate=${travelDate}`;
+
+            Swal.close();
+            window.open(ctripLink, '_blank');
+        } catch (error) {
+            Swal.fire('查询失败', error.message, 'error');
         }
     }
 
