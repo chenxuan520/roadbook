@@ -2324,11 +2324,33 @@ body.dark-mode .date-range-picker span {
         color: white !important;
     }
 
+/* Dark mode: Leaflet scale control */
 body.dark-mode .leaflet-control-scale .leaflet-control-scale-line {
     background: #000000; /* Dark background to hide white defaults */
     color: #ffffff;    /* White text for visibility */
     border-color: #333333; /* Dark border */
 }
+
+/* Dark mode: Leaflet zoom controls */
+body.dark-mode .leaflet-control-zoom-in,
+body.dark-mode .leaflet-control-zoom-out {
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+    border-color: var(--border-color);
+}
+
+body.dark-mode .leaflet-control-zoom-in:hover,
+body.dark-mode .leaflet-control-zoom-out:hover {
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+}
+
+/* Dark mode: Leaflet attribution control */
+body.dark-mode .leaflet-control-attribution {
+    background: rgba(0, 0, 0, 0.7) !important;
+    color: var(--text-primary);
+}
+
 
 body.dark-mode .custom-marker div {
     background-color: #000000 !important; /* Force black background in dark mode */

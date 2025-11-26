@@ -46,12 +46,21 @@ class RoadbookApp {
 
     // 主题切换相关方法
     initTheme() {
-        // 从本地存储加载主题设置
         const savedTheme = localStorage.getItem('roadbook-theme');
-        if (savedTheme === 'dark') {
-            this.enableDarkMode();
+        if (savedTheme) {
+            // 如果有保存的设置，则使用它
+            if (savedTheme === 'dark') {
+                this.enableDarkMode();
+            } else {
+                this.enableLightMode();
+            }
         } else {
-            this.enableLightMode();
+            // 否则，追随系统设置
+            if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                this.enableDarkMode();
+            } else {
+                this.enableLightMode();
+            }
         }
     }
 
