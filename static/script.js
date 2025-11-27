@@ -2544,7 +2544,7 @@ class RoadbookApp {
                 } catch (e) { /* 忽略错误，使用默认日期 */ }
             }
 
-            const ctripLink = `https://flights.ctrip.com/online/list/oneway-${startAirportCode}-${endAirportCode}?deptDate=${travelDate}`;
+            const ctripLink = `https://flights.ctrip.com/online/list/oneway-${startAirportCode}-${endAirportCode}?depdate=${travelDate}`;
 
             Swal.close();
             window.open(ctripLink, '_blank');
