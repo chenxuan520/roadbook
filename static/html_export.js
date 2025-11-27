@@ -1442,7 +1442,7 @@ class RoadbookHtmlExporter {
     </script>
 
     <!-- 帮助模态框 -->
-    <div id="exportHelpModal" class="modal">
+    <div id="exportHelpModal" class="modal" style="display: none;">
         <div class="modal-content help-modal-content">
             <span class="close" id="closeExportHelp">&times;</span>
             <h2>导出界面帮助</h2>
@@ -1900,7 +1900,6 @@ main {
         width: 100%;
         height: 100%;
         background-color: rgba(0,0,0,0.5);
-        display: flex;
         align-items: center;
         justify-content: center;
     }

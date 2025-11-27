@@ -359,11 +359,13 @@ class RoadbookApp {
         // 检测是否为移动设备
         if (this.isMobileDevice()) {
             this.showSwalAlert('设备提示', '当前界面不支持手机端编辑功能，请使用电脑访问以获得完整体验。导出的路书可在手机端正常查看。', 'info');
-            // 可以考虑在移动设备上显示一个更友好的提示页面，而不是完全阻止使用
         }
 
         // 初始化主题
         this.initTheme();
+
+        // 初始化移动端适配
+        this.initMobileFeatures();
 
         // 先尝试从本地存储加载设置，以获取保存的地图源和搜索方式
         const cachedData = this.loadSettingsFromCache();
@@ -1388,6 +1390,82 @@ class RoadbookApp {
             themeToggleBtn.addEventListener('click', () => {
                 this.toggleTheme();
             });
+        }
+    }
+
+    // 移动端功能初始化
+    initMobileFeatures() {
+        // 检测是否为移动设备
+        if (!this.isMobileDevice()) {
+            return; // 非移动设备不执行移动端适配
+        }
+
+        // 初始化移动端菜单功能
+        this.initMobileMenu();
+
+        // 监听窗口大小变化，适配横竖屏切换
+        window.addEventListener('resize', () => {
+            this.handleResize();
+        });
+    }
+
+    // 初始化移动端菜单
+    initMobileMenu() {
+        const menuToggleBtn = document.getElementById('menuToggleBtn');
+        const rightPanel = document.querySelector('.right-panel');
+        const closeSidebarBtn = document.getElementById('closeSidebarBtn');
+
+        if (!menuToggleBtn || !rightPanel) {
+            console.warn('移动端菜单元素未找到');
+            return;
+        }
+
+        // 菜单切换按钮事件
+        menuToggleBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            rightPanel.classList.toggle('active');
+            
+            // 更新按钮图标
+            menuToggleBtn.textContent = rightPanel.classList.contains('active') ? '✕' : '☰';
+        });
+
+        // 关闭侧边栏按钮事件
+        if (closeSidebarBtn) {
+            closeSidebarBtn.addEventListener('click', () => {
+                rightPanel.classList.remove('active');
+                menuToggleBtn.textContent = '☰';
+            });
+        }
+
+        // 点击侧边栏外部关闭侧边栏
+        document.addEventListener('click', (e) => {
+            if (!rightPanel.contains(e.target) && 
+                !menuToggleBtn.contains(e.target) && 
+                rightPanel.classList.contains('active')) {
+                rightPanel.classList.remove('active');
+                menuToggleBtn.textContent = '☰';
+            }
+        });
+
+        // 阻止侧边栏内部点击事件冒泡
+        rightPanel.addEventListener('click', (e) => {
+            e.stopPropagation();
+        });
+    }
+
+    // 处理窗口大小变化
+    handleResize() {
+        const menuToggleBtn = document.getElementById('menuToggleBtn');
+        const rightPanel = document.querySelector('.right-panel');
+
+        if (!menuToggleBtn || !rightPanel) {
+            return;
+        }
+
+        if (window.innerWidth > 768) {
+            // 大屏幕设备
+            rightPanel.classList.remove('active');
+            menuToggleBtn.textContent = '☰';
         }
     }
 
