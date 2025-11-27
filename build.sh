@@ -10,7 +10,7 @@ echo "Static binary created at backend/roadbook-api"
 
 echo ""
 echo "--- Building Docker image ---"
-docker build -t roadbook .
+docker build -f./Dockerfile.local -t roadbook .
 
 echo ""
 echo "--- Build complete! ---"

@@ -79,16 +79,22 @@ sudo nginx -t && sudo systemctl reload nginx
 打开浏览器访问 `http://localhost` 即可使用
 
 #### Docker 部署 (直接拉取镜像)
-您也可以直接从 Docker Hub 拉取预构建的镜像并运行。
+您也可以直接从 Docker Hub 或阿里云容器镜像服务拉取预构建的镜像并运行。
 
 1.  **拉取镜像**
-    使用以下命令从 Docker Hub 拉取最新镜像：
+
+    **从 Docker Hub 拉取：**
     ```bash
     docker pull chenxuan520/roadbook:latest
     ```
     或者拉取特定版本的镜像，例如 `v1.0.0`：
     ```bash
     docker pull chenxuan520/roadbook:v1.0.0
+    ```
+
+    **从阿里云容器镜像服务拉取（国内用户推荐）：**
+    ```bash
+    docker pull registry.cn-hangzhou.aliyuncs.com/chenxuan/roadbook:latest
     ```
 
 2.  **（可选）准备外部配置文件**
@@ -111,6 +117,16 @@ sudo nginx -t && sudo systemctl reload nginx
       -v roadbook_data:/app/data \
       -v $(pwd)/my-config.json:/app/configs/config.json:ro \
       chenxuan520/roadbook:latest
+    ```
+
+    **或者使用阿里云镜像：**
+    ```bash
+    docker run -d \
+      --name roadbook \
+      -p 80:80 \
+      -v roadbook_data:/app/data \
+      -v $(pwd)/my-config.json:/app/configs/config.json:ro \
+      registry.cn-hangzhou.aliyuncs.com/chenxuan/roadbook:latest
     ```
     -   `-d`: 后台运行容器。
     -   `--name roadbook`: 为容器指定一个名称。
