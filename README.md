@@ -80,12 +80,29 @@ git clone https://github.com/chenxuan520/roadbook.git
 cd roadbook
 ```
 
-2. **启动后端服务**
-```bash
-cd backend
-go mod tidy
-go run main.go
-```
+2. **生成并配置后端服务**
+   后端服务现在需要一个 `config.json` 文件来运行。为了简化配置过程并增强安全性，我们提供了一个交互式脚本。
+
+   a. **生成配置文件**
+      在项目根目录运行配置生成脚本：
+      ```bash
+      ./generate_config.sh
+      ```
+      脚本会提示您输入端口、管理员账户密码、允许的跨域来源等信息。它会自动生成一个 `backend/configs/config.json` 文件。
+      **重要提示：** 脚本会使用带“盐”的 SHA256 算法来哈希您的密码。虽然这比明文存储更安全，但仍建议在生产环境中使用更强的密码哈希算法（如 bcrypt）。
+
+   b. **编译后端服务**
+      在项目根目录运行构建脚本来编译后端服务：
+      ```bash
+      ./build.sh
+      ```
+      这会在 `backend/` 目录下生成一个名为 `roadbook-api` 的可执行文件。
+
+   c. **启动后端服务**
+      运行编译好的后端可执行文件：
+      ```bash
+      ./backend/roadbook-api
+      ```
 
 3. **配置Nginx** (可选但推荐)
 ```bash
@@ -258,8 +275,26 @@ roadbook/
   - `/api/v1/share/plans/:id` - 分享路书
 
 ### 配置说明
-- 后端配置文件：`backend/configs/config.json`
-- 可配置端口、JWT密钥、允许的来源等
+后端服务的核心配置位于 `backend/configs/config.json`。我们强烈建议您使用项目根目录下的 `./generate_config.sh` 脚本来交互式地生成此文件，以确保配置的正确性和安全性。
+
+**`config.json` 关键配置项详解：**
+
+-   `port` (number): 后端服务监听的端口。
+-   `allowed_origins` (array of string): 一个字符串数组，列出允许访问后端 API 的前端域。这对于控制跨域请求 (CORS) 至关重要。例如：`["http://localhost:3000", "https://your-frontend.com"]`。
+-   `allow_null_origin_for_dev` (boolean):
+    -   设置为 `true` 时，允许 `Origin: null` 的请求。这主要用于在本地直接通过 `file://` 协议打开前端 HTML 文件进行开发测试。
+    -   **安全性警告：** 在生产环境中，此项必须设置为 `false` 或从配置中移除，否则会带来严重的安全风险。
+-   `jwtSecret` (string): 用于签发和验证 JWT (JSON Web Token) 的密钥。**在生产环境中务必使用一个长而随机的密钥**，并且不应与他人共享。
+-   `users` (object): 一个对象，包含所有允许登录的管理员账户。每个账户都包含 `salt` 和 `hash` 字段。
+    -   `salt` (string): 用于密码哈希的随机盐值。
+    -   `hash` (string): 密码与盐混合后使用 SHA256 算法计算出的哈希值。
+
+**如何生成 `config.json`：**
+
+在项目根目录执行 `generate_config.sh` 脚本，并根据提示输入信息即可。
+```bash
+./generate_config.sh
+```
 
 ## 📡 后端API完整列表
 

@@ -1,12 +1,14 @@
 package auth
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"time"
 
 	"github.com/chenxuan520/roadmap/backend/internal/config" // 导入 config 包
-	jwt "github.com/dgrijalva/jwt-go"                         // 注意这里使用了 v3.2.0 的 jwt-go
+	jwt "github.com/golang-jwt/jwt/v4"                         // 注意这里使用了 v4 的 jwt
 )
 
 // Claims 定义了JWT中包含的用户信息
@@ -25,7 +27,7 @@ type Authenticator interface {
 // service 结构体包含 JWT 密钥和用户列表
 type service struct {
 	jwtSecret []byte
-	users     map[string]string
+	users     map[string]config.UserCredentials
 }
 
 // NewService 创建并返回一个认证服务实例
@@ -38,9 +40,22 @@ func NewService(cfg config.Config) Authenticator {
 
 // Authenticate 验证用户凭证并生成JWT token
 func (s *service) Authenticate(username, password string) (string, error) {
-	if pwd, ok := s.users[username]; !ok || pwd != password {
+	creds, ok := s.users[username]
+	if !ok {
+		// User not found, return generic error to prevent username enumeration
 		return "", errors.New("无效的用户名或密码")
 	}
+
+	// Hash the incoming password with the stored salt
+	hasher := sha256.New()
+	hasher.Write([]byte(creds.Salt + password))
+	hashInHex := hex.EncodeToString(hasher.Sum(nil))
+
+	// Compare the generated hash with the stored hash
+	if hashInHex != creds.Hash {
+		return "", errors.New("无效的用户名或密码")
+	}
+
 	return s.GenerateToken(username)
 }
 

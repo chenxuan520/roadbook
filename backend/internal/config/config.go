@@ -6,54 +6,49 @@ import (
 	"os"
 )
 
-type Config struct {
-	Port           int               `json:"port"`
-	AllowedOrigins []string          `json:"allowed_origins"`
-	JwtSecret      string            `json:"jwtSecret"` // 新增
-	Users          map[string]string `json:"users"`     // 新增
+// UserCredentials holds the salt and hashed password for a user.
+type UserCredentials struct {
+	Salt string `json:"salt"`
+	Hash string `json:"hash"`
 }
 
-func Load() Config {
-	config := Config{
-		Port:           8080,       // Default port
-		AllowedOrigins: []string{}, // Default to empty
-		JwtSecret:      "default_super_secret_jwt_key", // 默认密钥，应被配置文件覆盖
-		Users:          map[string]string{"admin": "password"}, // 默认用户
-	}
+type Config struct {
+	Port                  int                          `json:"port"`
+	AllowedOrigins        []string                     `json:"allowed_origins"`
+	AllowNullOriginForDev bool                         `json:"allow_null_origin_for_dev,omitempty"`
+	JwtSecret             string                       `json:"jwtSecret"`
+	Users                 map[string]UserCredentials `json:"users"`
+}
+
+func Load() (Config, error) {
+	var config Config
 
 	file, err := os.ReadFile("configs/config.json")
 	if err != nil {
-		fmt.Println("Config file not found or error reading, using default configuration.")
-		return config
+		return config, fmt.Errorf("config file not found or error reading: %w", err)
 	}
 
 	err = json.Unmarshal(file, &config)
 	if err != nil {
-		fmt.Println("Error parsing config file, using default configuration. Error:", err)
-		return Config{
-			Port:           8080,
-			AllowedOrigins: []string{},
-			JwtSecret:      "default_super_secret_jwt_key",
-			Users:          map[string]string{"admin": "password"},
-		}
+		return config, fmt.Errorf("error parsing config file: %w", err)
 	}
 
 	if config.Port <= 0 || config.Port > 65535 {
+		// Fallback to a default port if the configured one is invalid, but log it.
 		fmt.Println("Invalid port in config, using default port 8080")
 		config.Port = 8080
 	}
 
 	// 检查 JwtSecret 是否为空
 	if config.JwtSecret == "" {
-		fmt.Println("jwtSecret is empty in config, using default secret.")
-		config.JwtSecret = "default_super_secret_jwt_key"
+		return config, fmt.Errorf("jwtSecret must not be empty in config")
 	}
 
 	// 检查 Users 是否为空
 	if len(config.Users) == 0 {
-		fmt.Println("Users are empty in config, using default user admin/password.")
-		config.Users = map[string]string{"admin": "password"}
+		return config, fmt.Errorf("users must not be empty in config")
 	}
 
-	return config
+	return config, nil
 }
+

@@ -39,3 +39,25 @@ jobs:
           cd backend
           go mod tidy
           go build -o ../build/roadbook-backend ./cmd/roadbook-api/main.go
+
+  backend_test:
+    name: Backend Integration Test
+    runs-on: ubuntu-latest
+    needs: backend_build
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Make scripts executable
+        run: chmod +x build.sh backend/scripts/backend_test.sh
+
+      - name: Run backend integration tests
+        run: ./backend/scripts/backend_test.sh

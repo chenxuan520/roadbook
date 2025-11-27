@@ -50,6 +50,11 @@ func (r *fileRepository) Save(plan *Plan) error {
 	if plan.ID == "" {
 		plan.ID = uuid.New().String()
 		plan.CreatedAt = time.Now().UTC()
+	} else {
+		// 防御路径遍历攻击
+		if filepath.Base(plan.ID) != plan.ID {
+			return fmt.Errorf("无效的计划ID: %s", plan.ID)
+		}
 	}
 	plan.UpdatedAt = time.Now().UTC() // 每次保存都更新UpdatedAt
 
@@ -68,6 +73,10 @@ func (r *fileRepository) Save(plan *Plan) error {
 
 // FindByID 根据ID查找并返回一个计划
 func (r *fileRepository) FindByID(id string) (*Plan, error) {
+	// 防御路径遍历攻击
+	if filepath.Base(id) != id {
+		return nil, fmt.Errorf("无效的计划ID: %s", id)
+	}
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
@@ -136,6 +145,10 @@ func (r *fileRepository) FindAll() ([]PlanSummary, error) {
 
 // Delete 根据ID删除一个计划
 func (r *fileRepository) Delete(id string) error {
+	// 防御路径遍历攻击
+	if filepath.Base(id) != id {
+		return fmt.Errorf("无效的计划ID: %s", id)
+	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
 

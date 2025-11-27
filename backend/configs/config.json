@@ -1,9 +1,11 @@
 {
-	"port": 5436,
-	"allowed_origins": [],
-	"jwtSecret": "your_super_secret_jwt_key_here_please_change_this_in_production",
-	"users": {
-		"admin": "password",
-		"testuser": "testpass"
-	}
+  "port": 5436,
+  "allowed_origins": ["*"],
+  "jwtSecret": "091f58c03580196d4ec608b7fb30b509b50a36fa82baf9b93166cd44a8c7176a",
+  "users": {
+    "admin": {
+      "salt": "770c73ed09f5e7f34c7a3c826d4396c8",
+      "hash": "80df05c4e6e9e0a885cf65043dc8c8cadff0b55a6c4b6583f624ff79f3ca5b8b"
+    }
+  }
 }

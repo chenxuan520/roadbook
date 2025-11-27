@@ -2,7 +2,6 @@ package server
 
 import (
 	"log"     // 导入 log 包用于错误处理
-	"strings" // 新增导入
 
 	"github.com/chenxuan520/roadmap/backend/internal/auth"
 	"github.com/chenxuan520/roadmap/backend/internal/config"
@@ -15,32 +14,40 @@ import (
 func NewRouter(cfg config.Config) *gin.Engine {
 	r := gin.Default()
 
-	// CORS 中间件
+	// Secure CORS Middleware
 	r.Use(func(c *gin.Context) {
 		origin := c.Request.Header.Get("Origin")
+		isAllowed := false
 
-		// 显式允许所有 127.0.0.1 的端口，并设置 Access-Control-Allow-Origin 为 *
-		if strings.HasPrefix(origin, "http://127.0.0.1") || strings.HasPrefix(origin, "https://127.0.0.1") {
-			c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
-		} else {
-			// 检查配置文件中的允许来源
-			for _, allowedOrigin := range cfg.AllowedOrigins {
-				if origin == allowedOrigin {
-					c.Writer.Header().Set("Access-Control-Allow-Origin", origin)
-					break
-				}
+		// Check standard allowed origins
+		for _, allowedOrigin := range cfg.AllowedOrigins {
+			if origin == allowedOrigin {
+				isAllowed = true
+				break
 			}
 		}
 
-		// TODO: 25-11-24 @chenxuan for test //
-		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
-		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS") // 增加 PUT, DELETE
-		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")     // 增加 Authorization
-		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")                        // 允许携带认证信息
+		// If not in standard list, check for dev-mode null origin
+		if !isAllowed && cfg.AllowNullOriginForDev && origin == "null" {
+			isAllowed = true
+		}
+
+		if isAllowed {
+			c.Writer.Header().Set("Access-Control-Allow-Origin", origin)
+			c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+			c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+			c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
+		}
+
 		if c.Request.Method == "OPTIONS" {
-			c.AbortWithStatus(204)
+			if isAllowed {
+				c.AbortWithStatus(204)
+			} else {
+				c.AbortWithStatus(403)
+			}
 			return
 		}
+
 		c.Next()
 	})
 

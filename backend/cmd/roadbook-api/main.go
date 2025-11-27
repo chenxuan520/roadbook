@@ -2,13 +2,18 @@ package main
 
 import (
 	"fmt"
+	"log"
+
 	"github.com/chenxuan520/roadmap/backend/internal/config"
 	"github.com/chenxuan520/roadmap/backend/internal/handler"
 	"github.com/chenxuan520/roadmap/backend/internal/server"
 )
 
 func main() {
-	cfg := config.Load()
+	cfg, err := config.Load()
+	if err != nil {
+		log.Fatalf("Failed to load configuration: %v", err)
+	}
 
 	// 初始化trafficpos数据
 	configPath := "./configs" // 配置文件目录
