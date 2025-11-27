@@ -37,8 +37,10 @@ RUN mkdir -p /app/data && chown nginx:nginx /app/data
 
 # Create a directory for backend configs
 RUN mkdir -p /app/configs
-# Copy the config file from the build context
+# Copy the config files from the build context
 COPY backend/configs/config.json /app/configs/config.json
+COPY backend/configs/airports.json /app/configs/airports.json
+COPY backend/configs/station_geo.json /app/configs/station_geo.json
 
 # Copy the custom Nginx configuration
 COPY nginx.prod.conf /etc/nginx/nginx.conf

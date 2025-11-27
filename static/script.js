@@ -2327,20 +2327,7 @@ class RoadbookApp {
         if (lat === undefined || lon === undefined) {
             throw new Error("无效的坐标");
         }
-        const response = await fetch(`https://trafficpos.011203.dpdns.org/?lat=${lat}&lon=${lon}`);
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`交通信息API请求失败: ${response.status} ${errorText}`);
-        }
-        return await response.json();
-    }
-
-    // 获取交通枢纽信息
-    async getTrafficInfo(lat, lon) {
-        if (lat === undefined || lon === undefined) {
-            throw new Error("无效的坐标");
-        }
-        const response = await fetch(`https://trafficpos.011203.dpdns.org/?lat=${lat}&lon=${lon}`);
+        const response = await fetch(`${apiBaseUrl}/api/trafficpos?lat=${lat}&lon=${lon}`);
         if (!response.ok) {
             const errorText = await response.text();
             throw new Error(`交通信息API请求失败: ${response.status} ${errorText}`);

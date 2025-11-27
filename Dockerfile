@@ -13,6 +13,8 @@ RUN mkdir -p /app/data && chown nginx:nginx /app/data
 # Copy backend config
 RUN mkdir -p /app/configs
 COPY backend/configs/config.json /app/configs/config.json
+COPY backend/configs/airports.json /app/configs/airports.json
+COPY backend/configs/station_geo.json /app/configs/station_geo.json
 
 # Copy the custom Nginx configuration
 COPY nginx.prod.conf /etc/nginx/nginx.conf

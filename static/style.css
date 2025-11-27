@@ -1865,11 +1865,11 @@ input[type="color"] {
 }
 
 #ctripTrainLink {
-    background: var(--gradient-danger);
+    background: var(--gradient-primary);
 }
 
 #ctripTrainLink:hover {
-    background: var(--gradient-danger);
+    background: var(--gradient-primary);
     opacity: 0.9;
 }
 

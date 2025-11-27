@@ -91,6 +91,8 @@ func NewRouter(cfg config.Config) *gin.Engine {
 	{
 		api.GET("/cnmap/search", handler.BaiduSearchHandler)
 		api.GET("/tianmap/search", handler.TianmapSearchHandler)
+		// 新增trafficpos接口
+		api.GET("/trafficpos", handler.GetTrafficPos)
 	}
 
 	return r
