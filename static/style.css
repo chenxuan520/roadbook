@@ -2383,7 +2383,7 @@ body.dark-mode .leaflet-tile {
         position: absolute;
         top: 70px;
         right: 15px;
-        z-index: 1000;
+        z-index: 3000; /* 提升到最高层级，确保始终在最上层，高于所有其他元素 */
         width: 44px;
         height: 44px;
         background: var(--gradient-primary);
@@ -2601,6 +2601,33 @@ body.dark-mode .leaflet-tile {
 @media (min-width: 769px) {
     .menu-toggle-btn {
         display: none !important;
+    }
+}
+
+/* 移动端隐藏导入导出按钮 */
+@media (max-width: 768px) {
+    #importBtn,
+    #exportDropdownBtn {
+        display: none !important;
+    }
+}
+
+/* 移动端调整地图控制按钮位置 */
+@media (max-width: 768px) {
+    /* 移动端将地图控制按钮移到左上角 */
+    .map-controls {
+        left: 10px !important;
+        right: auto !important;
+        top: 10px !important;
+        flex-direction: row !important;
+        align-items: flex-start !important;
+        gap: 10px !important;
+    }
+
+    #dateRangePicker {
+        left: 10px !important;
+        right: auto !important;
+        top: 60px !important;
     }
 }
 

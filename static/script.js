@@ -357,9 +357,9 @@ class RoadbookApp {
 
     init() {
         // 检测是否为移动设备
-        if (this.isMobileDevice()) {
-            this.showSwalAlert('设备提示', '当前界面不支持手机端编辑功能，请使用电脑访问以获得完整体验。导出的路书可在手机端正常查看。', 'info');
-        }
+        // if (this.isMobileDevice()) {
+        //     this.showSwalAlert('设备提示', '当前界面不支持手机端编辑功能，请使用电脑访问以获得完整体验。导出的路书可在手机端正常查看。', 'info');
+        // }
 
         // 初始化主题
         this.initTheme();
@@ -1423,10 +1423,18 @@ class RoadbookApp {
         // 菜单切换按钮事件
         menuToggleBtn.addEventListener('click', (e) => {
             e.stopPropagation();
-            rightPanel.classList.toggle('active');
-            
-            // 更新按钮图标
-            menuToggleBtn.textContent = rightPanel.classList.contains('active') ? '✕' : '☰';
+
+            // 如果侧边栏是展开的，就关闭它
+            if (rightPanel.classList.contains('active')) {
+                rightPanel.classList.remove('active');
+                menuToggleBtn.textContent = '☰';
+                console.log('菜单关闭');
+            } else {
+                // 如果侧边栏是关闭的，就展开它
+                rightPanel.classList.add('active');
+                menuToggleBtn.textContent = '✕';
+                console.log('菜单展开');
+            }
         });
 
         // 关闭侧边栏按钮事件
@@ -1437,20 +1445,24 @@ class RoadbookApp {
             });
         }
 
-        // 点击侧边栏外部关闭侧边栏
-        document.addEventListener('click', (e) => {
-            if (!rightPanel.contains(e.target) && 
-                !menuToggleBtn.contains(e.target) && 
-                rightPanel.classList.contains('active')) {
-                rightPanel.classList.remove('active');
-                menuToggleBtn.textContent = '☰';
+        // 移动端点击外部关闭侧边栏（简化版本）
+        if (this.isMobileDevice()) {
+            // 点击地图区域时关闭侧边栏（但点击标记点和连接线时除外）
+            const mapContainer = document.getElementById('mapContainer');
+            if (mapContainer) {
+                mapContainer.addEventListener('click', (e) => {
+                    // 如果点击的是地图空白区域（不是标记点、连接线等），且不是侧边栏和菜单按钮
+                    if (rightPanel.classList.contains('active') &&
+                        !rightPanel.contains(e.target) &&
+                        !menuToggleBtn.contains(e.target) &&
+                        !e.target.closest('.leaflet-marker-icon') && // 不是标记点
+                        !e.target.closest('.leaflet-interactive')) { // 不是连接线等交互元素
+                        rightPanel.classList.remove('active');
+                        menuToggleBtn.textContent = '☰';
+                    }
+                });
             }
-        });
-
-        // 阻止侧边栏内部点击事件冒泡
-        rightPanel.addEventListener('click', (e) => {
-            e.stopPropagation();
-        });
+        }
     }
 
     // 处理窗口大小变化
@@ -2224,6 +2236,16 @@ class RoadbookApp {
     showConnectionDetail(connectionData) {
         // 如果当前处于筛选模式，则退出筛选模式但保持当前视图
         this.checkAndHandleFilterMode();
+
+        // 移动端自动展开侧边栏
+        if (this.isMobileDevice()) {
+            const rightPanel = document.querySelector('.right-panel');
+            const menuToggleBtn = document.getElementById('menuToggleBtn');
+            if (rightPanel && menuToggleBtn) {
+                rightPanel.classList.add('active');
+                menuToggleBtn.textContent = '✕';
+            }
+        }
 
         this.currentConnection = connectionData;
         this.currentMarker = null;
@@ -4622,6 +4644,16 @@ class RoadbookApp {
     showMarkerDetail(markerData) {
         // 如果当前处于筛选模式，则退出筛选模式但保持当前视图
         this.checkAndHandleFilterMode();
+
+        // 移动端自动展开侧边栏
+        if (this.isMobileDevice()) {
+            const rightPanel = document.querySelector('.right-panel');
+            const menuToggleBtn = document.getElementById('menuToggleBtn');
+            if (rightPanel && menuToggleBtn) {
+                rightPanel.classList.add('active');
+                menuToggleBtn.textContent = '✕';
+            }
+        }
 
         this.currentMarker = markerData;
         this.currentConnection = null;
