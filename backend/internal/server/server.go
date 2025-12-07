@@ -1,13 +1,14 @@
 package server
 
 import (
-	"log"     // 导入 log 包用于错误处理
+	// 导入 log 包用于错误处理
+	"log"
 
 	"github.com/chenxuan520/roadmap/backend/internal/auth"
 	"github.com/chenxuan520/roadmap/backend/internal/config"
 	"github.com/chenxuan520/roadmap/backend/internal/handler"
 	"github.com/chenxuan520/roadmap/backend/internal/middleware"
-	"github.com/chenxuan520/roadmap/backend/internal/plan" // 导入 plan 包
+	"github.com/chenxuan520/roadmap/backend/internal/plan"
 	"github.com/gin-gonic/gin"
 )
 
@@ -96,6 +97,7 @@ func NewRouter(cfg config.Config) *gin.Engine {
 	// 保留原有 /api 组用于现有搜索接口
 	api := r.Group("/api")
 	{
+		api.GET("/ping", handler.Ping)
 		api.GET("/cnmap/search", handler.BaiduSearchHandler)
 		api.GET("/tianmap/search", handler.TianmapSearchHandler)
 		// 新增trafficpos接口
