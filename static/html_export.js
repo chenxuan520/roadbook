@@ -30,6 +30,7 @@ class RoadbookHtmlExporter {
                 position: m.position,
                 title: m.title,
                 labels: m.labels,
+                logo: m.logo,
                 createdAt: m.createdAt,
                 dateTimes: m.dateTimes || [m.dateTime],
                 icon: m.icon
@@ -45,6 +46,7 @@ class RoadbookHtmlExporter {
                     transportType: c.transportType,
                     dateTime: c.dateTime,
                     label: c.label,
+                    logo: c.logo,
                     duration: c.duration || 0,
                     startTitle: startMarker ? startMarker.title : c.startTitle,
                     endTitle: endMarker ? endMarker.title : c.endTitle
@@ -83,6 +85,9 @@ class RoadbookHtmlExporter {
         </header>
 
         <main>
+            <div id="logoPreview" class="logo-preview" style="display: none; position: fixed; z-index: 10000; pointer-events: none;">
+                <img id="logoPreviewImg" class="logo-preview-img" alt="Logo预览" style="max-width: 100px; max-height: 100px; border-radius: 4px; border: 2px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.3);">
+            </div>
             <div id="mapContainer" style="height: 100%; width: 100%;"></div>
             <!-- 移动端菜单切换按钮 -->
             <button id="menuToggleBtn" class="menu-toggle-btn">☰</button>
@@ -184,6 +189,16 @@ class RoadbookHtmlExporter {
 
                 // 添加点击弹窗显示详细信息
                 marker.bindPopup(generateMarkerPopupContent(markerData));
+
+                // Add logo preview events
+                marker.on('mouseover', function(e) {
+                    if (markerData.logo) {
+                        showLogoPreview(markerData.logo, e);
+                    }
+                });
+                marker.on('mouseout', function() {
+                    hideLogoPreview();
+                });
             });
 
             // 只读模式下添加连接线
@@ -243,6 +258,16 @@ class RoadbookHtmlExporter {
 
                     // 为连接线添加弹窗
                     polyline.bindPopup(generateConnectionPopupContent(connData, startMarker, endMarker));
+
+                    // Add logo preview events
+                    polyline.on('mouseover', function(e) {
+                        if (connData.logo) {
+                            showLogoPreview(connData.logo, e);
+                        }
+                    });
+                    polyline.on('mouseout', function() {
+                        hideLogoPreview();
+                    });
                 }
             });
 
@@ -470,6 +495,46 @@ class RoadbookHtmlExporter {
                     cruise: '游轮'
                 };
                 return names[type] || '其他';
+            }
+
+            // 显示logo预览
+            function showLogoPreview(logoUrl, event) {
+                if (!logoUrl || !event) {
+                    hideLogoPreview();
+                    return;
+                }
+
+                const logoPreview = document.getElementById('logoPreview');
+                const logoPreviewImg = document.getElementById('logoPreviewImg');
+
+                if (!logoPreview || !logoPreviewImg) {
+                    return;
+                }
+
+                logoPreviewImg.src = logoUrl;
+
+                logoPreviewImg.onload = () => {
+                    logoPreview.style.position = 'fixed';
+                    logoPreview.style.left = event.originalEvent.clientX + 'px';
+                    logoPreview.style.top = (event.originalEvent.clientY + 15) + 'px';
+                    logoPreview.style.display = 'block';
+                    logoPreview.style.opacity = '0';
+                    setTimeout(() => {
+                        logoPreview.style.opacity = '1';
+                    }, 10);
+                };
+
+                logoPreviewImg.onerror = () => {
+                    logoPreview.style.display = 'none';
+                };
+            }
+
+            // 隐藏Logo预览
+            function hideLogoPreview() {
+                const logoPreview = document.getElementById('logoPreview');
+                if (logoPreview) {
+                    logoPreview.style.display = 'none';
+                }
             }
 
             // 实现日期分组功能，包含点击聚焦和备注功能
@@ -1238,6 +1303,16 @@ class RoadbookHtmlExporter {
                 // 添加点击弹窗显示详细信息
                 marker.bindPopup(generateMarkerPopupContent(markerData));
 
+                // Add logo preview events
+                marker.on('mouseover', function(e) {
+                    if (markerData.logo) {
+                        showLogoPreview(markerData.logo, e);
+                    }
+                });
+                marker.on('mouseout', function() {
+                    hideLogoPreview();
+                });
+
                 // 添加鼠标悬浮事件
                 marker.on('mouseover', function(e) {
                     showMarkerTooltip(markerData, e.latlng);
@@ -1304,6 +1379,16 @@ class RoadbookHtmlExporter {
 
                     // 为连接线添加弹窗
                     polyline.bindPopup(generateConnectionPopupContent(connData, startMarker, endMarker));
+
+                    // Add logo preview events
+                    polyline.on('mouseover', function(e) {
+                        if (connData.logo) {
+                            showLogoPreview(connData.logo, e);
+                        }
+                    });
+                    polyline.on('mouseout', function() {
+                        hideLogoPreview();
+                    });
 
                     // 为连接线添加鼠标悬浮事件
                     polyline.on('mouseover', function(e) {
@@ -1989,6 +2074,24 @@ main {
         line-height: 1.5;
         color: #555;
         font-size: 0.95rem;
+    }
+
+    /* Logo Preview Styles */
+    .logo-preview {
+        position: fixed;
+        z-index: 10000;
+        pointer-events: none;
+        transition: opacity 0.3s ease;
+    }
+
+    .logo-preview-img {
+        max-width: 100px;
+        max-height: 100px;
+        border-radius: 4px;
+        border: 2px solid white;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        background: white;
+        object-fit: contain;
     }
 }`;
     }
