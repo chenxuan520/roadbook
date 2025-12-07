@@ -191,10 +191,17 @@ class RoadbookApp {
         });
 
         marker.on('mouseover', (e) => {
+            if (e.target.getElement()) {
+                e.target.getElement()._savedTitle = e.target.getElement().getAttribute('title');
+                e.target.getElement().removeAttribute('title');
+            }
             this.showMarkerTooltip(markerData, e.latlng, e);
         });
 
-        marker.on('mouseout', () => {
+        marker.on('mouseout', (e) => {
+            if (e.target.getElement() && e.target.getElement()._savedTitle) {
+                e.target.getElement().setAttribute('title', e.target.getElement()._savedTitle);
+            }
             this.hideMarkerTooltip();
         });
 
@@ -1663,10 +1670,17 @@ class RoadbookApp {
 
         // 添加悬浮事件显示标注信息
         marker.on('mouseover', (e) => {
+            if (e.target.getElement()) {
+                e.target.getElement()._savedTitle = e.target.getElement().getAttribute('title');
+                e.target.getElement().removeAttribute('title');
+            }
             this.showMarkerTooltip(markerData, e.latlng, e);
         });
 
-        marker.on('mouseout', () => {
+        marker.on('mouseout', (e) => {
+            if (e.target.getElement() && e.target.getElement()._savedTitle) {
+                e.target.getElement().setAttribute('title', e.target.getElement()._savedTitle);
+            }
             this.hideMarkerTooltip();
         });
 
@@ -2134,7 +2148,7 @@ class RoadbookApp {
             linkElement.textContent = linkText;
             linkElement.target = '_blank';
             linkElement.rel = 'noopener noreferrer';
-            
+
             targetContainer.appendChild(linkElement);
         }
     }
@@ -3316,7 +3330,7 @@ class RoadbookApp {
             // 获取日期备注
             const notes = this.getDateNotes(date);
                                 contentElement.innerHTML = this.convertMarkdownLinksToHtml(notes);
-            
+
                                 // 添加事件监听器，防止链接点击退出聚焦模式
                                 contentElement.addEventListener('click', (e) => {
                                     // 检查点击的元素是否是链接 (<a> 标签)
@@ -4436,10 +4450,17 @@ class RoadbookApp {
             });
 
             marker.on('mouseover', (e) => {
+                if (e.target.getElement()) {
+                    e.target.getElement()._savedTitle = e.target.getElement().getAttribute('title');
+                    e.target.getElement().removeAttribute('title');
+                }
                 this.showMarkerTooltip(markerObj, e.latlng, e);
             });
 
-            marker.on('mouseout', () => {
+            marker.on('mouseout', (e) => {
+                if (e.target.getElement() && e.target.getElement()._savedTitle) {
+                    e.target.getElement().setAttribute('title', e.target.getElement()._savedTitle);
+                }
                 this.hideMarkerTooltip();
             });
 

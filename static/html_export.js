@@ -190,13 +190,22 @@ class RoadbookHtmlExporter {
                 // 添加点击弹窗显示详细信息
                 marker.bindPopup(generateMarkerPopupContent(markerData));
 
-                // Add logo preview events
                 marker.on('mouseover', function(e) {
+                    if (e.target.getElement()) {
+                        e.target.getElement()._savedTitle = e.target.getElement().getAttribute('title');
+                        e.target.getElement().removeAttribute('title');
+                    }
+                    showMarkerTooltip(markerData, e.latlng);
                     if (markerData.logo) {
                         showLogoPreview(markerData.logo, e);
                     }
                 });
-                marker.on('mouseout', function() {
+
+                marker.on('mouseout', function(e) {
+                    if (e.target.getElement() && e.target.getElement()._savedTitle) {
+                        e.target.getElement().setAttribute('title', e.target.getElement()._savedTitle);
+                    }
+                    hideMarkerTooltip();
                     hideLogoPreview();
                 });
             });
@@ -259,13 +268,15 @@ class RoadbookHtmlExporter {
                     // 为连接线添加弹窗
                     polyline.bindPopup(generateConnectionPopupContent(connData, startMarker, endMarker));
 
-                    // Add logo preview events
+                    // Add tooltip and logo preview events
                     polyline.on('mouseover', function(e) {
+                        showConnectionTooltip(connData, e.latlng);
                         if (connData.logo) {
                             showLogoPreview(connData.logo, e);
                         }
                     });
                     polyline.on('mouseout', function() {
+                        hideConnectionTooltip();
                         hideLogoPreview();
                     });
                 }
@@ -475,6 +486,7 @@ class RoadbookHtmlExporter {
                 content += '<a href="http://api.map.baidu.com/direction?origin=latlng:' + startLat + ',' + startLng + '|name:' + encodeURIComponent(startTitle) + '&destination=latlng:' + endLat + ',' + endLng + '|name:' + encodeURIComponent(endTitle) + '&mode=driving&region=中国&output=html&coord_type=gcj02&src=webapp.demo" target="_blank" style="margin: 0 5px; text-decoration: underline;">百度导航</a>';
                 content += '<a href="https://uri.amap.com/navigation?from=' + startLng + ',' + startLat + ',' + encodeURIComponent(startTitle) + '&to=' + endLng + ',' + endLat + ',' + encodeURIComponent(endTitle) + '&mode=car&policy=1&coordinate=gaode" target="_blank" style="margin: 0 5px; text-decoration: underline;">高德导航</a>';
                 content += '<a href="https://apis.map.qq.com/uri/v1/routeplan?type=drive&from=' + encodeURIComponent(startTitle) + '&fromcoord=' + startLat + ',' + startLng + '&to=' + encodeURIComponent(endTitle) + '&tocoord=' + endLat + ',' + endLng + '&referer=myapp" target="_blank" style="margin: 0 5px; text-decoration: underline;">腾讯导航</a>';
+                content += '<a href="https://www.google.com/maps/dir/?api=1&origin=' + startLat + ',' + startLng + '&destination=' + endLat + ',' + endLng + '" target="_blank" style="margin: 0 5px; text-decoration: underline;">Google导航</a>';
                 content += '</p>';
                 content += '</div>';
 
@@ -1303,13 +1315,22 @@ class RoadbookHtmlExporter {
                 // 添加点击弹窗显示详细信息
                 marker.bindPopup(generateMarkerPopupContent(markerData));
 
-                // Add logo preview events
                 marker.on('mouseover', function(e) {
+                    if (e.target.getElement()) {
+                        e.target.getElement()._savedTitle = e.target.getElement().getAttribute('title');
+                        e.target.getElement().removeAttribute('title');
+                    }
+                    showMarkerTooltip(markerData, e.latlng);
                     if (markerData.logo) {
                         showLogoPreview(markerData.logo, e);
                     }
                 });
-                marker.on('mouseout', function() {
+
+                marker.on('mouseout', function(e) {
+                    if (e.target.getElement() && e.target.getElement()._savedTitle) {
+                        e.target.getElement().setAttribute('title', e.target.getElement()._savedTitle);
+                    }
+                    hideMarkerTooltip();
                     hideLogoPreview();
                 });
 
@@ -1380,13 +1401,15 @@ class RoadbookHtmlExporter {
                     // 为连接线添加弹窗
                     polyline.bindPopup(generateConnectionPopupContent(connData, startMarker, endMarker));
 
-                    // Add logo preview events
+                    // Add tooltip and logo preview events
                     polyline.on('mouseover', function(e) {
+                        showConnectionTooltip(connData, e.latlng);
                         if (connData.logo) {
                             showLogoPreview(connData.logo, e);
                         }
                     });
                     polyline.on('mouseout', function() {
+                        hideConnectionTooltip();
                         hideLogoPreview();
                     });
 
