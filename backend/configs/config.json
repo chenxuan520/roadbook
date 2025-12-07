@@ -1,11 +1,12 @@
 {
   "port": 5436,
-  "allowed_origins": ["*"],
-  "jwtSecret": "091f58c03580196d4ec608b7fb30b509b50a36fa82baf9b93166cd44a8c7176a",
+  "allowed_origins": [],
+  "allow_null_origin_for_dev": true,
+  "jwtSecret": "8f9bd0d6162dc18dc48853a3c348218bb464005ed83c3f7c1c3e75b4f326d0a3",
   "users": {
     "admin": {
-      "salt": "770c73ed09f5e7f34c7a3c826d4396c8",
-      "hash": "80df05c4e6e9e0a885cf65043dc8c8cadff0b55a6c4b6583f624ff79f3ca5b8b"
+      "salt": "7957b2c9e48c170acc63f29b41771df2",
+      "hash": "77aba870b69a0b23c01295e2aab23447d6c9e16705a9faa2ddd1367b3cd0f365"
     }
   }
 }

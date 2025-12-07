@@ -2068,7 +2068,7 @@ class RoadbookApp {
     handleDateNotesPaste(event) {
         event.preventDefault(); // 阻止默认的粘贴行为
 
-        const clipboardData = event.clipboardData || window.clipboardData;
+        const clipboardData = event.clipboardData;
         const pastedText = clipboardData.getData('text/plain');
 
         // 更完善的URL匹配，支持多种URL模式，并确保匹配到完整的URL
@@ -2101,7 +2101,7 @@ class RoadbookApp {
     handleMarkerLabelsPaste(event) {
         event.preventDefault(); // 阻止默认的粘贴行为
 
-        const clipboardData = event.clipboardData || window.clipboardData;
+        const clipboardData = event.clipboardData;
         const pastedText = clipboardData.getData('text/plain');
 
         const urlRegex = /(https?:\/\/[^\s/$.?#].[^\s]*)/; // 匹配URL的正则表达式
@@ -2157,7 +2157,7 @@ class RoadbookApp {
     handleConnectionLabelsPaste(event) {
         event.preventDefault(); // 阻止默认的粘贴行为
 
-        const clipboardData = event.clipboardData || window.clipboardData;
+        const clipboardData = event.clipboardData;
         const pastedText = clipboardData.getData('text/plain');
 
         const urlRegex = /(https?:\/\/[^\s/$.?#].[^\s]*)/; // 匹配URL的正则表达式
@@ -2489,8 +2489,6 @@ class RoadbookApp {
         logoPreviewImg.onload = () => {
             // 将Leaflet的地理坐标转换为像素坐标
             const pos = this.map.latLngToLayerPoint(latlng);
-            // 转换为相对于地图容器的坐标
-            const mapContainer = this.map.getContainer();
 
             // 设置预览位置，相对于地图容器（在鼠标附近）
             logoPreview.style.display = 'block';
