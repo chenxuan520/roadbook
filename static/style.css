@@ -2813,3 +2813,24 @@ body.dark-mode .leaflet-tile {
     text-decoration: underline;
 }
 
+#version-display {
+    display: none;
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 1001;
+    right: 170px; /* Calculated: 90px (theme btn right) + 10px (gap) + ~70px (avg version width) */
+}
+
+#version-display.version-visible {
+    display: inline-block;
+    font-size: 0.7rem;
+    font-weight: 400;
+    padding: 0.1rem 0.5rem;
+    background-color: rgba(255,255,255,0.2);
+    color: white;
+    border-radius: 8px;
+    vertical-align: middle;
+}
+
+
