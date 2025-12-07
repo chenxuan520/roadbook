@@ -624,6 +624,14 @@ body.dark-mode .btn:not(.btn-primary):not(.btn-danger):not(.btn-secondary):not(#
     color: var(--text-primary);
 }
 
+.form-group label[style*="flex"] {
+    display: flex !important;
+    background: none !important;
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 0 0.5rem 0 !important;
+}
+
 .form-group select,
 .form-group textarea {
     width: 100%;
@@ -2629,5 +2637,134 @@ body.dark-mode .leaflet-tile {
         right: auto !important;
         top: 60px !important;
     }
+}
+
+/* 扩大按钮样式 */
+.expand-btn {
+    background: none;
+    border: none;
+    color: #667eea;
+    cursor: pointer;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+    min-height: auto;
+    min-width: auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    outline: none;
+    padding: 0;
+    margin: 0;
+}
+
+.expand-btn:hover {
+    color: #5a6fd8;
+    transform: scale(1.1);
+}
+
+.expand-btn:focus {
+    outline: none;
+}
+
+/* 扩大编辑弹窗 */
+.expand-modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 10000;
+    align-items: center;
+    justify-content: center;
+}
+
+.expand-modal-content {
+    background: var(--bg-secondary);
+    border-radius: 10px;
+    width: 90%;
+    max-width: 800px;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    position: relative;
+}
+
+.expand-modal-header {
+    padding: 1rem;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--bg-header);
+    color: white;
+    border-radius: 10px 10px 0 0;
+}
+
+.expand-modal-header h3 {
+    margin: 0;
+    font-size: 1.2rem;
+}
+
+.expand-modal-close {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 1.5rem;
+    cursor: pointer;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.expand-modal-body {
+    padding: 1rem;
+    flex: 1;
+    overflow-y: auto;
+}
+
+.expand-modal-body textarea {
+    width: 100%;
+    min-height: 300px;
+    resize: none;
+    padding: 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+    font-family: inherit;
+    font-size: 1rem;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+}
+
+.expand-modal-footer {
+    padding: 1rem;
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+}
+
+.expand-modal-footer button {
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.expand-modal-save {
+    background: var(--gradient-primary);
+    color: white;
+}
+
+.expand-modal-cancel {
+    background: #6c757d;
+    color: white;
 }
 

@@ -142,8 +142,11 @@
                             </div>
                         </div>
                         <div class="form-group">
-                            <label>标注内容:</label>
-                            <textarea id="markerLabelsInput" rows="3" placeholder="输入标注内容，多个标注用分号隔开"></textarea>
+                            <label style="display: flex; justify-content: space-between; align-items: center;">
+                                标注内容:
+                                <button type="button" id="expandMarkerLabelsBtn" class="expand-btn" title="扩大编辑">🔍</button>
+                            </label>
+                            <textarea id="markerLabelsInput" rows="6" placeholder="输入标注内容，多个标注用分号隔开"></textarea>
                         </div>
                         <div class="detail-actions">
                             <button id="saveMarkerBtn" class="btn btn-primary">保存</button>
@@ -208,8 +211,11 @@
                             </div>
                         </div>
                         <div class="form-group">
-                            <label>标注内容:</label>
-                            <textarea id="connectionLabelsInput" rows="3" placeholder="输入连接线标注内容"></textarea>
+                            <label style="display: flex; justify-content: space-between; align-items: center;">
+                                标注内容:
+                                <button type="button" id="expandConnectionLabelsBtn" class="expand-btn" title="扩大编辑">🔍</button>
+                            </label>
+                            <textarea id="connectionLabelsInput" rows="6" placeholder="输入连接线标注内容"></textarea>
                         </div>
                         <div class="form-group">
                             <label>导航链接:</label>
@@ -246,8 +252,11 @@
                             <div id="dateDisplay"></div>
                         </div>
                         <div class="form-group">
-                            <label>日期备注:</label>
-                            <textarea id="dateNotesInput" rows="5" placeholder="请输入日期备注信息"></textarea>
+                            <label style="display: flex; justify-content: space-between; align-items: center;">
+                                日期备注:
+                                <button type="button" id="expandDateNotesBtn" class="expand-btn" title="扩大编辑">🔍</button>
+                            </label>
+                            <textarea id="dateNotesInput" rows="6" placeholder="请输入日期备注信息"></textarea>
                         </div>
                         <div class="detail-actions">
                             <button id="saveDateNotesBtn" class="btn btn-primary">保存备注</button>
@@ -628,5 +637,18 @@
             }
         });
     </script>
+
+    <!-- 扩大编辑弹窗 -->
+    <div id="expandModal" class="expand-modal">
+        <div class="expand-modal-content">
+            <div class="expand-modal-header">
+                <h3 id="expandModalTitle">扩大编辑</h3>
+                <button class="expand-modal-close">&times;</button>
+            </div>
+            <div class="expand-modal-body">
+                <textarea id="expandModalTextarea" placeholder="在这里编辑您的内容..."></textarea>
+            </div>
+        </div>
+    </div>
 </body>
 </html>

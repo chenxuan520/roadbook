@@ -386,6 +386,7 @@ class RoadbookApp {
         // 首先进行正常的地图初始化（无论是否有分享ID）
         this.initMap();
         this.bindEvents();
+        this.bindExpandModalEvents();
 
         if (shareID) {
             // 如果有分享ID，先正常加载本地数据，然后处理分享数据
@@ -1410,6 +1411,28 @@ class RoadbookApp {
         if (themeToggleBtn) {
             themeToggleBtn.addEventListener('click', () => {
                 this.toggleTheme();
+            });
+        }
+
+        // 扩大按钮事件
+        const expandMarkerLabelsBtn = document.getElementById('expandMarkerLabelsBtn');
+        if (expandMarkerLabelsBtn) {
+            expandMarkerLabelsBtn.addEventListener('click', () => {
+                this.openExpandModal('marker', '标记点备注');
+            });
+        }
+
+        const expandConnectionLabelsBtn = document.getElementById('expandConnectionLabelsBtn');
+        if (expandConnectionLabelsBtn) {
+            expandConnectionLabelsBtn.addEventListener('click', () => {
+                this.openExpandModal('connection', '连接线备注');
+            });
+        }
+
+        const expandDateNotesBtn = document.getElementById('expandDateNotesBtn');
+        if (expandDateNotesBtn) {
+            expandDateNotesBtn.addEventListener('click', () => {
+                this.openExpandModal('date', '日期备注');
             });
         }
     }
@@ -5370,6 +5393,162 @@ class RoadbookApp {
             modal.style.display = 'none';
         });
         // 不再调用 closeDateDetail，因为关闭模态框不应该影响当前选中的标记点或连接
+    }
+
+    // 扩大编辑功能
+    openExpandModal(type, title) {
+        const modal = document.getElementById('expandModal');
+        const modalTitle = document.getElementById('expandModalTitle');
+        const modalTextarea = document.getElementById('expandModalTextarea');
+
+        if (!modal || !modalTitle || !modalTextarea) {
+            console.error('扩大编辑弹窗元素未找到');
+            return;
+        }
+
+        // 根据类型获取当前文本内容
+        let currentContent = '';
+        if (type === 'marker' && this.currentMarker) {
+            currentContent = this.currentMarker.labels.join('; ') || '';
+        } else if (type === 'connection' && this.currentConnection) {
+            currentContent = this.currentConnection.label || '';
+        } else if (type === 'date' && this.currentDate) {
+            currentContent = this.getDateNotes(this.currentDate) || '';
+        }
+
+        modalTitle.textContent = title;
+        modalTextarea.value = currentContent;
+
+        // 保存当前类型，用于处理输入时识别
+        this.expandModalType = type;
+
+        modal.style.display = 'flex';
+
+        // 移除已有的事件监听器（防止重复绑定）
+        if (this.expandModalInputHandler) {
+            modalTextarea.removeEventListener('input', this.expandModalInputHandler);
+        }
+        if (this.expandModalPasteHandler) {
+            modalTextarea.removeEventListener('paste', this.expandModalPasteHandler);
+        }
+
+        // 根据类型绑定相应的粘贴处理函数和输入处理函数
+        if (type === 'marker') {
+            this.expandModalPasteHandler = (e) => this.handleMarkerLabelsPaste(e);
+            this.expandModalInputHandler = () => this.syncExpandModalToMarkerLabels(modalTextarea.value);
+        } else if (type === 'connection') {
+            this.expandModalPasteHandler = (e) => this.handleConnectionLabelsPaste(e);
+            this.expandModalInputHandler = () => this.syncExpandModalToConnectionLabels(modalTextarea.value);
+        } else if (type === 'date') {
+            this.expandModalPasteHandler = (e) => this.handleDateNotesPaste(e);
+            this.expandModalInputHandler = () => this.syncExpandModalToDateNotes(modalTextarea.value);
+        }
+
+        // 添加粘贴和输入事件监听器
+        modalTextarea.addEventListener('paste', this.expandModalPasteHandler);
+        modalTextarea.addEventListener('input', this.expandModalInputHandler);
+
+        // 聚焦到textarea并设置光标到末尾
+        setTimeout(() => {
+            modalTextarea.focus();
+            modalTextarea.setSelectionRange(modalTextarea.value.length, modalTextarea.value.length);
+        }, 100);
+    }
+
+    // 实时同步扩大弹窗内容到标记点标签
+    syncExpandModalToMarkerLabels(content) {
+        if (this.currentMarker) {
+            this.currentMarker.labels = content.split(';').map(label => label.trim()).filter(label => label);
+
+            // 同步更新原textarea内容
+            const markerLabelsInput = document.getElementById('markerLabelsInput');
+            if (markerLabelsInput) {
+                markerLabelsInput.value = content;
+            }
+
+            // 保存到本地存储
+            //this.saveToLocalStorage();
+        }
+    }
+
+    // 实时同步扩大弹窗内容到连接线标签
+    syncExpandModalToConnectionLabels(content) {
+        if (this.currentConnection) {
+            this.currentConnection.label = content;
+
+            // 同步更新原textarea内容
+            const connectionLabelsInput = document.getElementById('connectionLabelsInput');
+            if (connectionLabelsInput) {
+                connectionLabelsInput.value = content;
+            }
+
+            // 保存到本地存储
+            //this.saveToLocalStorage();
+        }
+    }
+
+    // 实时同步扩大弹窗内容到日期备注
+    syncExpandModalToDateNotes(content) {
+        if (this.currentDate) {
+            if (!this.dateNotes) {
+                this.dateNotes = {};
+            }
+            this.dateNotes[this.currentDate] = content;
+
+            // 同步更新原textarea内容
+            const dateNotesInput = document.getElementById('dateNotesInput');
+            if (dateNotesInput) {
+                dateNotesInput.value = content;
+            }
+
+            // 保存到本地存储
+            //this.saveToLocalStorage();
+        }
+    }
+
+    // 绑定扩大弹窗相关事件
+    bindExpandModalEvents() {
+        const modal = document.getElementById('expandModal');
+        const modalClose = document.querySelector('.expand-modal-close');
+
+        if (!modal || !modalClose) {
+            console.error('扩大编辑弹窗元素未找到');
+            return;
+        }
+
+        // 点击关闭按钮
+        modalClose.addEventListener('click', () => {
+            this.closeExpandModal();
+        });
+
+        // 点击弹窗外部关闭
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                this.closeExpandModal();
+            }
+        });
+
+        // ESC键关闭
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && modal.style.display === 'flex') {
+                this.closeExpandModal();
+            }
+        });
+    }
+
+    // 关闭扩大编辑弹窗
+    closeExpandModal() {
+        const modal = document.getElementById('expandModal');
+        if (modal) {
+            modal.style.display = 'none';
+
+            // 移除事件监听器
+            const modalTextarea = document.getElementById('expandModalTextarea');
+            if (modalTextarea && this.expandModalInputHandler && this.expandModalPasteHandler) {
+                modalTextarea.removeEventListener('input', this.expandModalInputHandler);
+                modalTextarea.removeEventListener('paste', this.expandModalPasteHandler);
+            }
+        }
     }
 
 }
