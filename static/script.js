@@ -1156,10 +1156,14 @@ class RoadbookApp {
             });
         }
 
-        // 为markerLabelsInput添加粘贴事件监听器
+        // 为markerLabelsInput添加粘贴和输入事件监听器
         const markerLabelsInput = document.getElementById('markerLabelsInput');
         if (markerLabelsInput) {
             markerLabelsInput.addEventListener('paste', (e) => this.handleMarkerLabelsPaste(e));
+            markerLabelsInput.addEventListener('input', () => {
+                const targetContainer = document.getElementById('markerLabelsLinks');
+                this.updateLinkPreview(markerLabelsInput, targetContainer);
+            });
         }
 
 
@@ -1171,10 +1175,14 @@ class RoadbookApp {
             });
         }
 
-        // 为connectionLabelsInput添加粘贴事件监听器
+        // 为connectionLabelsInput添加粘贴和输入事件监听器
         const connectionLabelsInput = document.getElementById('connectionLabelsInput');
         if (connectionLabelsInput) {
             connectionLabelsInput.addEventListener('paste', (e) => this.handleConnectionLabelsPaste(e));
+            connectionLabelsInput.addEventListener('input', () => {
+                const targetContainer = document.getElementById('connectionLabelsLinks');
+                this.updateLinkPreview(connectionLabelsInput, targetContainer);
+            });
         }
 
 
@@ -2107,6 +2115,30 @@ class RoadbookApp {
         textarea.dispatchEvent(new Event('input', { bubbles: true }));
     }
 
+    // 更新备注区下方的链接预览
+    updateLinkPreview(sourceTextarea, targetContainer) {
+        const text = sourceTextarea.value;
+        targetContainer.innerHTML = ''; // 清空现有链接
+
+        if (!text) return;
+
+        const linkRegex = /\[([^\]]+?)\]\((https?:\/\/[^\s$.?#].[^\s]*)\)/g;
+        let match;
+
+        while ((match = linkRegex.exec(text)) !== null) {
+            const linkText = match[1];
+            const linkUrl = match[2];
+
+            const linkElement = document.createElement('a');
+            linkElement.href = linkUrl;
+            linkElement.textContent = linkText;
+            linkElement.target = '_blank';
+            linkElement.rel = 'noopener noreferrer';
+            
+            targetContainer.appendChild(linkElement);
+        }
+    }
+
     // 处理连接线标签输入框的粘贴事件，自动将链接转换为Markdown格式
     handleConnectionLabelsPaste(event) {
         event.preventDefault(); // 阻止默认的粘贴行为
@@ -2600,10 +2632,12 @@ class RoadbookApp {
         }
 
         // 显示标注内容
-        const labelsContent = connectionData.label || '';
         const connectionLabelsInput = document.getElementById('connectionLabelsInput');
         if (connectionLabelsInput) {
-            connectionLabelsInput.value = labelsContent;
+            connectionLabelsInput.value = connectionData.label || '';
+            // Also update the link preview when showing the detail
+            const targetContainer = document.getElementById('connectionLabelsLinks');
+            this.updateLinkPreview(connectionLabelsInput, targetContainer);
         }
 
         // 设置当前交通方式的激活状态
@@ -4996,6 +5030,9 @@ class RoadbookApp {
         if (markerLabelsInput) {
             markerLabelsInput.value = labelsContent || '';
             markerLabelsInput.style.display = 'block';
+            // Also update the link preview when showing the detail
+            const targetContainer = document.getElementById('markerLabelsLinks');
+            this.updateLinkPreview(markerLabelsInput, targetContainer);
         }
 
         // 显示当前图标
