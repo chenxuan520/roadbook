@@ -1153,6 +1153,13 @@ class RoadbookApp {
             });
         }
 
+        // 为markerLabelsInput添加粘贴事件监听器
+        const markerLabelsInput = document.getElementById('markerLabelsInput');
+        if (markerLabelsInput) {
+            markerLabelsInput.addEventListener('paste', (e) => this.handleMarkerLabelsPaste(e));
+        }
+
+
         // 保存连接线按钮事件
         const saveConnectionBtn = document.getElementById('saveConnectionBtn');
         if (saveConnectionBtn) {
@@ -1160,6 +1167,13 @@ class RoadbookApp {
                 this.saveConnectionDetail();
             });
         }
+
+        // 为connectionLabelsInput添加粘贴事件监听器
+        const connectionLabelsInput = document.getElementById('connectionLabelsInput');
+        if (connectionLabelsInput) {
+            connectionLabelsInput.addEventListener('paste', (e) => this.handleConnectionLabelsPaste(e));
+        }
+
 
         const deleteConnectionBtn = document.getElementById('deleteConnectionBtn');
         if (deleteConnectionBtn) {
@@ -1351,6 +1365,13 @@ class RoadbookApp {
                 this.hideDateNotesSticky();
             });
         }
+
+        // 为dateNotesInput添加粘贴事件监听器
+        const dateNotesInput = document.getElementById('dateNotesInput');
+        if (dateNotesInput) {
+            dateNotesInput.addEventListener('paste', (e) => this.handleDateNotesPaste(e));
+        }
+
 
         // 日期范围选择器应用按钮
         const applyDateRangeFilterBtn = document.getElementById('applyDateRangeFilter');
@@ -1985,6 +2006,112 @@ class RoadbookApp {
         return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
     }
 
+    // 将Markdown链接转换为HTML链接
+    convertMarkdownLinksToHtml(text) {
+        if (!text) return '';
+        // 匹配 [link text](url) 格式的Markdown链接
+        // 注意：这里只处理简单的链接，不处理图片或其他复杂的Markdown语法
+        const linkRegex = /\[([^\]]+?)\]\((https?:\/\/[^\s$.?#].[^\s]*)\)/g;
+        return text.replace(linkRegex, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+    }
+
+    // 处理日期备注输入框的粘贴事件，自动将链接转换为Markdown格式
+    handleDateNotesPaste(event) {
+        event.preventDefault(); // 阻止默认的粘贴行为
+
+        const clipboardData = event.clipboardData || window.clipboardData;
+        const pastedText = clipboardData.getData('text/plain');
+
+        // 更完善的URL匹配，支持多种URL模式，并确保匹配到完整的URL
+        const urlRegex = /(https?:\/\/[^\s/$.?#].[^\s]*)/; // 匹配URL的正则表达式
+        const match = pastedText.match(urlRegex);
+
+        let processedText = pastedText;
+
+        if (match) {
+            const url = match[0]; // 匹配到的第一个URL
+            processedText = `[相关链接](${url})`; // 始终使用 '相关链接' 作为链接文本
+        }
+
+        // 将处理后的文本插入到当前光标位置
+        const textarea = event.target;
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+
+        const newValue = textarea.value.substring(0, start) + processedText + textarea.value.substring(end);
+        textarea.value = newValue;
+
+        // 调整光标位置
+        textarea.selectionStart = textarea.selectionEnd = start + processedText.length;
+
+        // 触发input事件，确保Vue/React等框架或依赖input事件的逻辑能响应变化
+        textarea.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+
+    // 处理标记点标签输入框的粘贴事件，自动将链接转换为Markdown格式
+    handleMarkerLabelsPaste(event) {
+        event.preventDefault(); // 阻止默认的粘贴行为
+
+        const clipboardData = event.clipboardData || window.clipboardData;
+        const pastedText = clipboardData.getData('text/plain');
+
+        const urlRegex = /(https?:\/\/[^\s/$.?#].[^\s]*)/; // 匹配URL的正则表达式
+        const match = pastedText.match(urlRegex);
+
+        let processedText = pastedText;
+
+        if (match) {
+            const url = match[0]; // 匹配到的第一个URL
+            processedText = `[相关链接](${url})`; // 始终使用 '相关链接' 作为链接文本
+        }
+
+        // 将处理后的文本插入到当前光标位置
+        const textarea = event.target;
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+
+        const newValue = textarea.value.substring(0, start) + processedText + textarea.value.substring(end);
+        textarea.value = newValue;
+
+        // 调整光标位置
+        textarea.selectionStart = textarea.selectionEnd = start + processedText.length;
+
+        // 触发input事件，确保Vue/React等框架或依赖input事件的逻辑能响应变化
+        textarea.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+
+    // 处理连接线标签输入框的粘贴事件，自动将链接转换为Markdown格式
+    handleConnectionLabelsPaste(event) {
+        event.preventDefault(); // 阻止默认的粘贴行为
+
+        const clipboardData = event.clipboardData || window.clipboardData;
+        const pastedText = clipboardData.getData('text/plain');
+
+        const urlRegex = /(https?:\/\/[^\s/$.?#].[^\s]*)/; // 匹配URL的正则表达式
+        const match = pastedText.match(urlRegex);
+
+        let processedText = pastedText;
+
+        if (match) {
+            const url = match[0]; // 匹配到的第一个URL
+            processedText = `[相关链接](${url})`; // 始终使用 '相关链接' 作为链接文本
+        }
+
+        // 将处理后的文本插入到当前光标位置
+        const textarea = event.target;
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+
+        const newValue = textarea.value.substring(0, start) + processedText + textarea.value.substring(end);
+        textarea.value = newValue;
+
+        // 调整光标位置
+        textarea.selectionStart = textarea.selectionEnd = start + processedText.length;
+
+        // 触发input事件，确保Vue/React等框架或依赖input事件的逻辑能响应变化
+        textarea.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+
     getLocalDateTimeForInput(dateTimeString) {
         // 将日期时间字符串转换为datetime-local输入框需要的格式
         if (!dateTimeString) return '';
@@ -2137,10 +2264,10 @@ class RoadbookApp {
             tooltipContent += `<div>时间: ${this.formatTime(markerData.dateTime)}</div>`;
         }
 
-        if (markerData.labels && markerData.labels.length > 0) {
-            const labelsText = markerData.labels.join('; ');
-            tooltipContent += `<div>标注: ${labelsText}</div>`;
-        }
+                if (markerData.labels && markerData.labels.length > 0) {
+                    const labelsHtml = this.convertMarkdownLinksToHtml(markerData.labels.join('; '));
+                    tooltipContent += '<div>标注: ' + labelsHtml + '</div>';
+                }
         tooltipContent += `</div>`;
 
         if (!this.markerTooltip) {
@@ -2195,7 +2322,8 @@ class RoadbookApp {
             tooltipContent += `<div>时间: ${this.formatTime(connection.dateTime)}</div>`;
         }
         if (connection.label) {
-            tooltipContent += `<div>标注: ${connection.label}</div>`;
+            const labelsHtml = this.convertMarkdownLinksToHtml(connection.label);
+            tooltipContent += `<div>标注: ${labelsHtml}</div>`;
         }
         tooltipContent += `</div>`;
 
@@ -2984,8 +3112,15 @@ class RoadbookApp {
 
             // 获取日期备注
             const notes = this.getDateNotes(date);
-            contentElement.textContent = notes || '暂无备注';
-
+                                contentElement.innerHTML = this.convertMarkdownLinksToHtml(notes);
+            
+                                // 添加事件监听器，防止链接点击退出聚焦模式
+                                contentElement.addEventListener('click', (e) => {
+                                    // 检查点击的元素是否是链接 (<a> 标签)
+                                    if (e.target.tagName === 'A' && e.target.closest('#dateNotesContent')) {
+                                        e.stopPropagation(); // 停止事件传播
+                                    }
+                                });
             // 显示便签
             sticky.style.display = 'flex';
 

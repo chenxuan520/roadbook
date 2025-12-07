@@ -397,7 +397,7 @@ class RoadbookHtmlExporter {
                 }
 
                 if (markerData.labels && markerData.labels.length > 0) {
-                    content += '<p><strong>标注:</strong> ' + markerData.labels.join('; ') + '</p>';
+                    content += '<p><strong>标注:</strong> ' + convertMarkdownLinksToHtml(markerData.labels.join('; ')) + '</p>';
                 }
 
                 content += '<p><strong>坐标:</strong> ' + markerData.position[1].toFixed(6) + ', ' + markerData.position[0].toFixed(6) + '</p>';
@@ -434,7 +434,7 @@ class RoadbookHtmlExporter {
                 }
 
                 if (connData.label) {
-                    content += '<p><strong>标注:</strong> ' + connData.label + '</p>';
+                    content += '<p><strong>标注:</strong> ' + convertMarkdownLinksToHtml(connData.label) + '</p>';
                 }
 
                 // 添加导航链接
@@ -1030,6 +1030,13 @@ class RoadbookHtmlExporter {
                 }
             }
 
+            // 将Markdown链接转换为HTML链接
+            function convertMarkdownLinksToHtml(text) {
+                if (!text) return '';
+                const linkRegex = /\\[([^\\]]+?)\\]\\((https?:\\/\\/[^\\s$.?#].[^\\s]*)\\)/g;
+                return text.replace(linkRegex, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+            }
+
             // 显示日期备注便签（类似script.js中的实现）
             function showDateNotesSticky(date) {
                 const sticky = document.getElementById('dateNotesSticky');
@@ -1042,7 +1049,15 @@ class RoadbookHtmlExporter {
 
                     // 获取日期备注 - 使用roadbookData中的dateNotes
                     const notes = roadbookData.dateNotes && roadbookData.dateNotes[date] ? roadbookData.dateNotes[date] : '';
-                    contentElement.textContent = notes || '暂无备注';
+                    contentElement.innerHTML = convertMarkdownLinksToHtml(notes) || '暂无备注';
+
+                    // 添加事件监听器，防止链接点击退出聚焦模式
+                    contentElement.addEventListener('click', (e) => {
+                        // 检查点击的元素是否是链接 (<a> 标签)
+                        if (e.target.tagName === 'A' && e.target.closest('#dateNotesContent')) {
+                            e.stopPropagation(); // 停止事件传播
+                        }
+                    });
 
                     // 显示便签
                     sticky.style.display = 'flex';
@@ -1133,8 +1148,8 @@ class RoadbookHtmlExporter {
                 }
 
                 if (markerData.labels && markerData.labels.length > 0) {
-                    const labelsText = markerData.labels.join('; ');
-                    tooltipContent += '<div>标注: ' + labelsText + '</div>';
+                    const labelsHtml = convertMarkdownLinksToHtml(markerData.labels.join('; '));
+                    tooltipContent += '<div>标注: ' + labelsHtml + '</div>';
                 }
                 tooltipContent += '</div>';
 
@@ -1182,7 +1197,8 @@ class RoadbookHtmlExporter {
                     tooltipContent += '<div>时间: ' + formatTime(connection.dateTime) + '</div>';
                 }
                 if (connection.label) {
-                    tooltipContent += '<div>标注: ' + connection.label + '</div>';
+                    const labelsHtml = convertMarkdownLinksToHtml(connection.label);
+                    tooltipContent += '<div>标注: ' + labelsHtml + '</div>';
                 }
                 tooltipContent += '</div>';
 
