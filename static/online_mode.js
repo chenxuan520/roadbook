@@ -1075,6 +1075,7 @@ class OnlineModeManager {
                             position: m.position,
                             title: m.title,
                             labels: m.labels || [],
+                            logo: m.logo || null, // 添加logo属性
                             createdAt: m.createdAt,
                             dateTimes: m.dateTimes || [m.dateTime],
                             icon: m.icon
@@ -1090,6 +1091,7 @@ class OnlineModeManager {
                                 transportType: c.transportType,
                                 dateTime: c.dateTime,
                                 label: c.label || '',
+                                logo: c.logo || null, // 添加logo属性
                                 duration: c.duration || 0,
                                 startTitle: startMarker ? startMarker.title : c.startTitle,
                                 endTitle: endMarker ? endMarker.title : c.endTitle
@@ -1191,6 +1193,7 @@ class OnlineModeManager {
                     position: m.position,
                     title: m.title,
                     labels: m.labels || [],
+                    logo: m.logo || null, // 添加logo属性
                     createdAt: m.createdAt,
                     dateTimes: m.dateTimes || [m.dateTime],
                     icon: m.icon
@@ -1206,6 +1209,7 @@ class OnlineModeManager {
                         transportType: c.transportType,
                         dateTime: c.dateTime,
                         label: c.label || '',
+                        logo: c.logo || null, // 添加logo属性
                         duration: c.duration || 0,
                         startTitle: startMarker ? startMarker.title : c.startTitle,
                         endTitle: endMarker ? endMarker.title : c.endTitle
@@ -1291,6 +1295,7 @@ class OnlineModeManager {
                         position: m.position,
                         title: m.title,
                         labels: m.labels || [],
+                        logo: m.logo || null, // 添加logo属性
                         icon: m.icon,
                         createdAt: m.createdAt,
                         dateTimes: m.dateTimes || [],
@@ -1306,6 +1311,7 @@ class OnlineModeManager {
                         transportType: c.transportType,
                         dateTime: c.dateTime,
                         label: c.label || '',
+                        logo: c.logo || null, // 添加logo属性
                         duration: c.duration || 0,
                         startTitle: c.startTitle,
                         endTitle: c.endTitle
