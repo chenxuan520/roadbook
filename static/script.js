@@ -5105,8 +5105,20 @@ class RoadbookApp {
             this.updateLinkPreview(markerLabelsInput, targetContainer);
         }
 
-        // 显示当前图标
+        // 更新当前图标
         this.updateCurrentIconPreview(markerData.icon);
+
+        // 更新 Google Maps 酒店搜索链接
+        const hotelSearchSection = document.getElementById('hotelSearchSection');
+        const googleHotelsLink = document.getElementById('googleHotelsLink');
+        if (hotelSearchSection && googleHotelsLink && markerData.position && markerData.position.length === 2) {
+            const lat = markerData.position[0];
+            const lon = markerData.position[1];
+            googleHotelsLink.href = `https://www.google.com/maps/search/hotels/@${lat},${lon},15z`;
+            hotelSearchSection.style.display = 'block';
+        } else if (hotelSearchSection) {
+            hotelSearchSection.style.display = 'none';
+        }
 
         // 更新小红书链接
         this.updateXiaohongshuLink(markerData);
