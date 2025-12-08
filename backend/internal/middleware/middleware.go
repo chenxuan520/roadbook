@@ -13,23 +13,57 @@ import (
 	"golang.org/x/time/rate"
 )
 
-// 定义每个IP的限流器存储
+// 定义每个IP的限流器存储（惰性删除，避免内存增长）
+type ipLimiterEntry struct {
+	limiter	*rate.Limiter
+	lastSeen	time.Time
+}
+
 var (
-	ipRateLimiters = make(map[string]*rate.Limiter)
-	mu             sync.Mutex
+	ipRateLimiters	= make(map[string]*ipLimiterEntry)
+	mu			sync.Mutex
+	lastCleanup	time.Time
 )
 
-// GetIPRateLimiter 获取指定IP的限流器，如果不存在则创建一个
+// 每个IP限流器的存活时长（无访问则淘汰）
+const ipLimiterTTL = 1 * time.Minute
+// 惰性删除触发的最小间隔，避免每次请求都全量扫描
+const cleanupInterval = 1 * time.Minute
+// 当map尺寸超过阈值时强制执行一次惰性清理（防御极端情况）
+const maxLimiters = 10000
+
+// 惰性清理：仅在满足条件时扫描并删除过期项
+func lazyCleanupIfNeeded(now time.Time) {
+	if lastCleanup.IsZero() || now.Sub(lastCleanup) >= cleanupInterval || len(ipRateLimiters) > maxLimiters {
+		cutoff := now.Add(-ipLimiterTTL)
+		for ip, entry := range ipRateLimiters {
+			if entry.lastSeen.Before(cutoff) {
+				delete(ipRateLimiters, ip)
+			}
+		}
+		lastCleanup = now
+	}
+}
+
+// GetIPRateLimiter 获取指定IP的限流器，如果不存在则创建一个（含惰性删除）
 func GetIPRateLimiter(ip string) *rate.Limiter {
 	mu.Lock()
 	defer mu.Unlock()
-	limiter, exists := ipRateLimiters[ip]
+
+	now := time.Now()
+	lazyCleanupIfNeeded(now)
+
+	entry, exists := ipRateLimiters[ip]
 	if !exists {
 		// 每秒1次请求，突发量1
-		limiter = rate.NewLimiter(rate.Every(time.Second), 1)
-		ipRateLimiters[ip] = limiter
+		limiter := rate.NewLimiter(rate.Every(time.Second), 1)
+		entry = &ipLimiterEntry{limiter: limiter, lastSeen: now}
+		ipRateLimiters[ip] = entry
+	} else {
+		// 更新最后访问时间
+		entry.lastSeen = now
 	}
-	return limiter
+	return entry.limiter
 }
 
 // RateLimitMiddleware 是一个IP限流中间件

@@ -9,6 +9,13 @@ import (
 	"github.com/chenxuan520/roadmap/backend/internal/server"
 )
 
+// 版本信息（通过 -ldflags -X 在构建时注入）
+var (
+	Version   = "unknown"
+	Commit    = "unknown"
+	BuildTime = "unknown"
+)
+
 func main() {
 	cfg, err := config.Load()
 	if err != nil {
@@ -26,6 +33,7 @@ func main() {
 
 	portStr := fmt.Sprintf(":%d", cfg.Port)
 	fmt.Printf("Server running on %s\n", portStr)
+	fmt.Printf("Backend version=%s commit=%s built=%s\n", Version, Commit, BuildTime)
 	fmt.Printf("Try Baidu: http://localhost:%d/api/cnmap/search?q=清华大学\n", cfg.Port)
 	fmt.Printf("Try Tian:  http://localhost:%d/api/tianmap/search?q=清华大学\n", cfg.Port)
 	fmt.Printf("Try TrafficPos: http://localhost:%d/api/trafficpos?lat=39.9042&lon=116.4074\n", cfg.Port)

@@ -69,6 +69,29 @@ type LoginResponse struct {
 
 #### 响应体 (错误): `ErrorResponse` (例如：401 未授权, 429 请求过多)
 
+## 健康检查
+
+### 2. Ping（包含版本信息）
+
+返回服务健康状态与构建版本信息。
+
+* **端点:** `GET /api/ping`
+* **认证:** 无
+
+#### 响应体 (成功)
+
+```json
+{
+  "status": "pong",
+  "version": "v0.0.1",
+  "commit": "e0b5a87",
+  "buildTime": "2025-12-08T06:55:00Z"
+}
+```
+
+> 注：version/commit/buildTime 来自构建时注入的 -ldflags。
+
+
 ## 计划管理
 
 所有计划管理端点都需要在 `Authorization: Bearer <token>` 请求头中提供有效的JWT令牌。

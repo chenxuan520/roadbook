@@ -6,7 +6,19 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// Ping is a simple health check handler.
+// 版本信息（通过 -ldflags -X 在构建时注入）
+var (
+	Version   = "unknown"
+	Commit    = "unknown"
+	BuildTime = "unknown"
+)
+
+// Ping 健康检查，返回 JSON 并携带版本信息
 func Ping(c *gin.Context) {
-	c.String(http.StatusOK, "pong")
+	c.JSON(http.StatusOK, gin.H{
+		"status":    "pong",
+		"version":   Version,
+		"commit":    Commit,
+		"buildTime": BuildTime,
+	})
 }
