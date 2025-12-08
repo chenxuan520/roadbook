@@ -2739,6 +2739,9 @@ class RoadbookApp {
         // 生成导航链接
         this.updateNavigationLinks(connectionData);
 
+        // 更新小红书链接
+        this.updateXiaohongshuLink(connectionData);
+
         // 显示Logo链接
         const connectionLogoInput = document.getElementById('connectionLogoInput');
         if (connectionLogoInput) {
@@ -5105,6 +5108,9 @@ class RoadbookApp {
         // 显示当前图标
         this.updateCurrentIconPreview(markerData.icon);
 
+        // 更新小红书链接
+        this.updateXiaohongshuLink(markerData);
+
         // 显示Logo链接
         const markerLogoInput = document.getElementById('markerLogoInput');
         if (markerLogoInput) {
@@ -5834,6 +5840,26 @@ class RoadbookApp {
         }
     }
 
+    // 更新小红书链接
+    updateXiaohongshuLink(data) {
+        const isMarker = !!data.marker;
+        const linkId = isMarker ? 'xiaohongshuMarkerLink' : 'xiaohongshuConnectionLink';
+        const linkElement = document.getElementById(linkId);
+
+        if (linkElement) {
+            let query = '';
+            if (isMarker) {
+                query = `${data.title} 攻略`;
+            } else {
+                const startMarker = this.markers.find(m => m.id === data.startId);
+                const endMarker = this.markers.find(m => m.id === data.endId);
+                if (startMarker && endMarker) {
+                    query = `${startMarker.title}到${endMarker.title}`;
+                }
+            }
+            linkElement.href = `https://www.xiaohongshu.com/search_result/?keyword=${encodeURIComponent(query)}`;
+        }
+    }
 }
 
 // 初始化应用

@@ -149,10 +149,13 @@
                         <div class="form-group">
                             <label style="display: flex; justify-content: space-between; align-items: center;">
                                 标注内容:
-                                <button type="button" id="expandMarkerLabelsBtn" class="expand-btn" title="扩大编辑">🔍</button>
+                                <button type="button" id="expandMarkerLabelsBtn" class="expand-btn" title="扩大编辑">↔️</button>
                             </label>
                             <textarea id="markerLabelsInput" rows="6" placeholder="输入标注内容，多个标注用分号隔开"></textarea>
                             <div id="markerLabelsLinks" class="link-preview-container"></div>
+                        </div>
+                        <div class="xhs-link-container">
+                            <a id="xiaohongshuMarkerLink" href="#" target="_blank" class="xiaohongshu-link">🔍 去小红书搜一搜</a>
                         </div>
                         <div class="detail-actions">
                             <button id="saveMarkerBtn" class="btn btn-primary">保存</button>
@@ -219,7 +222,7 @@
                         <div class="form-group">
                             <label style="display: flex; justify-content: space-between; align-items: center;">
                                 标注内容:
-                                <button type="button" id="expandConnectionLabelsBtn" class="expand-btn" title="扩大编辑">🔍</button>
+                                <button type="button" id="expandConnectionLabelsBtn" class="expand-btn" title="扩大编辑">↔️</button>
                             </label>
                             <textarea id="connectionLabelsInput" rows="6" placeholder="输入连接线标注内容"></textarea>
                             <div id="connectionLabelsLinks" class="link-preview-container"></div>
@@ -241,8 +244,11 @@
                             <label>购票服务:</label>
                             <div class="ticket-booking-links">
                                 <a id="ctripTrainLink" href="#" target="_blank" class="nav-link-btn" style="display: none;">🚄 携程火车票</a>
-                                <button id="planeTicketBtn" class="nav-link-btn" style="display: none;">✈️ 飞机票 (敬请期待)</button>
+                                <button id="planeTicketBtn" class="nav-link-btn" style="display: none;">✈️  携程飞机票</button>
                             </div>
+                        </div>
+                        <div class="xhs-link-container">
+                            <a id="xiaohongshuConnectionLink" href="#" target="_blank" class="xiaohongshu-link">🔍 去小红书搜一搜</a>
                         </div>
                         <div class="detail-actions">
                             <button id="saveConnectionBtn" class="btn btn-primary">保存</button>
@@ -265,7 +271,7 @@
                         <div class="form-group">
                             <label style="display: flex; justify-content: space-between; align-items: center;">
                                 日期备注:
-                                <button type="button" id="expandDateNotesBtn" class="expand-btn" title="扩大编辑">🔍</button>
+                                <button type="button" id="expandDateNotesBtn" class="expand-btn" title="扩大编辑">↔️</button>
                             </label>
                             <textarea id="dateNotesInput" rows="6" placeholder="请输入日期备注信息"></textarea>
                         </div>
@@ -457,6 +463,28 @@
                 <p>RoadbookMaker是一个基于网页的地图标记和路线规划工具，允许用户在地图上添加标记点、连接路线，并导出分享您的行程规划。</p>
                 <p>项目地址: <a href="https://github.com/chenxuan520/roadbook" target="_blank" rel="noopener noreferrer">GitHub - chenxuan520/roadbook</a></p>
 
+                <h3>核心优势</h3>
+                <h4>🚀 零门槛使用</h4>
+                <ul>
+                    <li><strong>无需API Key</strong>: 完全免费，不需要任何地图服务商的API密钥</li>
+                    <li><strong>无需科学上网</strong>: 国内网络环境可直接访问，无需翻墙</li>
+                    <li><strong>无需注册登录</strong>: 打开即用，没有任何账户体系和登录步骤</li>
+                    <li><strong>完全离线可用</strong>: 数据本地存储，断网也能正常使用</li>
+                </ul>
+                <h4>📱 极致体验</h4>
+                <ul>
+                    <li><strong>手机端完美适配</strong>: 响应式设计，移动端操作流畅自然</li>
+                    <li><strong>一键系统集成</strong>: 集成携程购票、多种地图导航（百度、高德、腾讯、Google）</li>
+                    <li><strong>开源免费</strong>: 代码完全开源，可自由使用和修改</li>
+                </ul>
+                <h4>🏠 自托管优势</h4>
+                <ul>
+                    <li><strong>Docker一键部署</strong>: 支持Docker快速部署，操作简单</li>
+                    <li><strong>完全自托管</strong>: 数据完全掌握在自己手中，隐私安全有保障</li>
+                    <li><strong>在线模式强大</strong>: 自托管在线版功能完整，支持云端同步和分享</li>
+                    <li><strong>部署零依赖</strong>: 不需要复杂的环境配置，一条命令即可运行</li>
+                </ul>
+
                 <h3>基本功能</h3>
                 <ul>
                     <li><strong>添加标记点</strong> - 在地图上点击或使用快捷键 <kbd>A</kbd> 添加标记点</li>
@@ -623,7 +651,7 @@
                     <li><strong>时间规划</strong>：为标记点设置合理的时间，便于行程安排</li>
                     <li><strong>图标选择</strong>：使用emoji图标让标记点更直观</li>
                     <li><strong>颜色搭配</strong>：不同交通方式使用不同颜色，便于区分</li>
-                    <li><strong>定期保存</strong>：虽然自动保存，但重要修改后建议手动导出备份</li>
+                    <li><strong>定期保存</strong>：重要修改后建议手动导出备份</li>
                     <li><strong>分享协作</strong>：使用分享功能与他人协作编辑路书</li>
                 </ol>
             </div>

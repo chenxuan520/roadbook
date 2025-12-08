@@ -1866,6 +1866,34 @@ input[type="color"] {
     box-shadow: 0 2px 4px var(--shadow-light);
 }
 
+.xhs-link-container {
+    /* Override generic div styles from .detail-content */
+    background: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+
+    /* And apply its own styling */
+    margin-top: 1rem;
+    text-align: center;
+}
+
+.xiaohongshu-link {
+    display: inline-block;
+    padding: 8px 16px;
+    border-radius: 20px;
+    background-color: #ff2442;
+    color: white !important;
+    text-decoration: none !important;
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition: background-color 0.3s ease, transform 0.2s ease;
+}
+
+.xiaohongshu-link:hover {
+    background-color: #e6001a;
+    transform: translateY(-2px);
+}
+
 /* 购票服务样式 */
 .ticket-booking-links {
     display: flex;
