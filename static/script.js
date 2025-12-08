@@ -1264,10 +1264,6 @@ class RoadbookApp {
                         // 如果已经打开则不执行任何操作
                         if (picker.style.display === 'flex') return;
 
-                        // 设置默认日期为最近一个月
-                        const startDate = new Date();
-                        startDate.setMonth(startDate.getMonth() - 1);
-
                         const startDateInput = document.getElementById('startDate');
                         const endDateInput = document.getElementById('endDate');
 
@@ -1276,21 +1272,50 @@ class RoadbookApp {
                             startDateInput.value = this.lastDateRange.start;
                             endDateInput.value = this.lastDateRange.end;
                         } else {
-                            // 否则，设置默认日期为最近一个月
-                            const endDate = new Date();
-                            const startDate = new Date();
-                            startDate.setMonth(startDate.getMonth() - 1);
+                            // 默认逻辑：从所有点的最早日期到所有点的最晚日期；如果没有点则回退为最近一个月
+                            let earliest = null;
+                            let latest = null;
+                            const updateRange = (dt) => {
+                                if (!dt) return;
+                                const d = new Date(dt);
+                                if (isNaN(d.getTime())) return;
+                                if (!earliest || d < earliest) earliest = d;
+                                if (!latest || d > latest) latest = d;
+                            };
 
-                            if (startDateInput && typeof startDateInput.valueAsDate !== 'undefined') {
-                                startDateInput.valueAsDate = startDate;
-                            } else if(startDateInput) {
-                                startDateInput.value = startDate.toISOString().split('T')[0];
-                            }
+                            // 遍历标记点的时间
+                            this.markers.forEach(m => {
+                                if (Array.isArray(m.dateTimes) && m.dateTimes.length > 0) {
+                                    m.dateTimes.forEach(updateRange);
+                                } else {
+                                    updateRange(m.dateTime);
+                                }
+                            });
 
-                            if (endDateInput && typeof endDateInput.valueAsDate !== 'undefined') {
-                                endDateInput.valueAsDate = endDate;
-                            } else if (endDateInput) {
-                                endDateInput.value = endDate.toISOString().split('T')[0];
+                            // 遍历连接线的时间
+                            this.connections.forEach(c => updateRange(c.dateTime));
+
+                            if (earliest && latest) {
+                                const toDateStr = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                                if (startDateInput) startDateInput.value = toDateStr(earliest);
+                                if (endDateInput) endDateInput.value = toDateStr(latest);
+                            } else {
+                                // 没有任何点：回退为最近一个月
+                                const endDate = new Date();
+                                const startDate = new Date();
+                                startDate.setMonth(startDate.getMonth() - 1);
+
+                                if (startDateInput && typeof startDateInput.valueAsDate !== 'undefined') {
+                                    startDateInput.valueAsDate = startDate;
+                                } else if (startDateInput) {
+                                    startDateInput.value = startDate.toISOString().split('T')[0];
+                                }
+
+                                if (endDateInput && typeof endDateInput.valueAsDate !== 'undefined') {
+                                    endDateInput.valueAsDate = endDate;
+                                } else if (endDateInput) {
+                                    endDateInput.value = endDate.toISOString().split('T')[0];
+                                }
                             }
                         }
 
