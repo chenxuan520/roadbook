@@ -86,21 +86,21 @@ cd roadbook
    a. **生成配置文件**
       在项目根目录运行配置生成脚本：
       ```bash
-      ./generate_config.sh
+      ./script./scripts/generate_config.sh
       ```
       脚本会提示您输入端口、管理员账户密码、允许的跨域来源等信息。它会自动生成一个 `backend/configs/config.json` 文件。
 
    b. **编译后端服务**
-      在项目根目录运行构建脚本来编译后端服务：
+      在项目后端 `backend` 目录运行构建脚本来编译后端服务：
       ```bash
-      ./build.sh
+      ./scripts/build.sh
       ```
       这会在 `backend/` 目录下生成一个名为 `roadbook-api` 的可执行文件。
 
    c. **启动后端服务**
-      运行编译好的后端可执行文件：
+      在项目后端 `backend` 目录运行编译好的后端可执行文件：
       ```bash
-      ./backend/roadbook-api
+      ./roadbook-api
       ```
 
 3. **配置Nginx** (可选但推荐)
@@ -274,7 +274,7 @@ roadbook/
   - `/api/v1/share/plans/:id` - 分享路书
 
 ### 配置说明
-后端服务的核心配置位于 `backend/configs/config.json`。我们强烈建议您使用项目根目录下的 `./generate_config.sh` 脚本来交互式地生成此文件，以确保配置的正确性和安全性。
+后端服务的核心配置位于 `backend/configs/config.json`。我们强烈建议您使用项目根目录下的 `./scripts/generate_config.sh` 脚本来交互式地生成此文件，以确保配置的正确性和安全性。
 
 **`config.json` 关键配置项详解：**
 
@@ -290,9 +290,9 @@ roadbook/
 
 **如何生成 `config.json`：**
 
-在项目根目录执行 `generate_config.sh` 脚本，并根据提示输入信息即可。
+在项目根目录执行 `scripts/generate_config.sh` 脚本，并根据提示输入信息即可。
 ```bash
-./generate_config.sh
+./scripts/generate_config.sh
 ```
 
 ## 📡 后端API完整列表

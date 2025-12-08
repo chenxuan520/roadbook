@@ -1,7 +1,18 @@
 #!/bin/bash
 
+# --- Check if running from project root ---
+if [ ! -f "scripts/update_version.sh" ] || [ ! -d "backend" ] || [ ! -d "static" ]; then
+    echo "Error: This script must be run from the project root directory."
+    echo "Please 'cd' to the root of the 'roadbook' project and run again:"
+    echo "  ./scripts/update_version.sh"
+    exit 1
+fi
+
 INDEX_FILE="static/index.html"
 ORIGINAL_SPAN='<span id="version-display"></span>'
+
+# 检测操作系统类型，用于sed兼容性处理
+OS_TYPE=$(uname -s)
 
 # Function to display help message
 display_help() {
@@ -27,7 +38,13 @@ if [ "$1" == "reset" ]; then
     # This sed command finds the version span (regardless of its content or class)
     # and replaces it with the original, empty, class-less span.
     # Using '#' as a delimiter to avoid issues with '/' or '>' in HTML tags
-    sed -i -E 's#<span id="version-display"[^>]*>.*</span>#<span id="version-display"></span>#g' "$INDEX_FILE"
+    if [ "$OS_TYPE" = "Darwin" ]; then
+        # macOS需要特殊的sed语法 -i ''
+        sed -i '' -E 's#<span id="version-display"[^>]*>.*</span>#<span id="version-display"></span>#g' "$INDEX_FILE"
+    else
+        # Linux和其他系统
+        sed -i -E 's#<span id="version-display"[^>]*>.*</span>#<span id="version-display"></span>#g' "$INDEX_FILE"
+    fi
     echo "Version display has been reset in $INDEX_FILE"
     exit 0
 fi
@@ -52,7 +69,13 @@ fi
 # Use sed to update the version and add the visibility class.
 # This works by finding the empty version-display span and replacing its outer HTML
 # with the version string and the class attribute.
-sed -i -E 's#<span id="version-display"></span>#<span id="version-display" class="version-visible">'${VERSION_STRING}'</span>#g' "$INDEX_FILE"
+if [ "$OS_TYPE" = "Darwin" ]; then
+    # macOS需要特殊的sed语法 -i ''
+    sed -i '' -E 's#<span id="version-display"></span>#<span id="version-display" class="version-visible">'${VERSION_STRING}'</span>#g' "$INDEX_FILE"
+else
+    # Linux和其他系统
+    sed -i -E 's#<span id="version-display"></span>#<span id="version-display" class="version-visible">'${VERSION_STRING}'</span>#g' "$INDEX_FILE"
+fi
 
 echo "Successfully updated version in $INDEX_FILE to $VERSION_STRING"
 

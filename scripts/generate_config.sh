@@ -2,6 +2,14 @@
 
 # This script interactively generates a config.json file for the backend.
 
+# --- Check if running from project root ---
+if [ ! -f "scripts/generate_config.sh" ] || [ ! -d "backend" ] || [ ! -d "static" ]; then
+    echo "Error: This script must be run from the project root directory."
+    echo "Please 'cd' to the root of the 'roadbook' project and run again:"
+    echo "  ./scripts/generate_config.sh"
+    exit 1
+fi
+
 # --- Helper Functions ---
 function print_info() {
     echo "--- Roadbook Config Generator ---"
