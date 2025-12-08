@@ -21,7 +21,7 @@ class RoadbookHtmlExporter {
 
     prepareExportData() {
         return {
-            version: '2.0',
+            version: window.ROADBOOK_APP_VERSION || 'unknown',
             exportTime: new Date().toISOString(),
             currentLayer: this.app.currentLayer,
             currentSearchMethod: this.app.currentSearchMethod,

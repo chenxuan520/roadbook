@@ -16,6 +16,9 @@ jobs:
         id: get_version
         run: echo "TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
 
+      - name: Set version
+        run: ./scripts/update_version.sh
+
       - name: Zip static files
         run: zip -r static-${{ env.TAG }}.zip static/
 

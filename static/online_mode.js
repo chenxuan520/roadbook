@@ -1066,7 +1066,7 @@ class OnlineModeManager {
                 let currentContent = null;
                 if (this.currentPlanId === plan.id) {
                     currentContent = {
-                        version: '2.0',
+                        version: (window.ROADBOOK_APP_VERSION || 'unknown'),
                         exportTime: new Date().toISOString(),
                         currentLayer: this.app.currentLayer,
                         currentSearchMethod: this.app.currentSearchMethod,
@@ -1184,7 +1184,7 @@ class OnlineModeManager {
         try {
             // 获取当前app数据
             const currentData = {
-                version: '2.0',
+                version: (window.ROADBOOK_APP_VERSION || 'unknown'),
                 exportTime: new Date().toISOString(),
                 currentLayer: this.app.currentLayer,
                 currentSearchMethod: this.app.currentSearchMethod,

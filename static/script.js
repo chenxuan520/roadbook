@@ -9,6 +9,29 @@ const apiBaseUrl = (() => {
     }
 })();
 
+// 从页面 DOM 中获取前端展示的版本号（由 index.html + update_version.sh 写入）
+function getAppVersionFromDOM() {
+    try {
+        const el = document.getElementById('version-display');
+        if (!el) return 'unknown';
+
+        // 优先使用文本内容
+        const text = (el.textContent || '').trim();
+        if (text) return text;
+
+        // 其次尝试 data-version 等属性
+        const dataVersion = (el.getAttribute('data-version') || '').trim();
+        if (dataVersion) return dataVersion;
+
+        return 'unknown';
+    } catch (e) {
+        return 'unknown';
+    }
+}
+
+// 供其他脚本使用的全局版本常量
+window.ROADBOOK_APP_VERSION = getAppVersionFromDOM();
+
 class RoadbookApp {
     constructor() {
         this.map = null;
@@ -3664,7 +3687,7 @@ class RoadbookApp {
     // 保存到本地存储
     saveToLocalStorage() {
         const data = {
-            version: 'localStorage-v2.0',
+            version: window.ROADBOOK_APP_VERSION || 'unknown',
             saveTime: new Date().toISOString(),
             currentLayer: this.currentLayer, // 保存当前地图源
             currentSearchMethod: this.currentSearchMethod, // 保存当前搜索方式
@@ -4231,7 +4254,7 @@ class RoadbookApp {
 
     exportRoadbook() {
         const data = {
-            version: '2.0',
+            version: window.ROADBOOK_APP_VERSION || 'unknown',
             exportTime: new Date().toISOString(),
             currentLayer: this.currentLayer, // 导出当前地图源
             currentSearchMethod: this.currentSearchMethod, // 导出当前搜索方式
