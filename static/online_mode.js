@@ -743,8 +743,9 @@ class OnlineModeManager {
                         <input type="text" id="planLabels" class="form-control" placeholder="例如: 旅行, 欧洲, 自驾">
                     </div>
                     <div class="form-group">
-                        <label>
-                            <input type="checkbox" id="useLocalData"> 使用本地缓存内容作为项目源
+                        <label for="useLocalData" style="display: flex; align-items: center; font-weight: normal; cursor: pointer;">
+                            <input type="checkbox" id="useLocalData" style="width: auto; margin-right: 8px;">
+                            <span>使用本地缓存内容作为项目源</span>
                         </label>
                     </div>
                     <div style="margin-top: 20px; display: flex; gap: 10px;">
