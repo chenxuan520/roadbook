@@ -60,9 +60,13 @@ RoadbookMaker是一个功能强大的基于网页的地图标记和路线规划�
 
 ## 🚀 快速开始
 
+### 🌐 在线体验
+
+- [https://map.chenxuanweb.top](https://map.chenxuanweb.top)
+
 ### 🎬 视频介绍
 
-<iframe src="https://player.bilibili.com/player.html?isOutside=true&aid=115690749040661&bvid=BV1EDmHByEYh&cid=34624048670&p=1" scrolling="no" border="0" frameborder="no" framespacing="0" allowfullscreen="true"></iframe>
+- [Bilibili 视频](https://player.bilibili.com/player.html?isOutside=true&aid=115690749040661&bvid=BV1EDmHByEYh&cid=34624048670&p=1)
 
 ### 在线使用
 1. 访问项目网页
