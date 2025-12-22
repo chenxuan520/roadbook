@@ -64,6 +64,11 @@ class RoadbookApp {
         this.lastDateRange = null; // 上次使用的日期范围
         this.isDarkMode = false; // 主题模式状态
 
+        this.isDraggingLine = false; // 是否正在拖拽连接线
+        this.dragStartMarker = null; // 拖拽连接线的起始标记点
+        this.dragPreviewLine = null; // 拖拽时的预览线
+        this.dragPreviewArrow = null; // 拖拽时的预览箭头
+
         this.init();
     }
 
@@ -206,11 +211,6 @@ class RoadbookApp {
         // 添加事件监听
         marker.on('click', () => {
             this.showMarkerDetail(markerData);
-        });
-
-        marker.on('contextmenu', (e) => {
-            e.preventDefault();
-            this.showMarkerContextMenu(markerData);
         });
 
         marker.on('mouseover', (e) => {
@@ -909,12 +909,94 @@ class RoadbookApp {
         // 在地图容器DOM元素上添加右键事件监听器以阻止默认菜单
         const mapContainer = this.map.getContainer();
         mapContainer.addEventListener('contextmenu', (e) => {
-            e.preventDefault(); // 阻止浏览器默认右键菜单
+            // 添加安全校验，防止事件对象不规范导致报错
+            if (e && typeof e.preventDefault === 'function') {
+                e.preventDefault(); // 阻止浏览器默认右键菜单
+            }
         });
-
     }
 
     bindEvents() {
+        // 全新的拖拽连接线逻辑，使用原生DOM事件以避免冲突
+        const mapContainer = this.map.getContainer();
+
+        mapContainer.addEventListener('mousedown', (e) => {
+            if (this.currentMode !== 'view' || e.button !== 2) {
+                return;
+            }
+
+            const latlng = this.map.mouseEventToLatLng(e);
+            const startMarker = this.getMarkerAt(latlng);
+
+            if (startMarker) {
+                e.preventDefault();
+                e.stopPropagation();
+
+                this.isDraggingLine = true;
+                this.dragStartMarker = startMarker;
+                this.map.dragging.disable();
+
+                const previewColorType = 'car';
+                const previewLatLng = [latlng.lat, latlng.lng];
+
+                this.dragPreviewLine = L.polyline([startMarker.position, previewLatLng], {
+                    color: this.getTransportColor(previewColorType),
+                    weight: 3,
+                    dashArray: '5, 10'
+                }).addTo(this.map);
+
+                this.dragPreviewArrow = this.createArrowHead(startMarker.position, previewLatLng, previewColorType);
+                this.dragPreviewArrow.addTo(this.map);
+            }
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!this.isDraggingLine) {
+                return;
+            }
+
+            const latlng = this.map.mouseEventToLatLng(e);
+            const previewLatLng = [latlng.lat, latlng.lng];
+
+            if (this.dragPreviewLine) {
+                this.dragPreviewLine.setLatLngs([this.dragStartMarker.position, previewLatLng]);
+            }
+
+            if (this.dragPreviewArrow) {
+                this.dragPreviewArrow.remove();
+                const previewColorType = 'car';
+                this.dragPreviewArrow = this.createArrowHead(this.dragStartMarker.position, previewLatLng, previewColorType);
+                this.dragPreviewArrow.addTo(this.map);
+            }
+        });
+
+        document.addEventListener('mouseup', (e) => {
+            if (!this.isDraggingLine) {
+                return;
+            }
+
+            if (this.dragPreviewLine) {
+                this.dragPreviewLine.remove();
+                this.dragPreviewLine = null;
+            }
+            if (this.dragPreviewArrow) {
+                this.dragPreviewArrow.remove();
+                this.dragPreviewArrow = null;
+            }
+
+            const latlng = this.map.mouseEventToLatLng(e);
+            const endMarker = this.getMarkerAt(latlng);
+
+            if (endMarker && endMarker.id !== this.dragStartMarker.id) {
+                this.createConnection(this.dragStartMarker, endMarker, 'car');
+            }
+
+            this.isDraggingLine = false;
+            this.dragStartMarker = null;
+            this.map.dragging.enable();
+        });
+
+
         // 工具栏按钮事件
         const addMarkerBtn = document.getElementById('addMarkerBtn');
         if (addMarkerBtn) {
@@ -1376,8 +1458,8 @@ class RoadbookApp {
                 e.preventDefault();
                 this.showHelpModal(); // 显示帮助弹窗
             }
-            // 检查是否按下D键删除选中的标记点或连接线
-            else if (!e.ctrlKey && !e.metaKey && e.key.toLowerCase() === 'd' &&
+            // 检查是否按下D键、Backspace键或Delete键删除选中的标记点或连接线
+            else if (!e.ctrlKey && !e.metaKey && (e.key.toLowerCase() === 'd' || e.key === 'Backspace' || e.key === 'Delete') &&
                      !['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
                 e.preventDefault();
                 this.deleteCurrentElement(); // 删除当前选中的元素
@@ -1732,12 +1814,6 @@ class RoadbookApp {
             this.showMarkerDetail(markerData);
         });
 
-        // 添加右键菜单事件
-        marker.on('contextmenu', (e) => {
-            e.preventDefault(); // 防止默认右键菜单
-            this.showMarkerContextMenu(markerData);
-        });
-
         // 添加悬浮事件显示标注信息
         marker.on('mouseover', (e) => {
             if (e.target.getElement()) {
@@ -1924,53 +2000,26 @@ class RoadbookApp {
         document.getElementById('connectModal').style.display = 'block';
     }
 
-    connectMarkers() {
-        const startSelect = document.getElementById('startMarker');
-        const endSelect = document.getElementById('endMarker');
-        const transportSelect = document.getElementById('transportType');
-
-        if (!startSelect || !endSelect || !transportSelect) {
-            console.error('连接模态框元素不存在');
-            return;
-        }
-
-        const startIndex = startSelect.selectedIndex;
-        const endIndex = endSelect.selectedIndex;
-        const transportType = transportSelect.value || 'car'; // 默认汽车
-
-        if (startIndex === -1 || endIndex === -1) {
-            this.showSwalAlert('提示', '请选择有效的标记点！', 'warning');
-            return;
-        }
-
-        if (startIndex === endIndex) {
-            this.showSwalAlert('提示', '起始点和目标点不能相同！', 'warning');
-            return;
-        }
-
-        const startMarker = this.markers[startIndex];
-        const endMarker = this.markers[endIndex];
-
+    createConnection(startMarker, endMarker, transportType) {
         if (!startMarker || !endMarker) {
-            console.error('标记点不存在:', startIndex, endIndex);
-            this.showSwalAlert('错误', '标记点数据错误！', 'error');
+            console.error('创建连接失败：起始点或终点无效。');
             return;
         }
 
         console.log('创建连接线:', startMarker.position, '->', endMarker.position);
 
-        // 创建连接线 - 使用更明显的样式
+        // 创建连接线
         const polyline = L.polyline([
             [startMarker.position[0], startMarker.position[1]],
             [endMarker.position[0], endMarker.position[1]]
         ], {
             color: this.getTransportColor(transportType),
-            weight: 6,  // 稍微减小线宽
-            opacity: 1.0,  // 完全不透明
+            weight: 6,
+            opacity: 1.0,
             smoothFactor: 1.0
         }).addTo(this.map);
 
-        // 创建箭头 - 使用三角形标记
+        // 创建箭头
         const arrowHead = this.createArrowHead(startMarker.position, endMarker.position, transportType);
         arrowHead.addTo(this.map);
 
@@ -1984,28 +2033,20 @@ class RoadbookApp {
             fillOpacity: 1
         }).addTo(this.map);
 
-        // 计算中点位置 - 添加错误检查
-        if (!startMarker.position || !endMarker.position) {
-            console.error('标记点位置数据不完整:', startMarker, endMarker);
-            this.showSwalAlert('错误', '标记点位置数据错误，请重新选择！', 'error');
-            return;
-        }
-
+        // 计算中点位置并添加交通图标
         const startLat = parseFloat(startMarker.position[0]);
         const startLng = parseFloat(startMarker.position[1]);
         const endLat = parseFloat(endMarker.position[0]);
         const endLng = parseFloat(endMarker.position[1]);
 
         if (isNaN(startLat) || isNaN(startLng) || isNaN(endLat) || isNaN(endLng)) {
-            console.error('坐标数据无效:', startMarker.position, endMarker.position);
+            console.error('连接线坐标无效:', startMarker.position, endMarker.position);
             this.showSwalAlert('错误', '坐标数据错误，请重新选择标记点！', 'error');
             return;
         }
 
         const midLat = (startLat + endLat) / 2;
         const midLng = (startLng + endLng) / 2;
-
-        // 创建交通方式图标
         const transportIcon = this.getTransportIcon(transportType);
         const iconMarker = L.marker([midLat, midLng], {
             icon: L.divIcon({
@@ -2019,48 +2060,41 @@ class RoadbookApp {
         // 使用起始点的时间作为连接线的默认时间
         let connectionDateTime = this.getCurrentLocalDateTime();
         if (startMarker.dateTimes && startMarker.dateTimes.length > 0) {
-            connectionDateTime = startMarker.dateTimes[0]; // 使用起始点的第一个时间
+            connectionDateTime = startMarker.dateTimes[0];
         } else if (startMarker.dateTime) {
             connectionDateTime = startMarker.dateTime;
-        } else {
-            // 如果起始点也没有时间，则使用当前时间
-            connectionDateTime = this.getCurrentLocalDateTime();
         }
 
         const connection = {
             id: Date.now(),
-            startId: startMarker.id, // 使用ID引用开始标记点
-            endId: endMarker.id,     // 使用ID引用结束标记点
+            startId: startMarker.id,
+            endId: endMarker.id,
             transportType: transportType,
             polyline: polyline,
             endCircle: endCircle,
             iconMarker: iconMarker,
-            arrowHead: arrowHead, // 添加箭头
+            arrowHead: arrowHead,
             dateTime: connectionDateTime,
             label: '',
-            logo: null, // 添加logo属性，默认为空
-            duration: 0, // 新增：连接耗时（分钟）
-            startTitle: startMarker.title, // 保存创建时的标题，用于显示
-            endTitle: endMarker.title      // 保存创建时的标题，用于显示
+            logo: null,
+            duration: 0,
+            startTitle: startMarker.title,
+            endTitle: endMarker.title
         };
 
-        // 添加连接线事件 - 使用箭头函数确保this上下文正确
         const self = this;
         polyline.on('click', function() {
             self.showConnectionDetail(connection);
         });
-
         polyline.on('mouseover', function(e) {
             self.showConnectionTooltip(connection, e.latlng, e);
         });
-
         polyline.on('mouseout', function() {
             self.hideConnectionTooltip();
         });
 
         this.connections.push(connection);
 
-        // 记录添加连接操作到历史栈
         this.addHistory('addConnection', {
             id: connection.id,
             startId: connection.startId,
@@ -2073,16 +2107,38 @@ class RoadbookApp {
             endTitle: connection.endTitle
         });
 
-        this.closeModals();
-
-        // 保存到本地存储
         this.saveToLocalStorage();
-
-        // 自动显示新创建连接线的详情面板
         this.showConnectionDetail(connection);
-
         console.log('连接线创建成功，连接数:', this.connections.length);
     }
+
+    connectMarkers() {
+        const startSelect = document.getElementById('startMarker');
+        const endSelect = document.getElementById('endMarker');
+        const transportSelect = document.getElementById('transportType');
+
+        if (!startSelect || !endSelect || !transportSelect) {
+            console.error('连接模态框元素不存在');
+            return;
+        }
+
+        const startIndex = startSelect.value;
+        const endIndex = endSelect.value;
+        const transportType = transportSelect.value || 'car';
+
+        if (startIndex === endIndex) {
+            this.showSwalAlert('提示', '起始点和目标点不能相同！', 'warning');
+            return;
+        }
+
+        const startMarker = this.markers[startIndex];
+        const endMarker = this.markers[endIndex];
+
+        this.createConnection(startMarker, endMarker, transportType);
+
+        this.closeModals();
+    }
+
 
     getTransportColor(type) {
         const colors = {
@@ -2123,6 +2179,20 @@ class RoadbookApp {
         const seconds = String(now.getSeconds()).padStart(2, '0');
 
         return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+    }
+
+    // 通过屏幕像素距离检测鼠标是否在某个标记点上
+    getMarkerAt(latlng) {
+        const clickPoint = this.map.latLngToContainerPoint(latlng);
+        const tolerance = 20; // 20像素的容差范围
+
+        for (const marker of this.markers) {
+            const markerPoint = this.map.latLngToContainerPoint(marker.position);
+            if (clickPoint.distanceTo(markerPoint) <= tolerance) {
+                return marker;
+            }
+        }
+        return null;
     }
 
     // 将Markdown链接转换为HTML链接
@@ -4513,11 +4583,6 @@ class RoadbookApp {
             // 添加事件监听
             marker.on('click', () => {
                 this.showMarkerDetail(markerObj);
-            });
-
-            marker.on('contextmenu', (e) => {
-                e.preventDefault(); // 防止默认右键菜单
-                this.showMarkerContextMenu(markerObj);
             });
 
             marker.on('mouseover', (e) => {
