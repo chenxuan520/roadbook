@@ -2861,4 +2861,42 @@ body.dark-mode .leaflet-tile {
     vertical-align: middle;
 }
 
+/* 密码输入框 “小眼睛” 样式 */
+.password-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.password-wrapper .login-input {
+    /* Make space for the icon */
+    padding-right: 40px !important;
+}
+
+.toggle-password {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    cursor: pointer;
+    user-select: none; /* Prevent text selection */
+    background: transparent;
+    border: none;
+    padding: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-secondary);
+}
+
+.toggle-password:hover {
+    color: var(--text-primary);
+}
+
+.toggle-password svg {
+    width: 18px;
+    height: 18px;
+    fill: currentColor;
+}
+
 
