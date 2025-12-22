@@ -935,6 +935,8 @@ class RoadbookApp {
         const exportDropdownContent = document.getElementById('exportDropdownContent');
         const exportBtn = document.getElementById('exportBtn');
         const exportHtmlBtn = document.getElementById('exportHtmlBtn');
+        const exportTxtBtn = document.getElementById('exportTxtBtn');
+
 
         // 下拉按钮点击事件 - 显示/隐藏下拉菜单
         if (exportDropdownBtn) {
@@ -967,6 +969,26 @@ class RoadbookApp {
                 if (exportDropdownContent) {
                     exportDropdownContent.classList.remove('show');
                 }
+            });
+        }
+
+        // 点击导出TXT按钮
+        if (exportTxtBtn) {
+            exportTxtBtn.addEventListener('click', () => {
+                this.showSwalConfirm('确认导出TXT', '导出的 TXT 文件仅用于大模型分析，无法重新导入。是否确认导出？', '确认', '取消')
+                    .then(result => {
+                        if (result.isConfirmed) {
+                            if (window.htmlExporter) {
+                                window.htmlExporter.exportToTxt();
+                            } else {
+                                console.error('HTML Exporter not found');
+                            }
+                        }
+                        // 隐藏下拉菜单
+                        if (exportDropdownContent) {
+                            exportDropdownContent.classList.remove('show');
+                        }
+                    });
             });
         }
 

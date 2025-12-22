@@ -19,6 +19,108 @@ class RoadbookHtmlExporter {
         URL.revokeObjectURL(url);
     }
 
+    exportToTxt() {
+        const data = this.prepareExportData();
+        const txtContent = this.generateTxtContent(data);
+
+        const blob = new Blob([txtContent], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `roadbook_${new Date().toISOString().slice(0, 10)}.txt`;
+        a.click();
+
+        URL.revokeObjectURL(url);
+    }
+
+    generateTxtContent(data) {
+        let content = "行程安排\n\n";
+        const markersById = new Map(data.markers.map(m => [m.id, m]));
+
+        // Collect all events (markers and connections)
+        const events = [];
+        data.markers.forEach(marker => {
+            if (marker.dateTimes && marker.dateTimes.length > 0) {
+                marker.dateTimes.forEach(dtString => {
+                    if (dtString) { // Ensure the string is not null or empty
+                        const d = new Date(dtString);
+                        if (!isNaN(d.getTime())) { // Check if the date is valid
+                            events.push({ type: 'marker', data: marker, time: d });
+                        }
+                    }
+                });
+            }
+        });
+        data.connections.forEach(connection => {
+            if (connection.dateTime) { // Ensure the string is not null or empty
+                const d = new Date(connection.dateTime);
+                if (!isNaN(d.getTime())) { // Check if the date is valid
+                    events.push({ type: 'connection', data: connection, time: d });
+                }
+            }
+        });
+
+        // Sort events by time
+        events.sort((a, b) => a.time - b.time);
+
+        if (events.length === 0) {
+            return "没有有效的行程数据可供导出。";
+        }
+
+        // Group events by day
+        const eventsByDay = {};
+        events.forEach(event => {
+            const day = event.time.toISOString().split('T')[0];
+            if (!eventsByDay[day]) {
+                eventsByDay[day] = [];
+            }
+            eventsByDay[day].push(event);
+        });
+
+        // Generate content for each day
+        for (const day in eventsByDay) {
+            content += `日期: ${day}\n`;
+            const dayEvents = eventsByDay[day];
+            let lastMarker = null;
+
+            dayEvents.forEach(event => {
+                if (event.type === 'marker') {
+                    if (lastMarker !== event.data.title) {
+                        content += `- 地点: ${event.data.title} (坐标: ${event.data.position[0]}, ${event.data.position[1]})\n`;
+                        lastMarker = event.data.title;
+                    }
+                } else if (event.type === 'connection') {
+                    const startMarker = markersById.get(event.data.startId);
+                    const endMarker = markersById.get(event.data.endId);
+                    if (startMarker && endMarker) {
+                        content += `  交通: 从 ${startMarker.title} 到 ${endMarker.title}，乘坐 ${this.getTransportTypeName(event.data.transportType)}\n`;
+                    }
+                }
+            });
+            content += "\n";
+        }
+
+        return content;
+    }
+
+    getTransportTypeName(type) {
+        const names = {
+            car: '汽车',
+            train: '火车',
+            subway: '地铁',
+            plane: '飞机',
+            walk: '步行',
+            bus: '公交',
+            cruise: '游轮'
+        };
+        return names[type] || '其他';
+    }
+
+
+
+
+
     prepareExportData() {
         return {
             version: window.ROADBOOK_APP_VERSION || 'unknown',
