@@ -5263,6 +5263,67 @@ class RoadbookApp {
             this.updateLinkPreview(markerLabelsInput, targetContainer);
         }
 
+        // 插入“相关的线路”列表 ---
+        // 1. 查找或创建容器
+        let formGroupContainer = document.getElementById('relatedConnectionsFormGroup');
+        if (!formGroupContainer) {
+            formGroupContainer = document.createElement('div');
+            formGroupContainer.id = 'relatedConnectionsFormGroup';
+            formGroupContainer.className = 'form-group';
+
+            const connectionsContainer = document.createElement('div');
+            connectionsContainer.id = 'relatedConnectionsContainer';
+            connectionsContainer.className = 'related-connections-container';
+            formGroupContainer.appendChild(connectionsContainer);
+
+            // 插入到“标注内容”输入框的父节点之后
+            const labelsInputContainer = document.getElementById('markerLabelsInput').parentNode;
+            if (labelsInputContainer) {
+                labelsInputContainer.parentNode.insertBefore(formGroupContainer, labelsInputContainer.nextSibling);
+            }
+        }
+
+        // 2. 清空旧内容并生成新列表
+        const connectionsContainer = document.getElementById('relatedConnectionsContainer');
+        connectionsContainer.innerHTML = '';
+
+        const relatedConnections = this.connections.filter(
+            conn => conn.startId === markerData.id || conn.endId === markerData.id
+        );
+
+        if (relatedConnections.length > 0) {
+            formGroupContainer.style.display = 'block';
+            const title = document.createElement('h4');
+            title.className = 'related-connections-title';
+            title.textContent = '相关的线路';
+            connectionsContainer.appendChild(title);
+
+            relatedConnections.forEach(conn => {
+                const item = document.createElement('div');
+                item.className = 'related-connection-item';
+
+                const isOutgoing = conn.startId === markerData.id;
+                const otherMarkerId = isOutgoing ? conn.endId : conn.startId;
+                const otherMarker = this.markers.find(m => m.id === otherMarkerId);
+                const otherMarkerName = otherMarker ? otherMarker.title : '未知地点';
+
+                item.innerHTML = `
+                    <span class="connection-arrow">${isOutgoing ? '➡️' : '⬅️'}</span>
+                    <span class="connection-text">${isOutgoing ? '前往' : '来自'}: <strong>${otherMarkerName}</strong></span>
+                    <span class="connection-transport-icon">${this.getTransportIcon(conn.transportType)}</span>
+                `;
+
+                item.addEventListener('click', () => {
+                    this.showConnectionDetail(conn);
+                });
+
+                connectionsContainer.appendChild(item);
+            });
+        } else {
+            formGroupContainer.style.display = 'none';
+        }
+        // --- “相关的线路”列表逻辑结束 ---
+
         // 更新当前图标
         this.updateCurrentIconPreview(markerData.icon);
 

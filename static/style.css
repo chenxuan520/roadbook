@@ -2815,6 +2815,57 @@ body.dark-mode .leaflet-tile {
     color: white;
 }
 
+/* 新增：相关连接线列表的样式 */
+.related-connections-container {
+    padding-top: 1rem;
+    border-top: 1px solid var(--border-light);
+}
+
+.related-connections-title {
+    margin-bottom: 0.8rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.related-connection-item {
+    display: flex;
+    align-items: center;
+    padding: 0.8rem;
+    margin-bottom: 0.5rem;
+    background-color: var(--bg-primary);
+    border: 1px solid var(--border-light);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+}
+
+.related-connection-item:hover {
+    background-color: var(--bg-secondary);
+    border-color: var(--accent-primary);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px var(--shadow-light);
+}
+
+.connection-arrow {
+    font-size: 1.2rem;
+    margin-right: 0.5rem;
+}
+
+.connection-text {
+    flex-grow: 1;
+    font-size: 0.9rem;
+}
+
+.connection-text strong {
+    color: var(--text-primary);
+}
+
+.connection-transport-icon {
+    font-size: 1.2rem;
+    margin-left: 0.5rem;
+}
+
 /* Logo预览样式 */
 .logo-preview {
     position: absolute;
