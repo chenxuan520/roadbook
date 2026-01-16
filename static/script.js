@@ -2838,6 +2838,50 @@ class RoadbookApp {
         const connectionLogoInput = document.getElementById('connectionLogoInput');
         if (connectionLogoInput) {
             connectionLogoInput.value = connectionData.logo || '';
+
+            // --- Logo 预览功能 (优化版) ---
+            let previewContainer = document.getElementById('connectionLogoPreviewContainer');
+            if (!previewContainer) {
+                previewContainer = document.createElement('div');
+                previewContainer.id = 'connectionLogoPreviewContainer';
+                previewContainer.className = 'detail-logo-preview-container';
+                connectionLogoInput.parentNode.insertBefore(previewContainer, connectionLogoInput.nextSibling);
+            }
+
+            const updatePreview = (url) => {
+                const trimmedUrl = url.trim();
+                if (trimmedUrl && (trimmedUrl.startsWith('http://') || trimmedUrl.startsWith('https://'))) {
+                    // 预加载图片
+                    const tempImg = new Image();
+                    tempImg.onload = () => {
+                        // 加载成功后才显示
+                        previewContainer.innerHTML = `<img src="${trimmedUrl}" class="detail-logo-preview-img" alt="Logo Preview">`;
+                        previewContainer.style.display = 'block';
+                    };
+                    tempImg.onerror = () => {
+                        // 加载失败则隐藏
+                        previewContainer.style.display = 'none';
+                    };
+                    tempImg.src = trimmedUrl;
+                } else {
+                    // URL无效或为空则隐藏
+                    previewContainer.style.display = 'none';
+                }
+            };
+
+            // 绑定 change 和 paste 事件
+            const handleInputChange = () => {
+                updatePreview(connectionLogoInput.value);
+            };
+            connectionLogoInput.onchange = handleInputChange;
+            connectionLogoInput.onpaste = () => {
+                // onpaste 后立即触发更新
+                setTimeout(handleInputChange, 0);
+            };
+
+            // 初始化预览
+            updatePreview(connectionData.logo || '');
+            // --- 预览功能结束 ---
         }
 
         // 隐藏标记点详情面板，显示连接线详情面板
@@ -5214,6 +5258,50 @@ class RoadbookApp {
         const markerLogoInput = document.getElementById('markerLogoInput');
         if (markerLogoInput) {
             markerLogoInput.value = markerData.logo || '';
+
+            // --- Logo 预览功能 (优化版) ---
+            let previewContainer = document.getElementById('markerLogoPreviewContainer');
+            if (!previewContainer) {
+                previewContainer = document.createElement('div');
+                previewContainer.id = 'markerLogoPreviewContainer';
+                previewContainer.className = 'detail-logo-preview-container';
+                markerLogoInput.parentNode.insertBefore(previewContainer, markerLogoInput.nextSibling);
+            }
+
+            const updatePreview = (url) => {
+                const trimmedUrl = url.trim();
+                if (trimmedUrl && (trimmedUrl.startsWith('http://') || trimmedUrl.startsWith('https://'))) {
+                    // 预加载图片
+                    const tempImg = new Image();
+                    tempImg.onload = () => {
+                        // 加载成功后才显示
+                        previewContainer.innerHTML = `<img src="${trimmedUrl}" class="detail-logo-preview-img" alt="Logo Preview">`;
+                        previewContainer.style.display = 'block';
+                    };
+                    tempImg.onerror = () => {
+                        // 加载失败则隐藏
+                        previewContainer.style.display = 'none';
+                    };
+                    tempImg.src = trimmedUrl;
+                } else {
+                    // URL无效或为空则隐藏
+                    previewContainer.style.display = 'none';
+                }
+            };
+
+            // 绑定 change 和 paste 事件
+            const handleInputChange = () => {
+                updatePreview(markerLogoInput.value);
+            };
+            markerLogoInput.onchange = handleInputChange;
+            markerLogoInput.onpaste = () => {
+                // onpaste 后立即触发更新
+                setTimeout(handleInputChange, 0);
+            };
+
+            // 初始化预览
+            updatePreview(markerData.logo || '');
+            // --- 预览功能结束 ---
         }
 
         // 隐藏连接线详情面板，显示标记点详情面板

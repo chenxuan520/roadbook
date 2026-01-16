@@ -2710,6 +2710,24 @@ body.dark-mode .leaflet-tile {
     justify-content: center;
 }
 
+/* 详情面板中的Logo预览样式 */
+.detail-logo-preview-container {
+    display: none; /* 默认隐藏 */
+    margin-top: 10px;
+    text-align: center;
+}
+
+.detail-logo-preview-img {
+    max-width: 100px;
+    max-height: 100px;
+    border-radius: 4px;
+    border: 2px solid white;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    background: white;
+    object-fit: contain; /* 保持图片比例 */
+}
+
+
 .expand-modal-content {
     background: var(--bg-secondary);
     border-radius: 10px;
