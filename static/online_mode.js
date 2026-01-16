@@ -22,6 +22,22 @@ class OnlineModeManager {
         }
     }
 
+    // 解析JWT Token
+    _parseJwt(token) {
+        try {
+            const base64Url = token.split('.')[1];
+            const base664 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+            const jsonPayload = decodeURIComponent(atob(base664).split('').map(function(c) {
+                return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+            }).join(''));
+
+            return JSON.parse(jsonPayload);
+        } catch (e) {
+            console.error('解析JWT失败:', e);
+            return null;
+        }
+    }
+
     // 保存当前状态到本地缓存
     saveState() {
         const state = {
@@ -463,10 +479,12 @@ class OnlineModeManager {
     }
 
     // 退出登录
-    async logout() {
-        const result = await this.showSwalConfirm('退出登录', '确定要退出登录吗？退出后将切换到离线模式。', '确定', '取消');
-        if (!result.isConfirmed) {
-            return;
+    async logout(silent = false) {
+        if (!silent) {
+            const result = await this.showSwalConfirm('退出登录', '确定要退出登录吗？退出后将切换到离线模式。', '确定', '取消');
+            if (!result.isConfirmed) {
+                return;
+            }
         }
 
         // 清除token
@@ -493,27 +511,50 @@ class OnlineModeManager {
         // 重新加载页面数据，可能需要清空当前应用数据
         this.app.loadFromLocalStorage(); // 重新加载本地数据
 
-        this.showSwalAlert('退出登录', '已退出登录，切换到离线模式', 'info');
+        if (silent) {
+            this.showSwalAlert('会话过期', '您的登录已过期，已自动切换到离线模式', 'warning');
+        } else {
+            this.showSwalAlert('退出登录', '已退出登录，切换到离线模式', 'info');
+        }
     }
 
     // 检查token有效性
     async checkTokenValidity() {
+        if (!this.token) {
+            return;
+        }
+
+        const payload = this._parseJwt(this.token);
+
+        if (payload && payload.exp) {
+            const currentTime = Math.floor(Date.now() / 1000);
+            if (payload.exp < currentTime) {
+                console.log('JWT已过期，自动退出登录');
+                this.logout(true);
+                return;
+            }
+        } else {
+            console.log('无法解析JWT或缺少exp字段, 自动退出登录');
+            this.logout(true);
+            return;
+        }
+
         try {
+            // 如果JWT的exp未过期，我们仍然需要验证其在后端的有效性
             const response = await this.makeApiRequest('/plans', 'GET');
 
             // 如果能成功获取计划列表，说明token有效
             if (response.plans !== undefined) {
                 console.log('Token 验证成功');
             } else {
-                // token可能无效，清除本地token
-                this.token = null;
-                localStorage.removeItem('online_token');
+                // 如果后端返回的响应中没有预期的 'plans' 数据，也视为token无效
+                console.log('后端验证失败，但未抛出错误，执行静默登出');
+                this.logout(true);
             }
         } catch (error) {
-            console.error('Token 验证失败:', error);
-            this.token = null;
-            localStorage.removeItem('online_token');
-            this.clearState(); // 清除状态
+            console.error('Token 验证失败:', error.message);
+            // 捕获到API请求的任何错误（包括签名无效、网络问题等），都执行静默登出
+            this.logout(true);
         }
     }
 
