@@ -1057,20 +1057,47 @@ class RoadbookApp {
         // 点击导出TXT按钮
         if (exportTxtBtn) {
             exportTxtBtn.addEventListener('click', () => {
-                this.showSwalConfirm('确认导出TXT', '导出的 TXT 文件仅用于大模型分析，无法重新导入。是否确认导出？', '确认', '取消')
-                    .then(result => {
-                        if (result.isConfirmed) {
-                            if (window.htmlExporter) {
-                                window.htmlExporter.exportToTxt();
-                            } else {
-                                console.error('HTML Exporter not found');
-                            }
+                // 隐藏下拉菜单
+                if (exportDropdownContent) {
+                    exportDropdownContent.classList.remove('show');
+                }
+
+                Swal.fire({
+                    title: '导出为 TXT',
+                    text: '导出的 TXT 文件主要用于大模型分析，无法重新导入。',
+                    icon: 'info',
+                    showCancelButton: true,
+                    showDenyButton: true,
+                    confirmButtonText: '导出文件',
+                    denyButtonText: '复制到剪贴板',
+                    cancelButtonText: '取消',
+                    confirmButtonColor: '#667eea',
+                    denyButtonColor: '#32b47c',
+                    cancelButtonColor: '#6c757d'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        // 用户点击“确认导出”
+                        if (window.htmlExporter) {
+                            window.htmlExporter.exportToTxt();
+                            this.showSwalAlert('已开始下载', 'TXT 文件已开始下载。', 'success');
+                        } else {
+                            console.error('HTML Exporter not found');
                         }
-                        // 隐藏下拉菜单
-                        if (exportDropdownContent) {
-                            exportDropdownContent.classList.remove('show');
+                    } else if (result.isDenied) {
+                        // 用户点击“复制到剪贴板”
+                        if (window.htmlExporter) {
+                            const txtContent = window.htmlExporter.exportToTxt(true);
+                            navigator.clipboard.writeText(txtContent).then(() => {
+                                this.showSwalAlert('成功', '行程安排已复制到剪贴板！', 'success');
+                            }).catch(err => {
+                                console.error('复制失败:', err);
+                                this.showSwalAlert('失败', '复制失败，请检查浏览器权限或手动导出。', 'error');
+                            });
+                        } else {
+                            console.error('HTML Exporter not found');
                         }
-                    });
+                    }
+                });
             });
         }
 

@@ -19,9 +19,13 @@ class RoadbookHtmlExporter {
         URL.revokeObjectURL(url);
     }
 
-    exportToTxt() {
+    exportToTxt(returnOnly = false) {
         const data = this.prepareExportData();
         const txtContent = this.generateTxtContent(data);
+
+        if (returnOnly) {
+            return txtContent;
+        }
 
         const blob = new Blob([txtContent], { type: 'text/plain' });
         const url = URL.createObjectURL(blob);
@@ -87,7 +91,7 @@ class RoadbookHtmlExporter {
             dayEvents.forEach(event => {
                 if (event.type === 'marker') {
                     if (lastMarker !== event.data.title) {
-                        content += `- 地点: ${event.data.title} (坐标: ${event.data.position[0]}, ${event.data.position[1]})\n`;
+                        content += `- 地点: ${event.data.title} (坐标: ${event.data.position[0].toFixed(2)}, ${event.data.position[1].toFixed(2)})\n`;
                         lastMarker = event.data.title;
                     }
                 } else if (event.type === 'connection') {
