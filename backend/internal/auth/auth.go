@@ -61,7 +61,7 @@ func (s *service) Authenticate(username, password string) (string, error) {
 
 // GenerateToken 为指定用户生成JWT token
 func (s *service) GenerateToken(username string) (string, error) {
-	expirationTime := time.Now().Add(24 * time.Hour) // Token 24小时过期
+	expirationTime := time.Now().Add(30 * 24 * time.Hour) // Token 30天过期
 	claims := &Claims{
 		Username: username,
 		StandardClaims: jwt.StandardClaims{
