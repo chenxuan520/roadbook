@@ -27,12 +27,39 @@ print_pass() { echo -e "\e[32m[PASS]\e[0m $1"; }
 print_fail() { echo -e "\e[31m[FAIL]\e[0m $1"; }
 print_step() { echo -e "\n\e[36m--- $1 ---\e[0m"; }
 
+# Cross-platform sha256 helper (macOS: shasum, Linux: sha256sum)
+sha256_hex() {
+    if command -v sha256sum >/dev/null 2>&1; then
+        echo -n "$1" | sha256sum | cut -d ' ' -f 1
+        return
+    fi
+    if command -v shasum >/dev/null 2>&1; then
+        echo -n "$1" | shasum -a 256 | cut -d ' ' -f 1
+        return
+    fi
+    print_fail "Missing sha256 tool: install 'sha256sum' (coreutils) or ensure 'shasum' exists."
+    exit 1
+}
+
 # Cleanup function to be called on script exit
 cleanup() {
     print_info "Cleaning up..."
     if [ -n "$SERVER_PID" ]; then
         print_info "Stopping backend server (PID: $SERVER_PID)..."
         kill "$SERVER_PID" 2>/dev/null || print_info "Server was not running."
+        # Wait a bit for graceful shutdown, then force kill if needed
+        for _ in 1 2 3 4 5; do
+            if kill -0 "$SERVER_PID" 2>/dev/null; then
+                sleep 0.2
+            else
+                break
+            fi
+        done
+        if kill -0 "$SERVER_PID" 2>/dev/null; then
+            print_info "Server did not exit in time, sending SIGKILL..."
+            kill -9 "$SERVER_PID" 2>/dev/null || true
+        fi
+        wait "$SERVER_PID" 2>/dev/null || true
     fi
 }
 trap cleanup EXIT
@@ -45,7 +72,7 @@ print_step "Setting up test environment"
 # Generate a salted SHA256 hash for the password
 print_info "Generating password hash for '${ADMIN_PASSWORD}'..."
 SALT=$(openssl rand -hex 16)
-HASHED_PASSWORD=$(echo -n "${SALT}${ADMIN_PASSWORD}" | sha256sum | head -c 64)
+HASHED_PASSWORD=$(sha256_hex "${SALT}${ADMIN_PASSWORD}")
 JWT_SECRET=$(openssl rand -hex 32)
 
 # Create config directory if it doesn't exist
@@ -57,6 +84,7 @@ cat > "$CONFIG_FILE" << EOL
 {
   "port": 5436,
   "allowed_origins": ["*"],
+  "allow_null_origin_for_dev": true,
   "jwtSecret": "${JWT_SECRET}",
   "users": {
     "${ADMIN_USERNAME}": {
@@ -79,7 +107,7 @@ fi
 
 # Start the server in the background
 print_step "Starting backend server"
-(cd backend && ./roadbook-api) &
+(cd backend && GIN_MODE=release ./roadbook-api) &
 SERVER_PID=$!
 print_info "Backend server started with PID: $SERVER_PID"
 
@@ -131,12 +159,43 @@ else
     FAIL_COUNT=$((FAIL_COUNT + 1))
 fi
 
+# Test 3: Refresh Token (Unauthorized)
+print_info "Test 3: Testing POST /api/v1/refresh without token (should be 401)..."
+REFRESH_NOAUTH_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST "${API_BASE_URL}/api/v1/refresh")
+if [ "$REFRESH_NOAUTH_STATUS" -eq 401 ]; then
+    print_pass "Test 3: Refresh without token correctly rejected (401)."
+else
+    print_fail "Test 3: Expected 401 for refresh without token, but got ${REFRESH_NOAUTH_STATUS}."
+    FAIL_COUNT=$((FAIL_COUNT + 1))
+fi
+
 # Run authenticated tests only if login was successful
 if [ -n "$JWT_TOKEN" ]; then
     PLAN_ID=""
+
+    # Test 4: Refresh Token (Authorized)
+    print_info "Test 4: Testing POST /api/v1/refresh with token..."
+    REFRESH_FULL_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "${API_BASE_URL}/api/v1/refresh" \
+        -H "Authorization: Bearer ${JWT_TOKEN}")
+    REFRESH_BODY=$(echo "$REFRESH_FULL_RESPONSE" | head -n -1)
+    REFRESH_STATUS=$(echo "$REFRESH_FULL_RESPONSE" | tail -n 1)
+
+    if [ "$REFRESH_STATUS" -eq 200 ]; then
+        REFRESHED_TOKEN=$(echo "$REFRESH_BODY" | jq -r '.token')
+        if [ -n "$REFRESHED_TOKEN" ] && [ "$REFRESHED_TOKEN" != "null" ]; then
+            JWT_TOKEN="$REFRESHED_TOKEN"
+            print_pass "Test 4: Refresh token successful. New token received and will be used for subsequent tests."
+        else
+            print_fail "Test 4: Refresh response is OK, but token is missing from body. Body: $REFRESH_BODY"
+            FAIL_COUNT=$((FAIL_COUNT + 1))
+        fi
+    else
+        print_fail "Test 4: Refresh token failed with status code ${REFRESH_STATUS}. Body: $REFRESH_BODY"
+        FAIL_COUNT=$((FAIL_COUNT + 1))
+    fi
     
-    # Test 3: Create Plan
-    print_info "Test 3: Testing POST /api/v1/plans..."
+    # Test 5: Create Plan
+    print_info "Test 5: Testing POST /api/v1/plans..."
     CREATE_FULL_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "${API_BASE_URL}/api/v1/plans" \
         -H "Authorization: Bearer ${JWT_TOKEN}" \
         -H "Content-Type: application/json" \
@@ -148,19 +207,19 @@ if [ -n "$JWT_TOKEN" ]; then
     if [ "$CREATE_STATUS" -eq 201 ]; then
         PLAN_ID=$(echo "$CREATE_BODY" | jq -r '.id')
         if [ -n "$PLAN_ID" ] && [ "$PLAN_ID" != "null" ]; then
-            print_pass "Test 3: Create plan successful. Got ID: ${PLAN_ID}"
+            print_pass "Test 5: Create plan successful. Got ID: ${PLAN_ID}"
         else
-            print_fail "Test 3: Create plan returned 201, but ID was missing in response body. Body: $CREATE_BODY"
+            print_fail "Test 5: Create plan returned 201, but ID was missing in response body. Body: $CREATE_BODY"
             FAIL_COUNT=$((FAIL_COUNT + 1))
         fi
     else
-        print_fail "Test 3: Create plan failed with status code ${CREATE_STATUS}. Body: $CREATE_BODY"
+        print_fail "Test 5: Create plan failed with status code ${CREATE_STATUS}. Body: $CREATE_BODY"
         FAIL_COUNT=$((FAIL_COUNT + 1))
     fi
 
     if [ -n "$PLAN_ID" ]; then
-        # Test 4: List Plans
-        print_info "Test 4: Testing GET /api/v1/plans (structure and content)..."
+        # Test 6: List Plans
+        print_info "Test 6: Testing GET /api/v1/plans (structure and content)..."
         FULL_LIST_RESPONSE=$(curl -s -w "\n%{http_code}" -X GET "${API_BASE_URL}/api/v1/plans" \
             -H "Authorization: Bearer ${JWT_TOKEN}")
         LIST_BODY=$(echo "$FULL_LIST_RESPONSE" | head -n -1)
@@ -168,69 +227,69 @@ if [ -n "$JWT_TOKEN" ]; then
         
         if [ "$LIST_RESPONSE_CODE" -eq 200 ]; then
             if echo "$LIST_BODY" | jq -e '.plans | (type == "array" and length > 0)' > /dev/null; then
-                print_pass "Test 4: List plans successful and returned correct structure."
+                print_pass "Test 6: List plans successful and returned correct structure."
             else
-                print_fail "Test 4: List plans response is OK, but '.plans' is not a non-empty array. Body: $LIST_BODY"
+                print_fail "Test 6: List plans response is OK, but '.plans' is not a non-empty array. Body: $LIST_BODY"
                 FAIL_COUNT=$((FAIL_COUNT + 1))
             fi
         else
-            print_fail "Test 4: List plans failed with status code ${LIST_RESPONSE_CODE}"
+            print_fail "Test 6: List plans failed with status code ${LIST_RESPONSE_CODE}"
             FAIL_COUNT=$((FAIL_COUNT + 1))
         fi
 
-        # Test 5: Get Plan Details
-        print_info "Test 5: Testing GET /api/v1/plans/${PLAN_ID}..."
+        # Test 7: Get Plan Details
+        print_info "Test 7: Testing GET /api/v1/plans/${PLAN_ID}..."
         GET_RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -X GET "${API_BASE_URL}/api/v1/plans/${PLAN_ID}" \
             -H "Authorization: Bearer ${JWT_TOKEN}")
         if [ "$GET_RESPONSE" -eq 200 ]; then
-            print_pass "Test 5: Get plan details successful."
+            print_pass "Test 7: Get plan details successful."
         else
-            print_fail "Test 5: Get plan details failed with status code ${GET_RESPONSE}"
+            print_fail "Test 7: Get plan details failed with status code ${GET_RESPONSE}"
             FAIL_COUNT=$((FAIL_COUNT + 1))
         fi
 
-        # Test 6: Share Plan (Public)
-        print_info "Test 6: Testing GET /api/v1/share/plans/${PLAN_ID}..."
+        # Test 8: Share Plan (Public)
+        print_info "Test 8: Testing GET /api/v1/share/plans/${PLAN_ID}..."
         SHARE_RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -X GET "${API_BASE_URL}/api/v1/share/plans/${PLAN_ID}")
         if [ "$SHARE_RESPONSE" -eq 200 ]; then
-            print_pass "Test 6: Share plan successful."
+            print_pass "Test 8: Share plan successful."
         else
-            print_fail "Test 6: Share plan failed with status code ${SHARE_RESPONSE}"
+            print_fail "Test 8: Share plan failed with status code ${SHARE_RESPONSE}"
             FAIL_COUNT=$((FAIL_COUNT + 1))
         fi
         
-        # Test 7: Update Plan
-        print_info "Test 7: Testing PUT /api/v1/plans/${PLAN_ID}..."
+        # Test 9: Update Plan
+        print_info "Test 9: Testing PUT /api/v1/plans/${PLAN_ID}..."
         UPDATE_RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -X PUT "${API_BASE_URL}/api/v1/plans/${PLAN_ID}" \
             -H "Authorization: Bearer ${JWT_TOKEN}" \
             -H "Content-Type: application/json" \
             -d '{"name": "Updated Test Plan", "data": "updated-data"}')
         if [ "$UPDATE_RESPONSE" -eq 200 ]; then
-            print_pass "Test 7: Update plan successful."
+            print_pass "Test 9: Update plan successful."
         else
-            print_fail "Test 7: Update plan failed with status code ${UPDATE_RESPONSE}"
+            print_fail "Test 9: Update plan failed with status code ${UPDATE_RESPONSE}"
             FAIL_COUNT=$((FAIL_COUNT + 1))
         fi
         
-        # Test 8: Delete Plan
-        print_info "Test 8: Testing DELETE /api/v1/plans/${PLAN_ID}..."
+        # Test 10: Delete Plan
+        print_info "Test 10: Testing DELETE /api/v1/plans/${PLAN_ID}..."
         DELETE_RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -X DELETE "${API_BASE_URL}/api/v1/plans/${PLAN_ID}" \
             -H "Authorization: Bearer ${JWT_TOKEN}")
         if [ "$DELETE_RESPONSE" -eq 200 ]; then
-            print_pass "Test 8: Delete plan successful."
+            print_pass "Test 10: Delete plan successful."
         else
-            print_fail "Test 8: Delete plan failed with status code ${DELETE_RESPONSE}"
+            print_fail "Test 10: Delete plan failed with status code ${DELETE_RESPONSE}"
             FAIL_COUNT=$((FAIL_COUNT + 1))
         fi
 
-        # Test 9: Verify Deletion
-        print_info "Test 9: Verifying deletion of plan ${PLAN_ID}..."
+        # Test 11: Verify Deletion
+        print_info "Test 11: Verifying deletion of plan ${PLAN_ID}..."
         VERIFY_DELETE_RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -X GET "${API_BASE_URL}/api/v1/plans/${PLAN_ID}" \
             -H "Authorization: Bearer ${JWT_TOKEN}")
         if [ "$VERIFY_DELETE_RESPONSE" -eq 404 ]; then
-            print_pass "Test 9: Plan correctly deleted (received 404 Not Found)."
+            print_pass "Test 11: Plan correctly deleted (received 404 Not Found)."
         else
-            print_fail "Test 9: Verification of deletion failed. Expected 404, but got ${VERIFY_DELETE_RESPONSE}"
+            print_fail "Test 11: Verification of deletion failed. Expected 404, but got ${VERIFY_DELETE_RESPONSE}"
             FAIL_COUNT=$((FAIL_COUNT + 1))
         fi
     fi

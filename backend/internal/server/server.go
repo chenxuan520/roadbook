@@ -78,6 +78,7 @@ func NewRouter(cfg config.Config) *gin.Engine {
 		authenticated := v1.Group("/")
 		authenticated.Use(middleware.JWTAuthMiddleware(authService))
 		{
+			authenticated.POST("/refresh", authHandler.RefreshHandler)
 			authenticated.POST("/plans", planHandler.CreatePlanHandler)
 			authenticated.GET("/plans", planHandler.ListPlansHandler)
 			authenticated.GET("/plans/:id", planHandler.GetPlanHandler)

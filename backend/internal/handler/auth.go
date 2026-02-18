@@ -41,3 +41,36 @@ func (h *AuthHandler) LoginHandler(c *gin.Context) {
 
 	c.JSON(http.StatusOK, LoginResponse{Token: token})
 }
+
+// RefreshHandler 处理 token 续约请求（需要JWT认证）
+// 通过中间件解析后的 username 重新签发一个新的 token（延长有效期）
+func (h *AuthHandler) RefreshHandler(c *gin.Context) {
+	usernameAny, ok := c.Get("username")
+	if !ok {
+		c.JSON(http.StatusUnauthorized, ErrorResponse{
+			Message: "未提供认证信息",
+			Code:    http.StatusUnauthorized,
+		})
+		return
+	}
+
+	username, _ := usernameAny.(string)
+	if username == "" {
+		c.JSON(http.StatusUnauthorized, ErrorResponse{
+			Message: "未提供认证信息",
+			Code:    http.StatusUnauthorized,
+		})
+		return
+	}
+
+	token, err := h.authService.GenerateToken(username)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, ErrorResponse{
+			Message: "生成续约token失败",
+			Code:    http.StatusInternalServerError,
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, LoginResponse{Token: token})
+}

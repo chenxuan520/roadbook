@@ -8,6 +8,15 @@ class OnlineModeManager {
         this.currentPlanName = null;
         this.lastSavedHash = null; // 最后保存的内容哈希
         this.contentCheckInterval = null; // 内容检查定时器
+
+        // Token 续约相关（前端自动保持 token 有效性）
+        this.tokenRefreshTimeout = null;
+        this.refreshInFlight = null;
+        this.TOKEN_REFRESH_THRESHOLD_SECONDS = 7 * 24 * 60 * 60; // 距离过期≤7天时触发续约
+        this.MIN_REFRESH_INTERVAL_MS = 60 * 1000; // 防抖：1分钟内最多续约一次
+        this.lastRefreshAt = 0;
+        this.isLoggingOut = false;
+
         this.initialize();
         this.restoreState(); // 初始化后恢复状态
     }
@@ -36,6 +45,91 @@ class OnlineModeManager {
             console.error('解析JWT失败:', e);
             return null;
         }
+    }
+
+    // 获取 token 剩余秒数
+    getTokenRemainingSeconds() {
+        if (!this.token) return null;
+        const payload = this._parseJwt(this.token);
+        if (!payload || !payload.exp) return null;
+        const currentTime = Math.floor(Date.now() / 1000);
+        return payload.exp - currentTime;
+    }
+
+    // 根据当前 token 的 exp 安排一次自动续约（页面常驻也能保持有效性）
+    scheduleTokenRefresh() {
+        if (this.tokenRefreshTimeout) {
+            clearTimeout(this.tokenRefreshTimeout);
+            this.tokenRefreshTimeout = null;
+        }
+
+        if (!this.token) return;
+        const payload = this._parseJwt(this.token);
+        if (!payload || !payload.exp) return;
+
+        const currentTime = Math.floor(Date.now() / 1000);
+        const refreshAt = payload.exp - this.TOKEN_REFRESH_THRESHOLD_SECONDS;
+        const delaySeconds = Math.max(refreshAt - currentTime, 0);
+        const delayMs = delaySeconds * 1000;
+
+        this.tokenRefreshTimeout = setTimeout(() => {
+            // 续约失败则按现有逻辑静默登出
+            this.refreshToken().catch((e) => {
+                console.error('自动续约失败:', e);
+            });
+        }, delayMs);
+    }
+
+    // 主动续约 token：请求后端 /refresh 返回新 token
+    async refreshToken() {
+        if (!this.token) return null;
+        if (this.isLoggingOut) return null;
+
+        // 并发合并：同一时间只做一次续约
+        if (this.refreshInFlight) {
+            return this.refreshInFlight;
+        }
+
+        // 防抖：避免频繁续约
+        const now = Date.now();
+        if (now - this.lastRefreshAt < this.MIN_REFRESH_INTERVAL_MS) {
+            return this.token;
+        }
+
+        // 只在未过期时续约（过期后的续约需要额外“宽限期”策略，这里保持最小改动）
+        const remaining = this.getTokenRemainingSeconds();
+        if (remaining === null) {
+            console.log('无法解析token剩余时间，跳过续约');
+            return null;
+        }
+        if (remaining <= 0) {
+            console.log('token已过期，跳过续约并静默登出');
+            await this.logout(true);
+            return null;
+        }
+
+        this.refreshInFlight = (async () => {
+            try {
+                const resp = await this.makeApiRequest('/refresh', 'POST', null, { skipRefresh: true });
+                if (resp && resp.token) {
+                    this.token = resp.token;
+                    localStorage.setItem('online_token', resp.token);
+                    this.lastRefreshAt = Date.now();
+                    this.scheduleTokenRefresh();
+                    return this.token;
+                }
+                throw new Error('续约响应缺少token字段');
+            } catch (e) {
+                // 续约失败：按现有策略静默登出
+                console.error('续约token失败:', e);
+                await this.logout(true);
+                return null;
+            } finally {
+                this.refreshInFlight = null;
+            }
+        })();
+
+        return this.refreshInFlight;
     }
 
     // 保存当前状态到本地缓存
@@ -454,6 +548,9 @@ class OnlineModeManager {
                 this.token = response.token;
                 localStorage.setItem('online_token', response.token);
 
+                // 登录成功后安排自动续约
+                this.scheduleTokenRefresh();
+
                 // 登录成功后关闭弹窗并切换到在线模式
                 this.closeLoginModal();
                 this.mode = 'online';
@@ -480,9 +577,11 @@ class OnlineModeManager {
 
     // 退出登录
     async logout(silent = false) {
+        this.isLoggingOut = true;
         if (!silent) {
             const result = await this.showSwalConfirm('退出登录', '确定要退出登录吗？退出后将切换到离线模式。', '确定', '取消');
             if (!result.isConfirmed) {
+                this.isLoggingOut = false;
                 return;
             }
         }
@@ -490,6 +589,12 @@ class OnlineModeManager {
         // 清除token
         this.token = null;
         localStorage.removeItem('online_token');
+
+        if (this.tokenRefreshTimeout) {
+            clearTimeout(this.tokenRefreshTimeout);
+            this.tokenRefreshTimeout = null;
+        }
+        this.refreshInFlight = null;
 
         // 清除当前计划信息
         this.currentPlanId = null;
@@ -516,6 +621,8 @@ class OnlineModeManager {
         } else {
             this.showSwalAlert('退出登录', '已退出登录，切换到离线模式', 'info');
         }
+
+        this.isLoggingOut = false;
     }
 
     // 检查token有效性
@@ -546,6 +653,8 @@ class OnlineModeManager {
             // 如果能成功获取计划列表，说明token有效
             if (response.plans !== undefined) {
                 console.log('Token 验证成功');
+                // token有效：安排自动续约
+                this.scheduleTokenRefresh();
             } else {
                 // 如果后端返回的响应中没有预期的 'plans' 数据，也视为token无效
                 console.log('后端验证失败，但未抛出错误，执行静默登出');
@@ -1536,7 +1645,7 @@ class OnlineModeManager {
     }
 
     // 执行API请求的通用方法
-    async makeApiRequest(endpoint, method = 'GET', data = null) {
+    async makeApiRequest(endpoint, method = 'GET', data = null, opts = {}) {
         const baseUrl = this.getApiBaseUrl();
         const url = baseUrl + endpoint;
 
@@ -1562,7 +1671,27 @@ class OnlineModeManager {
 
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.message || `请求失败: ${response.status} ${response.statusText}`);
+
+            const err = new Error(errorData.message || `请求失败: ${response.status} ${response.statusText}`);
+            err.status = response.status;
+
+            // 如果遇到401且不是续约接口，尝试续约后重试一次
+            if (response.status === 401 && endpoint !== '/refresh' && !opts.skipRefresh && this.token) {
+                try {
+                    await this.refreshToken();
+                    if (this.token) {
+                        options.headers['Authorization'] = `Bearer ${this.token}`;
+                        const retryResp = await fetch(url, options);
+                        if (retryResp.ok) {
+                            return await retryResp.json();
+                        }
+                    }
+                } catch (e) {
+                    // 忽略，走原错误抛出
+                }
+            }
+
+            throw err;
         }
 
         return await response.json();

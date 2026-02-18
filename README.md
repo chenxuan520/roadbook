@@ -313,6 +313,7 @@ roadbook/
 
 ### 用户认证
 - `POST /api/v1/login` - 用户登录（限流保护）
+- `POST /api/v1/refresh` - 刷新/续约JWT token（需要JWT认证）
 
 ### 计划管理（需要JWT认证）
 - `POST /api/v1/plans` - 创建路书计划
@@ -327,9 +328,10 @@ roadbook/
 ## 🔐 在线模式功能
 
 ### 用户认证系统
-- **JWT Token认证**: 24小时有效期，支持用户登录
+- **JWT Token认证**: 30天有效期，支持用户登录与续约
 - **用户管理**: 配置文件中的用户账户管理
 - **登录接口**: `/api/v1/login` - 用户登录获取token
+- **续约接口**: `/api/v1/refresh` - 刷新token（需要JWT认证）
 
 ### 计划管理API
 完整的CRUD操作，需要JWT认证：
@@ -394,4 +396,3 @@ roadbook/
 ---
 
 **⭐ 如果这个项目对您有帮助，请给个Star支持一下！**
-

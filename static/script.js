@@ -315,11 +315,12 @@ class RoadbookApp {
             return false;
         }
 
-        const midLat = (startLat + endLat) / 2;
-        const midLng = (startLng + endLng) / 2;
+        const fallbackMidLat = (startLat + endLat) / 2;
+        const fallbackMidLng = (startLng + endLng) / 2;
+        const midPos = this.getPointOnConnection(startMarker.position, endMarker.position, 0.5) || [fallbackMidLat, fallbackMidLng];
         const transportIcon = this.getTransportIcon(data.transportType);
 
-        const iconMarker = L.marker([midLat, midLng], {
+        const iconMarker = L.marker(midPos, {
             icon: L.divIcon({
                 className: 'transport-icon',
                 html: `<div style="background-color: white; border: 2px solid ${this.getTransportColor(data.transportType)}; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-size: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.3);">${transportIcon}</div>`,
@@ -2072,10 +2073,11 @@ class RoadbookApp {
             return;
         }
 
-        const midLat = (startLat + endLat) / 2;
-        const midLng = (startLng + endLng) / 2;
+        const fallbackMidLat = (startLat + endLat) / 2;
+        const fallbackMidLng = (startLng + endLng) / 2;
+        const midPos = this.getPointOnConnection(startMarker.position, endMarker.position, 0.5) || [fallbackMidLat, fallbackMidLng];
         const transportIcon = this.getTransportIcon(transportType);
-        const iconMarker = L.marker([midLat, midLng], {
+        const iconMarker = L.marker(midPos, {
             icon: L.divIcon({
                 className: 'transport-icon',
                 html: `<div style="background-color: white; border: 2px solid ${this.getTransportColor(transportType)}; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-size: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.3);">${transportIcon}</div>`,
@@ -2390,6 +2392,66 @@ class RoadbookApp {
         }
     }
 
+    // 在 WebMercator 投影坐标系下计算线段上的点，避免长距离情况下的视觉偏移
+    // startPos/endPos: [lat, lng]
+    // ratio: 0~1
+    getPointOnConnection(startPos, endPos, ratio) {
+        try {
+            if (!this.map || typeof this.map.project !== 'function' || typeof this.map.unproject !== 'function') {
+                return null;
+            }
+
+            const startLat = parseFloat(startPos[0]);
+            const startLng = parseFloat(startPos[1]);
+            const endLat = parseFloat(endPos[0]);
+            const endLng = parseFloat(endPos[1]);
+
+            if (isNaN(startLat) || isNaN(startLng) || isNaN(endLat) || isNaN(endLng)) {
+                return null;
+            }
+
+            const zoom = this.map.getZoom();
+            const p1 = this.map.project(L.latLng(startLat, startLng), zoom);
+            const p2 = this.map.project(L.latLng(endLat, endLng), zoom);
+            const x = p1.x + (p2.x - p1.x) * ratio;
+            const y = p1.y + (p2.y - p1.y) * ratio;
+            const ll = this.map.unproject(L.point(x, y), zoom);
+            return [ll.lat, ll.lng];
+        } catch (e) {
+            return null;
+        }
+    }
+
+    // 基于投影坐标计算箭头朝向角度（0deg 指向上方）
+    getConnectionAngleDeg(startPos, endPos) {
+        try {
+            if (!this.map || typeof this.map.project !== 'function') {
+                return null;
+            }
+
+            const startLat = parseFloat(startPos[0]);
+            const startLng = parseFloat(startPos[1]);
+            const endLat = parseFloat(endPos[0]);
+            const endLng = parseFloat(endPos[1]);
+
+            if (isNaN(startLat) || isNaN(startLng) || isNaN(endLat) || isNaN(endLng)) {
+                return null;
+            }
+
+            const zoom = this.map.getZoom();
+            const p1 = this.map.project(L.latLng(startLat, startLng), zoom);
+            const p2 = this.map.project(L.latLng(endLat, endLng), zoom);
+
+            const dx = p2.x - p1.x;
+            const dy = p2.y - p1.y;
+
+            // 屏幕坐标系 y 向下为正；箭头默认指向上方
+            return Math.atan2(dx, -dy) * 180 / Math.PI;
+        } catch (e) {
+            return null;
+        }
+    }
+
     createArrowHead(startPos, endPos, transportType) {
         // 计算箭头位置（在线段中间偏后位置，避免与标记点冲突）
         const startLat = parseFloat(startPos[0]);
@@ -2397,22 +2459,19 @@ class RoadbookApp {
         const endLat = parseFloat(endPos[0]);
         const endLng = parseFloat(endPos[1]);
 
-        // 计算方向角度 - 使用正确的数学方法
-        // 在地理坐标系中，我们需要计算从起点到终点的方向
-        const deltaLat = endLat - startLat; // 纬度差（垂直方向，北为正）
-        const deltaLng = endLng - startLng; // 经度差（水平方向，东为正）
-
-        // 计算基础角度（弧度）
-        let angle = Math.atan2(deltaLng, deltaLat); // 注意参数顺序：atan2(y, x)
-
-        // 转换为角度并调整方向
-        // 由于箭头图标默认指向上方（北），我们需要旋转到正确的方向
-        angle = angle * 180 / Math.PI;
-
         // 计算线段长度的75%位置（避免太靠近终点）
         const ratio = 0.75;
-        const arrowLat = startLat + (endLat - startLat) * ratio;
-        const arrowLng = startLng + (endLng - startLng) * ratio;
+        const projectedArrowPos = this.getPointOnConnection(startPos, endPos, ratio);
+        const arrowLat = projectedArrowPos ? projectedArrowPos[0] : (startLat + (endLat - startLat) * ratio);
+        const arrowLng = projectedArrowPos ? projectedArrowPos[1] : (startLng + (endLng - startLng) * ratio);
+
+        // 计算方向角度：优先使用投影坐标（长距离更准确），失败则回退到地理坐标近似
+        let angle = this.getConnectionAngleDeg(startPos, endPos);
+        if (angle === null) {
+            const deltaLat = endLat - startLat; // 纬度差（垂直方向，北为正）
+            const deltaLng = endLng - startLng; // 经度差（水平方向，东为正）
+            angle = Math.atan2(deltaLng, deltaLat) * 180 / Math.PI;
+        }
 
         // 创建大号箭头图标 - 增大尺寸提高可见性
         const arrowColor = this.getTransportColor(transportType);
@@ -3854,9 +3913,10 @@ class RoadbookApp {
 
             // 更新图标位置（中点）
             if (conn.iconMarker) {
-                const midLat = (startLat + endLat) / 2;
-                const midLng = (startLng + endLng) / 2;
-                conn.iconMarker.setLatLng([midLat, midLng]);
+                const fallbackMidLat = (startLat + endLat) / 2;
+                const fallbackMidLng = (startLng + endLng) / 2;
+                const midPos = this.getPointOnConnection(startMarker.position, endMarker.position, 0.5) || [fallbackMidLat, fallbackMidLng];
+                conn.iconMarker.setLatLng(midPos);
             }
 
             // 更新箭头位置
@@ -4757,11 +4817,12 @@ class RoadbookApp {
                 return;
             }
 
-            const midLat = (startLat + endLat) / 2;
-            const midLng = (startLng + endLng) / 2;
+            const fallbackMidLat = (startLat + endLat) / 2;
+            const fallbackMidLng = (startLng + endLng) / 2;
+            const midPos = this.getPointOnConnection(startMarker.position, endMarker.position, 0.5) || [fallbackMidLat, fallbackMidLng];
             const transportIcon = this.getTransportIcon(connData.transportType);
 
-            const iconMarker = L.marker([midLat, midLng], {
+            const iconMarker = L.marker(midPos, {
                 icon: L.divIcon({
                     className: 'transport-icon',
                     html: `<div style="background-color: white; border: 2px solid ${this.getTransportColor(connData.transportType)}; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-size: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.3);">${transportIcon}</div>`,
@@ -5586,9 +5647,10 @@ class RoadbookApp {
 
         // 更新图标位置（中点）
         if (connection.iconMarker) {
-            const midLat = (startLat + endLat) / 2;
-            const midLng = (startLng + endLng) / 2;
-            connection.iconMarker.setLatLng([midLat, midLng]);
+            const fallbackMidLat = (startLat + endLat) / 2;
+            const fallbackMidLng = (startLng + endLng) / 2;
+            const midPos = this.getPointOnConnection(startMarker.position, endMarker.position, 0.5) || [fallbackMidLat, fallbackMidLng];
+            connection.iconMarker.setLatLng(midPos);
         }
 
         // 更新箭头
