@@ -781,21 +781,21 @@ class RoadbookApp {
             satellite: {
                 searchable: true,
                 name: 'ESRI影像图',
-                searchUrl: apiBaseUrl + '/api/cnmap/search',
+                searchUrl: apiBaseUrl + '/api/tianmap/search',
                 params: { format: 'json', limit: 10 },
                 parser: 'nominatim'
             },
             esri_street: {
                 searchable: true,
                 name: 'ESRI街道图',
-                searchUrl: apiBaseUrl + '/api/cnmap/search',
+                searchUrl: apiBaseUrl + '/api/tianmap/search',
                 params: { format: 'json', limit: 10 },
                 parser: 'nominatim'
             },
             gaode: {
                 searchable: true,
                 name: '高德地图',
-                searchUrl: apiBaseUrl + '/api/cnmap/search', // 使用TianSearch端点
+                searchUrl: apiBaseUrl + '/api/tianmap/search', // 使用TianSearch端点
                 params: {
                     format: 'json',
                     limit: 10
@@ -805,7 +805,7 @@ class RoadbookApp {
             gaode_satellite: {
                 searchable: true,
                 name: '高德卫星图',
-                searchUrl: apiBaseUrl + '/api/cnmap/search',
+                searchUrl: apiBaseUrl + '/api/tianmap/search',
                 params: { format: 'json', limit: 10 },
                 parser: 'nominatim'
             },
@@ -821,14 +821,14 @@ class RoadbookApp {
             google_satellite: {
                 searchable: true,
                 name: 'Google卫星图',
-                searchUrl: apiBaseUrl + '/api/cnmap/search',
+                searchUrl: apiBaseUrl + '/api/tianmap/search',
                 params: { format: 'json', limit: 10 },
                 parser: 'nominatim'
             },
             tencent: {
                 searchable: true,
                 name: '腾讯地图',
-                searchUrl: apiBaseUrl + '/api/cnmap/search',
+                searchUrl: apiBaseUrl + '/api/tianmap/search',
                 params: { format: 'json', limit: 10 },
                 parser: 'nominatim'
             }
