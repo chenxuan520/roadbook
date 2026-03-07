@@ -18,6 +18,22 @@ type Config struct {
 	AllowNullOriginForDev bool                         `json:"allow_null_origin_for_dev,omitempty"`
 	JwtSecret             string                       `json:"jwtSecret"`
 	Users                 map[string]UserCredentials `json:"users"`
+	Search                SearchConfig                 `json:"search"`
+}
+
+// SearchProviderConfig holds configuration for a single search provider, like an API key.
+type SearchProviderConfig struct {
+	Key string `json:"key"`
+}
+
+// SearchProviders holds configurations for all supported search providers.
+type SearchProviders struct {
+	Gaode SearchProviderConfig `json:"gaode"`
+}
+
+// SearchConfig holds all search-related configurations.
+type SearchConfig struct {
+	Providers SearchProviders `json:"providers"`
 }
 
 func Load() (Config, error) {

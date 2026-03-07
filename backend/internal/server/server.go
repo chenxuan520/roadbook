@@ -99,8 +99,11 @@ func NewRouter(cfg config.Config) *gin.Engine {
 	api := r.Group("/api")
 	{
 		api.GET("/ping", handler.Ping)
+		api.HEAD("/ping", handler.Ping)
 		api.GET("/cnmap/search", handler.BaiduSearchHandler)
 		api.GET("/tianmap/search", handler.TianmapSearchHandler)
+		api.GET("/gaode/search", handler.GaodeSearchHandler(cfg.Search.Providers.Gaode.Key))
+		api.GET("/search/providers", handler.GetSearchProvidersHandler(cfg))
 		// 新增trafficpos接口
 		api.GET("/trafficpos", handler.GetTrafficPos)
 	}

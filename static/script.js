@@ -69,8 +69,111 @@ class RoadbookApp {
         this.dragPreviewLine = null; // 拖拽时的预览线
         this.dragPreviewArrow = null; // 拖拽时的预览箭头
 
+        this.searchProviderOriginalTexts = new Map();
+
         this.init();
     }
+
+    // --- Latency and Comment Features Start ---
+
+    addSearchProviderComments() {
+        const select = document.getElementById('searchMethodSelect');
+        if (!select) return;
+
+        const providerComments = {
+            auto: '根据当前地图自动选择最合适的搜索服务。',
+            gaode: '高德搜索，由后端服务器代理，适用于中国大陆区域。',
+            tiansearch: '天地图搜索，由后端服务器代理，国家地理信息公共服务平台。',
+            cnsearch: '百度搜索，由后端服务器代理，适用于中国大陆区域（可能不稳定）。',
+            nominatim: 'OpenStreetMap官方搜索，全球范围适用，国外地址推荐。',
+            overpass: '一个功能强大的OSM数据挖掘工具，语法复杂，适合高级用户。',
+            mapsearch: '一个第三方的中文OSM搜索服务，无需翻墙。',
+            photon: '基于OpenStreetMap的快速搜索，全球范围适用。'
+        };
+
+        Array.from(select.options).forEach(option => {
+            const provider = option.value;
+            if (providerComments[provider]) {
+                option.title = providerComments[provider];
+            }
+        });
+    }
+
+    async testSearchProviderLatency(provider) {
+        const urls = {
+            nominatim: 'https://nominatim.openstreetmap.org/status.php',
+            overpass: 'https://overpass-api.de/api/interpreter',
+            mapsearch: 'https://map.011203.dpdns.org/search?q=test',
+            photon: 'https://photon.komoot.io/api/?q=test',
+            gaode: `${apiBaseUrl}/api/ping`,
+            tiansearch: `${apiBaseUrl}/api/ping`,
+            cnsearch: `${apiBaseUrl}/api/ping`,
+            auto: null
+        };
+
+        const url = urls[provider];
+        if (!url) {
+            return { status: 'n/a' };
+        }
+
+        const startTime = performance.now();
+        try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 1000);
+
+            await fetch(url, { method: 'HEAD', mode: 'no-cors', signal: controller.signal });
+            
+            clearTimeout(timeoutId);
+            const latency = performance.now() - startTime;
+            return { status: 'ok', latency };
+        } catch (error) {
+            return { status: 'error' };
+        }
+    }
+
+    async updateProviderIcons() {
+        const select = document.getElementById('searchMethodSelect');
+        if (!select) return;
+
+        if (this.searchProviderOriginalTexts.size === 0) {
+            Array.from(select.options).forEach(option => {
+                let cleanText = option.text;
+                if (cleanText.length > 2 && !/^[a-zA-Z0-9]/.test(cleanText.charAt(0)) && cleanText.charAt(1) === ' ') {
+                    cleanText = cleanText.substring(2);
+                }
+                this.searchProviderOriginalTexts.set(option.value, cleanText);
+            });
+        }
+
+        const promises = Array.from(select.options).map(async (option) => {
+            const provider = option.value;
+            if (provider === 'auto') {
+                return;
+            }
+
+            const originalText = this.searchProviderOriginalTexts.get(provider) || 'Unknown';
+            option.text = `⏱️ ${originalText}`;
+
+            const result = await this.testSearchProviderLatency(provider);
+
+            let icon = '❔';
+            if (result.status === 'ok') {
+                if (result.latency < 500) icon = '✅';
+                else if (result.latency < 1500) icon = '👍';
+                else icon = '⚠️';
+            } else if (result.status === 'error') {
+                icon = '❌';
+            }
+            
+            option.text = `${icon} ${originalText}`;
+        });
+
+        await Promise.all(promises);
+        console.log("所有搜索服务商延迟测试完成。");
+    }
+
+    // --- Latency and Comment Features End ---
+
 
     // 主题切换相关方法
     initTheme() {
@@ -420,6 +523,8 @@ class RoadbookApp {
         this.initMap();
         this.bindEvents();
         this.bindExpandModalEvents();
+        this.addSearchProviderComments();
+        this.updateProviderIcons();
 
         if (shareID) {
             // 如果有分享ID，先正常加载本地数据，然后处理分享数据
@@ -4305,6 +4410,17 @@ class RoadbookApp {
                     limit: 10
                 },
                 parser: 'nominatim' // 使用Nominatim格式，因为MapSearch与Nominatim格式一致
+            };
+        } else if (this.currentSearchMethod === 'gaode') {
+            // Gaode Search
+            searchConfig = {
+                searchable: true,
+                searchUrl: apiBaseUrl + '/api/gaode/search',
+                params: {
+                    format: 'json',
+                    limit: 10
+                },
+                parser: 'nominatim'
             };
         } else if (this.currentSearchMethod === 'cnsearch') {
             // CNSearch搜索模式

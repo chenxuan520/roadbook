@@ -36,6 +36,7 @@ func main() {
 	fmt.Printf("Backend version=%s commit=%s built=%s\n", Version, Commit, BuildTime)
 	fmt.Printf("Try Baidu: http://localhost:%d/api/cnmap/search?q=清华大学\n", cfg.Port)
 	fmt.Printf("Try Tian:  http://localhost:%d/api/tianmap/search?q=清华大学\n", cfg.Port)
+	fmt.Printf("Try Gaode: http://localhost:%d/api/gaode/search?q=清华大学\n", cfg.Port)
 	fmt.Printf("Try TrafficPos: http://localhost:%d/api/trafficpos?lat=39.9042&lon=116.4074\n", cfg.Port)
 
 	r.Run(portStr)
