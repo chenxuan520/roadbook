@@ -82,11 +82,11 @@ class RoadbookApp {
 
         const providerComments = {
             auto: '根据当前地图自动选择最合适的搜索服务。',
-            gaode: '高德搜索，由后端服务器代理，适用于中国大陆区域。',
-            tiansearch: '天地图搜索，由后端服务器代理，国家地理信息公共服务平台。',
+            gaode: '高德搜索，由后端服务器代理，适用于中国大陆区域, 需要 apikey。',
+            tiansearch: '天地图搜索，由后端服务器代理，适用于中国大陆区域。',
             cnsearch: '百度搜索，由后端服务器代理，适用于中国大陆区域（可能不稳定）。',
             nominatim: 'OpenStreetMap官方搜索，全球范围适用，国外地址推荐。',
-            overpass: '一个功能强大的OSM数据挖掘工具，语法复杂，适合高级用户。',
+            overpass: '一个功能强大的OSM数据挖掘工具，语法复杂，稳定性差不推荐。',
             mapsearch: '一个第三方的中文OSM搜索服务，无需翻墙。',
             photon: '基于OpenStreetMap的快速搜索，全球范围适用。'
         };
