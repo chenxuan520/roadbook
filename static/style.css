@@ -1610,6 +1610,8 @@ body.dark-mode .theme-toggle-btn:hover {
     background: linear-gradient(135deg, rgba(255,255,255,0.8), rgba(255,255,255,0.6));
     border: 2px solid rgba(255,255,255,0.8);
     font-weight: 600;
+    display: block;
+    margin: 1rem auto 0;
 }
 
 body.dark-mode #confirmConnect {

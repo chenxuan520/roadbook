@@ -917,6 +917,30 @@ class RoadbookApp {
         });
     }
 
+    updateRecommendedTransportInModal() {
+        const startSelect = document.getElementById('startMarker');
+        const endSelect = document.getElementById('endMarker');
+        const transportTypeSelect = document.getElementById('transportType');
+
+        if (startSelect.value && endSelect.value) {
+            const startMarker = this.markers[startSelect.value];
+            const endMarker = this.markers[endSelect.value];
+            if (startMarker && endMarker) {
+                const distance = startMarker.marker.getLatLng().distanceTo(endMarker.marker.getLatLng());
+                const recommendedTransport = this.getRecommendedTransport(distance);
+
+                document.querySelectorAll('#connectModal .transport-btn').forEach(b => b.classList.remove('active'));
+                const recommendedBtn = document.querySelector(`#connectModal .transport-btn[data-transport="${recommendedTransport}"]`);
+                if (recommendedBtn) {
+                    recommendedBtn.classList.add('active');
+                }
+                if (transportTypeSelect) {
+                    transportTypeSelect.value = recommendedTransport;
+                }
+            }
+        }
+    }
+
     bindEvents() {
         // 全新的拖拽连接线逻辑，使用原生DOM事件以避免冲突
         const mapContainer = this.map.getContainer();
@@ -1232,6 +1256,33 @@ class RoadbookApp {
             });
         }
 
+        // --- 全局实时保存事件绑定 ---
+        const realtimeSaveHandler = () => {
+            if (this.currentMarker) {
+                this.saveMarkerDetail();
+            } else if (this.currentConnection) {
+                this.saveConnectionDetail();
+            } else if (this.currentDate) {
+                this.saveDateNotes();
+            }
+        };
+
+        ['markerNameInput', 'markerLabelsInput', 'markerLogoInput'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.addEventListener('input', realtimeSaveHandler);
+        });
+        ['connectionDuration', 'connectionLabelsInput', 'connectionLogoInput'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.addEventListener('input', realtimeSaveHandler);
+        });
+        ['connectionDateInput', 'connectionStartMarker', 'connectionEndMarker'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.addEventListener('change', realtimeSaveHandler);
+        });
+        const dateNotesInputForSave = document.getElementById('dateNotesInput');
+        if (dateNotesInputForSave) dateNotesInputForSave.addEventListener('input', realtimeSaveHandler);
+        // --- 全局实时保存事件绑定结束 ---
+
         // 连接线详情面板中的交通方式按钮事件
         document.querySelectorAll('.transport-btn').forEach(btn => {
             btn.addEventListener('click', () => {
@@ -1243,6 +1294,8 @@ class RoadbookApp {
                     // 更新当前连接线的交通方式
                     const transportType = btn.dataset.transport;
                     this.updateConnectionTransport(this.currentConnection, transportType);
+                    // 实时保存
+                    this.saveConnectionDetail();
                 }
             });
         });
@@ -1273,6 +1326,15 @@ class RoadbookApp {
             closeBtn.addEventListener('click', () => {
                 this.closeModals();
             });
+        }
+
+        const startMarkerSelect = document.getElementById('startMarker');
+        if (startMarkerSelect) {
+            startMarkerSelect.addEventListener('change', () => this.updateRecommendedTransportInModal());
+        }
+        const endMarkerSelect = document.getElementById('endMarker');
+        if (endMarkerSelect) {
+            endMarkerSelect.addEventListener('change', () => this.updateRecommendedTransportInModal());
         }
 
         const confirmConnect = document.getElementById('confirmConnect');
@@ -1311,12 +1373,7 @@ class RoadbookApp {
             });
         }
 
-        const saveMarkerBtn = document.getElementById('saveMarkerBtn');
-        if (saveMarkerBtn) {
-            saveMarkerBtn.addEventListener('click', () => {
-                this.saveMarkerDetail();
-            });
-        }
+        // saveMarkerBtn listener removed for real-time save
 
         // 为markerLabelsInput添加粘贴和输入事件监听器
         const markerLabelsInput = document.getElementById('markerLabelsInput');
@@ -1329,13 +1386,7 @@ class RoadbookApp {
         }
 
 
-        // 保存连接线按钮事件
-        const saveConnectionBtn = document.getElementById('saveConnectionBtn');
-        if (saveConnectionBtn) {
-            saveConnectionBtn.addEventListener('click', () => {
-                this.saveConnectionDetail();
-            });
-        }
+        // saveConnectionBtn listener removed for real-time save
 
         // 为connectionLabelsInput添加粘贴和输入事件监听器
         const connectionLabelsInput = document.getElementById('connectionLabelsInput');
@@ -1549,12 +1600,7 @@ class RoadbookApp {
             });
         }
 
-        const saveDateNotesBtn = document.getElementById('saveDateNotesBtn');
-        if (saveDateNotesBtn) {
-            saveDateNotesBtn.addEventListener('click', () => {
-                this.saveDateNotes();
-            });
-        }
+        // saveDateNotesBtn listener removed for real-time save
 
         // 日期备注便签关闭按钮事件
         const closeDateNotesSticky = document.getElementById('closeDateNotesSticky');
@@ -1766,6 +1812,36 @@ class RoadbookApp {
         }
     }
 
+    getIconForName(name) {
+        const lowerCaseName = name.toLowerCase();
+        // 交通类
+        if (['机场', 'airport', '站', 'station', 'bus', '地铁', 'subway', 'train', 'bus', '车站'].some(kw => lowerCaseName.includes(kw))) {
+            return { type: 'emoji', icon: '🚉', color: '#607D8B' };
+        }
+        // 住宿类
+        if (['酒店', 'hotel', '民宿', 'hostel'].some(kw => lowerCaseName.includes(kw))) {
+            return { type: 'emoji', icon: '🏨', color: '#2196F3' };
+        }
+        // 餐饮类
+        if (['餐厅', 'restaurant', '饭', 'eat', 'food', '美食'].some(kw => lowerCaseName.includes(kw))) {
+            return { type: 'emoji', icon: '🍽️', color: '#4CAF50' };
+        }
+        // 景点类
+        if (['景点', 'park', '山', '海', 'lake', 'view', 'garden', '公园', 'museum', '博物馆'].some(kw => lowerCaseName.includes(kw))) {
+            return { type: 'emoji', icon: '🏞️', color: '#FF9800' };
+        }
+        // 购物类
+        if (['购物', 'shopping', 'mall', 'store', 'market'].some(kw => lowerCaseName.includes(kw))) {
+            return { type: 'emoji', icon: '🛍️', color: '#9C27B0' };
+        }
+        // 默认返回数字图标配置
+        return {
+            type: 'number',
+            icon: String(this.markers.length + 1),
+            color: '#667eea'
+        };
+    }
+
     setMode(mode) {
         this.currentMode = mode;
 
@@ -1785,19 +1861,19 @@ class RoadbookApp {
     addMarker(latlng) {
         const markerId = Date.now();
 
-        // 默认使用数字图标，用户可以在详情面板中修改
-        const defaultIcon = {
-            type: 'number',
-            icon: String(this.markers.length + 1), // 使用数字作为默认图标
-            color: '#667eea'
-        };
+        // 从搜索框获取名称,如果为空则使用默认名称
+        const searchInput = document.getElementById('searchInput');
+        const markerTitle = searchInput.value.trim() ? searchInput.value.trim() : `标记点${this.markers.length + 1}`;
 
-        const icon = this.createMarkerIcon(defaultIcon, this.markers.length + 1);
+        // 根据名称动态获取图标
+        const iconConfig = this.getIconForName(markerTitle);
+
+        const icon = this.createMarkerIcon(iconConfig, this.markers.length + 1);
 
         const marker = L.marker([latlng.lat, latlng.lng], {
             icon: icon,
             draggable: true,
-            title: `标记点${this.markers.length + 1}`
+            title: markerTitle
         }).addTo(this.map);
 
         // 确定新标记点的时间 - 如果有上一个点则使用其时间，否则为当天00:00
@@ -1824,10 +1900,10 @@ class RoadbookApp {
             id: markerId, // 不可见不可编辑的唯一ID
             marker: marker,
             position: [latlng.lat, latlng.lng],
-            title: `标记点${this.markers.length + 1}`,
+            title: markerTitle,
             labels: [], // 存储标注文本，不直接显示
             logo: null, // 添加logo属性，默认为空
-            icon: defaultIcon, // 保存图标信息
+            icon: iconConfig, // 保存图标信息
             createdAt: this.getCurrentLocalDateTime(),
             dateTimes: [newMarkerDateTime], // 改为数组，支持多个时间点
             dateTime: newMarkerDateTime // 使用第一个时间点作为默认时间
@@ -1904,8 +1980,8 @@ class RoadbookApp {
         this.addHistory('addMarker', {
             id: markerId,
             position: [latlng.lat, latlng.lng],
-            title: `标记点${this.markers.length}`,
-            icon: defaultIcon,
+            title: markerTitle,
+            icon: iconConfig,
             createdAt: this.getCurrentLocalDateTime(),
             dateTimes: [this.getCurrentLocalDateTime()],
             dateTime: this.getCurrentLocalDateTime()
@@ -2026,35 +2102,77 @@ class RoadbookApp {
         }
 
         document.getElementById('connectModal').style.display = 'block';
+
+        // 初始化时更新推荐的交通方式
+        this.updateRecommendedTransportInModal();
     }
 
-    createConnection(startMarker, endMarker, transportType) {
+    getRecommendedTransport(distance) {
+        if (distance < 5000) { // 5km
+            return 'walk';
+        } else if (distance < 400000) { // 400km
+            return 'car';
+        } else if (distance < 1500000) { // 1500km
+            return 'train';
+        } else {
+            return 'plane';
+        }
+    }
+
+    estimateDuration(distance, transportType) {
+        const speeds = {
+            walk: 5,    // km/h
+            car: 80,
+            train: 250,
+            plane: 800
+        };
+        const coefficients = {
+            walk: 1.2,
+            car: 1.4,
+            train: 1.3,
+            plane: 1.1
+        };
+
+        const speedKmh = speeds[transportType] || 80;
+        const coefficient = coefficients[transportType] || 1.4; // Default to car's coefficient
+        const actualDistanceKm = (distance * coefficient) / 1000;
+
+        if (speedKmh === 0) return 0;
+        const durationHours = actualDistanceKm / speedKmh;
+        return Math.round(durationHours);
+    }
+
+    createConnection(startMarker, endMarker, transportType) { // transportType is now ignored, but kept for compatibility
         if (!startMarker || !endMarker) {
             console.error('创建连接失败：起始点或终点无效。');
             return;
         }
 
-        console.log('创建连接线:', startMarker.position, '->', endMarker.position);
+        const distance = startMarker.marker.getLatLng().distanceTo(endMarker.marker.getLatLng()); // in meters
+        const recommendedTransport = this.getRecommendedTransport(distance);
+        const estimatedDuration = this.estimateDuration(distance, recommendedTransport);
+
+        console.log(`创建连接线: ${startMarker.title} -> ${endMarker.title}, 距离: ${(distance / 1000).toFixed(2)} km, 推荐交通: ${recommendedTransport}, 预估时间: ${estimatedDuration} 小时`);
 
         // 创建连接线
         const polyline = L.polyline([
             [startMarker.position[0], startMarker.position[1]],
             [endMarker.position[0], endMarker.position[1]]
         ], {
-            color: this.getTransportColor(transportType),
+            color: this.getTransportColor(recommendedTransport),
             weight: 6,
             opacity: 1.0,
             smoothFactor: 1.0
         }).addTo(this.map);
 
         // 创建箭头
-        const arrowHead = this.createArrowHead(startMarker.position, endMarker.position, transportType);
+        const arrowHead = this.createArrowHead(startMarker.position, endMarker.position, recommendedTransport);
         arrowHead.addTo(this.map);
 
         // 添加终点标记（小圆点）
         const endCircle = L.circleMarker([endMarker.position[0], endMarker.position[1]], {
             radius: 6,
-            fillColor: this.getTransportColor(transportType),
+            fillColor: this.getTransportColor(recommendedTransport),
             color: '#fff',
             weight: 2,
             opacity: 1,
@@ -2076,11 +2194,11 @@ class RoadbookApp {
         const fallbackMidLat = (startLat + endLat) / 2;
         const fallbackMidLng = (startLng + endLng) / 2;
         const midPos = this.getPointOnConnection(startMarker.position, endMarker.position, 0.5) || [fallbackMidLat, fallbackMidLng];
-        const transportIcon = this.getTransportIcon(transportType);
+        const transportIcon = this.getTransportIcon(recommendedTransport);
         const iconMarker = L.marker(midPos, {
             icon: L.divIcon({
                 className: 'transport-icon',
-                html: `<div style="background-color: white; border: 2px solid ${this.getTransportColor(transportType)}; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-size: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.3);">${transportIcon}</div>`,
+                html: `<div style="background-color: white; border: 2px solid ${this.getTransportColor(recommendedTransport)}; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-size: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.3);">${transportIcon}</div>`,
                 iconSize: [30, 30],
                 iconAnchor: [15, 15]
             })
@@ -2098,7 +2216,7 @@ class RoadbookApp {
             id: Date.now(),
             startId: startMarker.id,
             endId: endMarker.id,
-            transportType: transportType,
+            transportType: recommendedTransport,
             polyline: polyline,
             endCircle: endCircle,
             iconMarker: iconMarker,
@@ -2106,7 +2224,7 @@ class RoadbookApp {
             dateTime: connectionDateTime,
             label: '',
             logo: null,
-            duration: 0,
+            duration: estimatedDuration,
             startTitle: startMarker.title,
             endTitle: endMarker.title
         };
@@ -5774,7 +5892,7 @@ class RoadbookApp {
         console.log('连接线详情已保存:', this.currentConnection);
 
         // 关闭详情面板
-        this.hideConnectionDetail();
+        // this.hideConnectionDetail(); // 为实时保存而移除
 
         // 保存到本地存储（移除成功提示）
         this.saveToLocalStorage();
@@ -5833,7 +5951,7 @@ class RoadbookApp {
             }
         }
 
-        this.hideMarkerDetail();
+        // this.hideMarkerDetail(); // 为实时保存而移除
 
         // 保存到本地存储
         this.saveToLocalStorage();
@@ -5938,6 +6056,8 @@ class RoadbookApp {
         // 保存到本地存储
         this.saveToLocalStorage();
 
+        // 为实时保存而注释掉以下代码
+        /*
         console.log(`日期 ${this.currentDate} 的备注已保存`);
 
         // 隐藏日期详情面板（自动退出编辑页面）
@@ -5955,6 +6075,7 @@ class RoadbookApp {
         if (this.filterMode) {
             this.exitFilterMode();
         }
+        */
     }
 
     closeDateDetail() {
