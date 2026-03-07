@@ -61,6 +61,7 @@ func NewRouter(cfg config.Config) *gin.Engine {
 
 	authHandler := handler.NewAuthHandler(authService)
 	planHandler := handler.NewPlanHandler(planRepo)
+	searchHandlers := handler.NewSearchHandlers(cfg) // Create search handlers instance
 
 	// API v1 路由组
 	v1 := r.Group("/api/v1")
@@ -100,13 +101,23 @@ func NewRouter(cfg config.Config) *gin.Engine {
 	{
 		api.GET("/ping", handler.Ping)
 		api.HEAD("/ping", handler.Ping)
-		api.GET("/cnmap/search", handler.BaiduSearchHandler)
-		api.GET("/tianmap/search", handler.TianmapSearchHandler)
-		api.GET("/gaode/search", handler.GaodeSearchHandler(cfg.Search.Providers.Gaode.Key))
-		api.GET("/search/providers", handler.GetSearchProvidersHandler(cfg))
+		api.GET("/cnmap/search", searchHandlers.BaiduSearchHandler)
+		api.GET("/tianmap/search", searchHandlers.TianmapSearchHandler)
+		api.GET("/gaode/search", applyAuthMiddleware(cfg.Search.Providers.Gaode.LoginRequired, authService, searchHandlers.GaodeSearchHandler)...)
+		api.GET("/search/providers", searchHandlers.GetSearchProvidersHandler)
 		// 新增trafficpos接口
 		api.GET("/trafficpos", handler.GetTrafficPos)
 	}
 
 	return r
 }
+
+// applyAuthMiddleware conditionally applies JWTAuthMiddleware if loginRequired is true,
+// returning a HandlersChain suitable for gin.
+func applyAuthMiddleware(loginRequired bool, authService auth.Authenticator, handler gin.HandlerFunc) gin.HandlersChain {
+	if loginRequired {
+		return gin.HandlersChain{middleware.JWTAuthMiddleware(authService), handler}
+	}
+	return gin.HandlersChain{handler}
+}
+

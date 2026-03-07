@@ -99,32 +99,41 @@ class RoadbookApp {
         });
     }
 
+    // Helper to convert performance.now() diff to ms
+    performanceToMilliseconds(diff) {
+        return Math.round(diff);
+    }
+
     async testSearchProviderLatency(provider) {
         const urls = {
             nominatim: 'https://nominatim.openstreetmap.org/status.php',
             overpass: 'https://overpass-api.de/api/interpreter',
             mapsearch: 'https://map.011203.dpdns.org/search?q=test',
             photon: 'https://photon.komoot.io/api/?q=test',
-            gaode: `${apiBaseUrl}/api/ping`,
-            tiansearch: `${apiBaseUrl}/api/ping`,
-            cnsearch: `${apiBaseUrl}/api/ping`,
-            auto: null
+            // For backend-proxied providers (gaode, tiansearch, cnsearch),
+            // latency is not tested via HEAD request from frontend.
+            // Backend /api/search/providers should ideally provide this info,
+            // or these options are simply marked as "available" if not loginRequired.
         };
 
         const url = urls[provider];
         if (!url) {
+            // If the provider is a backend-proxied one, assume OK unless specified by backend
+            if (['gaode', 'tiansearch', 'cnsearch'].includes(provider)) {
+                return { status: 'ok', latency: 0 };
+            }
             return { status: 'n/a' };
         }
 
         const startTime = performance.now();
         try {
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 1000);
+            const timeoutId = setTimeout(() => controller.abort(), 3000);
 
             await fetch(url, { method: 'HEAD', mode: 'no-cors', signal: controller.signal });
             
             clearTimeout(timeoutId);
-            const latency = performance.now() - startTime;
+            const latency = this.performanceToMilliseconds(performance.now() - startTime);
             return { status: 'ok', latency };
         } catch (error) {
             return { status: 'error' };
@@ -138,6 +147,7 @@ class RoadbookApp {
         if (this.searchProviderOriginalTexts.size === 0) {
             Array.from(select.options).forEach(option => {
                 let cleanText = option.text;
+                // Remove existing icons like ⏱️, ✅, ❌ etc.
                 if (cleanText.length > 2 && !/^[a-zA-Z0-9]/.test(cleanText.charAt(0)) && cleanText.charAt(1) === ' ') {
                     cleanText = cleanText.substring(2);
                 }
@@ -145,16 +155,71 @@ class RoadbookApp {
             });
         }
 
+        let backendProviders = [];
+        let backendFetchFailed = false; // New flag to track if fetching backend providers failed
+        try {
+            const response = await fetch(`${apiBaseUrl}/api/search/providers`);
+            if (response.ok) {
+                backendProviders = await response.json();
+            } else {
+                console.error('Failed to fetch search providers from backend:', response.statusText);
+                backendFetchFailed = true; // Set flag on HTTP error
+            }
+        } catch (error) {
+            console.error('Error fetching search providers from backend:', error);
+            backendFetchFailed = true; // Set flag on network error
+        }
+
         const promises = Array.from(select.options).map(async (option) => {
-            const provider = option.value;
-            if (provider === 'auto') {
+            const providerId = option.value;
+            const originalText = this.searchProviderOriginalTexts.get(providerId) || 'Unknown';
+
+            // Special handling for "auto"
+            if (providerId === 'auto') {
+                option.text = originalText;
+                option.disabled = false;
                 return;
             }
 
-            const originalText = this.searchProviderOriginalTexts.get(provider) || 'Unknown';
-            option.text = `⏱️ ${originalText}`;
+            const isBackendProvider = ['gaode', 'tiansearch', 'cnsearch'].includes(providerId);
 
-            const result = await this.testSearchProviderLatency(provider);
+            // Handle overall backend fetch failure for backend providers
+            if (isBackendProvider && backendFetchFailed) {
+                option.text = `❌ ${originalText}`;
+                // option.disabled = true; // Removed disabled state
+                return;
+            }
+
+            let backendProvider = null;
+            if (!backendFetchFailed) { // Only try to find if the fetch itself didn't fail
+                backendProvider = backendProviders.find(bp => {
+                    // Map frontend IDs to backend names/IDs for backend-proxied services
+                    // Backend names are lowercase: 'gaode', 'tianmap', 'baidu'
+                    if (providerId === 'gaode' && bp.name === 'gaode') return true;
+                    if (providerId === 'tiansearch' && bp.name === 'tianmap') return true;
+                    if (providerId === 'cnsearch' && bp.name === 'baidu') return true;
+                    return false; // For frontend-only providers, this will be false
+                });
+            }
+            
+            // Handle loginRequired for backend-proxied providers (if backend fetch succeeded and provider found)
+            // Backend property is 'login_required' (snake_case)
+            if (backendProvider && backendProvider.login_required) {
+                option.text = `🔒 ${originalText}`;
+                return;
+            } else if (backendProvider) { // If it's a backend provider, and not loginRequired
+                // Assume "ok" status for now if no specific status from backend itself.
+                option.text = `✅ ${originalText}`;
+                return; // Done with this backend provider
+            }
+
+            // For frontend-only providers (nominatim, overpass, mapsearch, photon)
+            // and any other provider not explicitly handled as a backend provider
+            // if (!option.disabled) { // Condition no longer needed if not disabling
+                option.text = `⏱️ ${originalText}`;
+            // }
+
+            const result = await this.testSearchProviderLatency(providerId);
 
             let icon = '❔';
             if (result.status === 'ok') {
@@ -166,6 +231,7 @@ class RoadbookApp {
             }
             
             option.text = `${icon} ${originalText}`;
+            // option.disabled = (result.status === 'error'); // Removed disabled state
         });
 
         await Promise.all(promises);
@@ -524,7 +590,6 @@ class RoadbookApp {
         this.bindEvents();
         this.bindExpandModalEvents();
         this.addSearchProviderComments();
-        this.updateProviderIcons();
 
         if (shareID) {
             // 如果有分享ID，先正常加载本地数据，然后处理分享数据
@@ -1317,6 +1382,11 @@ class RoadbookApp {
                     this.saveToLocalStorage();
                 }
             });
+
+            // Add a one-time mousedown listener to run the latency test
+            searchMethodSelect.addEventListener('mousedown', () => {
+                this.updateProviderIcons();
+            }, { once: true });
         }
 
         // 点击页面其他地方隐藏搜索结果
@@ -2247,7 +2317,7 @@ class RoadbookApp {
         return Math.round(durationHours);
     }
 
-    createConnection(startMarker, endMarker, transportType) { // transportType is now ignored, but kept for compatibility
+    createConnection(startMarker, endMarker, _transportType) { // transportType is now ignored, but kept for compatibility
         if (!startMarker || !endMarker) {
             console.error('创建连接失败：起始点或终点无效。');
             return;
@@ -4381,14 +4451,16 @@ class RoadbookApp {
                     format: 'json',
                     limit: 10
                 },
-                parser: 'nominatim'
+                parser: 'nominatim',
+                name: 'Nominatim'
             };
         } else if (this.currentSearchMethod === 'overpass') {
             // Overpass搜索模式
             searchConfig = {
                 searchable: true,
                 searchUrl: 'https://overpass-api.de/api/interpreter',
-                parser: 'overpass'
+                parser: 'overpass',
+                name: 'Overpass'
             };
         } else if (this.currentSearchMethod === 'photon') {
             // Photon搜索模式（原Google搜索）
@@ -4398,7 +4470,8 @@ class RoadbookApp {
                 params: {
                     limit: 10
                 },
-                parser: 'photon'
+                parser: 'photon',
+                name: 'Photon'
             };
         } else if (this.currentSearchMethod === 'mapsearch') {
             // MapSearch搜索模式
@@ -4409,7 +4482,8 @@ class RoadbookApp {
                     format: 'json',
                     limit: 10
                 },
-                parser: 'nominatim' // 使用Nominatim格式，因为MapSearch与Nominatim格式一致
+                parser: 'nominatim', // 使用Nominatim格式，因为MapSearch与Nominatim格式一致
+                name: 'MapSearch'
             };
         } else if (this.currentSearchMethod === 'gaode') {
             // Gaode Search
@@ -4420,7 +4494,8 @@ class RoadbookApp {
                     format: 'json',
                     limit: 10
                 },
-                parser: 'nominatim'
+                parser: 'nominatim',
+                name: '高德'
             };
         } else if (this.currentSearchMethod === 'cnsearch') {
             // CNSearch搜索模式
@@ -4431,7 +4506,8 @@ class RoadbookApp {
                     format: 'json',
                     limit: 10
                 },
-                parser: 'nominatim' // 使用Nominatim格式，因为CNSearch与Nominatim格式一致
+                parser: 'nominatim', // 使用Nominatim格式，因为CNSearch与Nominatim格式一致
+                name: '百度'
             };
         } else if (this.currentSearchMethod === 'tiansearch') {
             // TianSearch搜索模式
@@ -4442,8 +4518,21 @@ class RoadbookApp {
                     format: 'json',
                     limit: 10
                 },
-                parser: 'nominatim' // 使用Nominatim格式，因为TianSearch与Nominatim格式一致
+                parser: 'nominatim', // 使用Nominatim格式，因为TianSearch与Nominatim格式一致
+                name: '天地图'
             };
+        } else {
+            // Fallback for unknown search method
+            console.error('未知的搜索方式:', this.currentSearchMethod);
+            const searchResults = document.getElementById('searchResults');
+            if (searchResults) {
+                const resultsList = document.getElementById('resultsList');
+                if (resultsList) {
+                    resultsList.innerHTML = '<li style="padding: 12px 15px; color: #999; cursor: default;">搜索方式配置错误</li>';
+                }
+                searchResults.style.display = 'block';
+            }
+            return;
         }
 
         let url, searchPromise;
@@ -4463,21 +4552,55 @@ class RoadbookApp {
             );out center;`;
 
             url = `${searchConfig.searchUrl}?data=${encodeURIComponent(overpassQuery)}`;
-            searchPromise = fetch(url).then(response => response.json()).then(data => {
-                if (data && data.elements && data.elements.length > 0) {
-                    return this.convertOverpassToSearchResults(data.elements);
-                }
-                return [];
-            });
+            searchPromise = fetch(url)
+                .then(async response => {
+                    if (!response.ok) {
+                        // 对于Overpass，错误信息可能在响应体中
+                        try {
+                            const errData = await response.json();
+                            throw new Error(`Overpass API Error: ${response.status} ${errData.message || response.statusText}`);
+                        } catch {
+                            throw new Error(`Overpass API Error: ${response.status} ${response.statusText}`);
+                        }
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data && data.elements && data.elements.length > 0) {
+                        return this.convertOverpassToSearchResults(data.elements);
+                    }
+                    return [];
+                });
         } else {
-            // 原有的Nominatim/Photon搜索逻辑
+            // 原有的Nominatim/Photon/Backend search logic
             const params = new URLSearchParams({
                 ...searchConfig.params,
                 q: query
             });
 
+            // Prepare headers, including Authorization if JWT token exists
+            const headers = {
+                'Content-Type': 'application/json',
+            };
+            const jwtToken = localStorage.getItem('online_token');
+            if (jwtToken) {
+                headers['Authorization'] = `Bearer ${jwtToken}`;
+            }
+
             url = `${searchConfig.searchUrl}?${params.toString()}`;
-            searchPromise = fetch(url).then(response => response.json());
+            searchPromise = fetch(url, { headers })
+                .then(async response => {
+                    if (!response.ok) {
+                        // 尝试解析JSON错误消息如果存在
+                        try {
+                            const errData = await response.json();
+                            throw new Error(`${searchConfig.name || 'Search'} API Error: ${response.status} ${errData.message || errData.error || response.statusText}`);
+                        } catch {
+                            throw new Error(`${searchConfig.name || 'Search'} API Error: ${response.status} ${response.statusText}`);
+                        }
+                    }
+                    return response.json();
+                });
         }
 
         searchPromise
@@ -4506,7 +4629,29 @@ class RoadbookApp {
                 if (searchResults) {
                     const resultsList = document.getElementById('resultsList');
                     if (resultsList) {
-                        resultsList.innerHTML = '<li style="padding: 12px 15px; color: #999; cursor: default;">搜索失败，请检查网络连接</li>';
+                        let errorMessage = '搜索失败，请检查网络连接';
+
+                        // 提取状态码
+                        const statusMatch = error.message.match(/(\d{3})/);
+                        const statusCode = statusMatch ? parseInt(statusMatch[1], 10) : 0;
+
+                        if (statusCode === 401) {
+                            errorMessage = '搜索失败：未授权，请登录。'; // Specific for 401
+                        } else if (statusCode === 403) {
+                            errorMessage = '搜索失败：无权限，请检查API密钥或配置。'; // Specific for 403
+                        } else if (statusCode === 400) {
+                            errorMessage = '搜索失败：请求参数错误。'; // Specific for 400
+                        } else if (statusCode === 404) {
+                            errorMessage = '搜索失败：服务或资源未找到。'; // Specific for 404
+                        } else if (error.message.includes('API Error')) {
+                             // Attempt to extract more specific error from message
+                             const apiErrorMessage = error.message.replace(/Search API Error: |Overpass API Error: /, '');
+                             errorMessage = `搜索失败：${apiErrorMessage}`;
+                        } else if (error.message.includes('timeout') || error.name === 'AbortError') {
+                             errorMessage = '搜索请求超时，请稍后再试。';
+                        }
+                        
+                        resultsList.innerHTML = `<li style="padding: 12px 15px; color: #999; cursor: default;">${errorMessage}</li>`;
                     }
                     searchResults.style.display = 'block';
                 }

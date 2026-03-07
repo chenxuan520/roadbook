@@ -23,7 +23,8 @@ type Config struct {
 
 // SearchProviderConfig holds configuration for a single search provider, like an API key.
 type SearchProviderConfig struct {
-	Key string `json:"key"`
+	Key          string `json:"key"`
+	LoginRequired bool   `json:"login_required,omitempty"`
 }
 
 // SearchProviders holds configurations for all supported search providers.
