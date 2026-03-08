@@ -83,6 +83,7 @@ class RoadbookHtmlExporter {
         });
 
         // Generate content for each day
+        let totalTripCost = 0;
         for (const day in eventsByDay) {
             content += `日期: ${day}\n`;
             const dayEvents = eventsByDay[day];
@@ -102,7 +103,42 @@ class RoadbookHtmlExporter {
                     }
                 }
             });
+
+            // 添加日期备注和消费信息
+            if (data.dateNotes && data.dateNotes[day]) {
+                const noteEntry = data.dateNotes[day];
+                let notesText = '';
+                let expensesList = [];
+
+                if (typeof noteEntry === 'string') {
+                    notesText = noteEntry;
+                } else if (noteEntry && typeof noteEntry === 'object') {
+                    notesText = noteEntry.notes || '';
+                    expensesList = noteEntry.expenses || [];
+                }
+
+                if (notesText) {
+                    content += `  备注: ${notesText.replace(/\n/g, ' ')}\n`;
+                }
+
+                if (expensesList.length > 0) {
+                    content += `  消费明细:\n`;
+                    let dayCost = 0;
+                    expensesList.forEach(exp => {
+                        const cost = parseFloat(exp.cost) || 0;
+                        dayCost += cost;
+                        content += `    - ¥${cost.toFixed(2)}: ${exp.remark || '无备注'}\n`;
+                    });
+                    content += `  当日总消费: ¥${dayCost.toFixed(2)}\n`;
+                    totalTripCost += dayCost;
+                }
+            }
+
             content += "\n";
+        }
+
+        if (totalTripCost > 0) {
+            content += `行程总预计消费: ¥${totalTripCost.toFixed(2)}\n`;
         }
 
         return content;
@@ -205,6 +241,10 @@ class RoadbookHtmlExporter {
                         <button id="closeSidebarBtn" class="close-btn">×</button>
                     </div>
                     <div id="markerList"></div>
+                    <div id="totalExpensesContainer" class="total-expenses-container" style="display: none;">
+                        <span>预计总花费:</span>
+                        <span id="totalExpensesAmount">0</span>
+                    </div>
                 </div>
             </div>
             <!-- 日期备注便签 -->
@@ -1231,8 +1271,29 @@ class RoadbookHtmlExporter {
                     dateElement.textContent = formatDateHeader(date);
 
                     // 获取日期备注 - 使用roadbookData中的dateNotes
-                    const notes = roadbookData.dateNotes && roadbookData.dateNotes[date] ? roadbookData.dateNotes[date] : '';
-                    contentElement.innerHTML = convertMarkdownLinksToHtml(notes) || '暂无备注';
+                    let notesEntry = roadbookData.dateNotes && roadbookData.dateNotes[date] ? roadbookData.dateNotes[date] : '';
+                    let notesText = '';
+                    let expensesList = [];
+
+                    if (typeof notesEntry === 'string') {
+                        notesText = notesEntry;
+                    } else if (notesEntry && typeof notesEntry === 'object') {
+                        notesText = notesEntry.notes || '';
+                        expensesList = notesEntry.expenses || [];
+                    }
+
+                    let html = convertMarkdownLinksToHtml(notesText);
+                    if (expensesList.length > 0) {
+                        let total = 0;
+                        html += '<div style="margin-top: 10px; border-top: 1px solid #eee; padding-top: 5px;"><strong>预计消费:</strong><ul style="padding-left: 20px; margin: 5px 0;">';
+                        expensesList.forEach(e => {
+                            html += \`<li>¥\${e.cost} - \${e.remark || '无备注'}</li>\`;
+                            total += (parseFloat(e.cost) || 0);
+                        });
+                        html += \`</ul><div style="font-weight: bold; text-align: right; color: #667eea;">总计: ¥\${total.toFixed(2)}</div></div>\`;
+                    }
+
+                    contentElement.innerHTML = html || '暂无备注';
 
                     // 添加事件监听器，防止链接点击退出聚焦模式
                     contentElement.addEventListener('click', (e) => {
@@ -1533,6 +1594,116 @@ class RoadbookHtmlExporter {
 
             // 初始更新标记点列表
             updateMarkerList();
+
+            // 计算并显示总花费
+            function updateTotalExpenses() {
+                const container = document.getElementById('totalExpensesContainer');
+                const amountSpan = document.getElementById('totalExpensesAmount');
+                if (!container || !amountSpan) return;
+
+                let totalCost = 0;
+                const expensesByDate = {}; // date -> total
+
+                if (roadbookData.dateNotes) {
+                    for (const [date, noteEntry] of Object.entries(roadbookData.dateNotes)) {
+                        if (noteEntry && typeof noteEntry === 'object' && Array.isArray(noteEntry.expenses)) {
+                            let dayTotal = 0;
+                            noteEntry.expenses.forEach(expense => {
+                                const cost = parseFloat(expense.cost);
+                                if (!isNaN(cost)) {
+                                    dayTotal += cost;
+                                }
+                            });
+
+                            if (dayTotal > 0) {
+                                totalCost += dayTotal;
+                                expensesByDate[date] = dayTotal;
+                            }
+                        }
+                    }
+                }
+
+                if (totalCost > 0) {
+                    container.style.display = 'flex';
+                    amountSpan.textContent = '¥' + totalCost.toFixed(2);
+
+                    // 添加鼠标悬浮显示明细
+                    container.onmouseenter = function(e) {
+                        showExpensesTooltip(expensesByDate, totalCost, container);
+                    };
+
+                    container.onmouseleave = function() {
+                        const tooltip = document.getElementById('expenses-tooltip');
+                        if (tooltip) {
+                            tooltip.style.display = 'none';
+                        }
+                    };
+                } else {
+                    container.style.display = 'none';
+                }
+            }
+
+            // 显示消费明细Tooltip
+            function showExpensesTooltip(expensesByDate, totalCost, container) {
+                // 按照日期排序
+                const sortedDates = Object.keys(expensesByDate).sort((a, b) => new Date(a) - new Date(b));
+
+                let content = '<div class="expenses-tooltip-header">消费明细 (按日期)</div>';
+
+                sortedDates.forEach(date => {
+                    const cost = expensesByDate[date];
+                    const dateStr = formatDateHeader(date);
+                    content += \`
+                        <div class="expenses-tooltip-item">
+                            <span>\${dateStr}</span>
+                            <span class="expenses-tooltip-cost">¥\${cost.toFixed(2)}</span>
+                        </div>
+                    \`;
+                });
+
+                content += \`
+                    <div class="expenses-tooltip-footer">
+                        <span>总计</span>
+                        <span class="expenses-tooltip-total">¥\${totalCost.toFixed(2)}</span>
+                    </div>
+                \`;
+
+                let tooltip = document.getElementById('expenses-tooltip');
+                if (!tooltip) {
+                    tooltip = document.createElement('div');
+                    tooltip.id = 'expenses-tooltip';
+                    // 样式将由CSS类控制，这里只设置必要的定位样式
+                    tooltip.style.position = 'fixed';
+                    tooltip.style.zIndex = '2000';
+                    tooltip.style.padding = '10px';
+                    tooltip.style.borderRadius = '4px';
+                    tooltip.style.pointerEvents = 'none';
+                    tooltip.style.minWidth = '200px';
+                    tooltip.style.fontSize = '12px';
+                    document.body.appendChild(tooltip);
+                }
+
+                tooltip.innerHTML = content;
+                tooltip.style.display = 'block';
+
+                // 定位
+                const rect = container.getBoundingClientRect();
+                // 尝试显示在左侧
+                let left = rect.left - 220;
+                // 如果左侧空间不足（例如在移动端），显示在上方
+                if (left < 10) {
+                    left = rect.left;
+                    // 显示在上方
+                    tooltip.style.top = (rect.top - tooltip.offsetHeight - 10) + 'px';
+                } else {
+                    // 显示在左侧，垂直居中
+                    tooltip.style.top = (rect.top + (rect.height - tooltip.offsetHeight) / 2) + 'px';
+                }
+                tooltip.style.left = left + 'px';
+            }
+
+            // 初始化时调用
+            updateTotalExpenses();
 
             // 移动端功能适配
             function initMobileFeatures() {
@@ -2221,6 +2392,77 @@ main {
         box-shadow: 0 2px 8px rgba(0,0,0,0.3);
         background: white;
         object-fit: contain;
+    }
+
+    /* 预计总花费容器样式 */
+    .total-expenses-container {
+        padding: 10px;
+        margin-top: 10px;
+        border-top: 1px solid #dddddd;
+        font-weight: bold;
+        display: flex; /* explicit display flex */
+        justify-content: space-between;
+        align-items: center;
+        background-color: #f5f5f5;
+        border-radius: 4px;
+        cursor: help;
+        color: #333333;
+        transition: all 0.3s ease;
+    }
+
+    .total-expenses-container:hover {
+        background-color: #ffffff;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    #totalExpensesAmount {
+        color: #667eea;
+        font-size: 1.1em;
+    }
+
+    /* 消费明细提示框样式 */
+    #expenses-tooltip {
+        background: #ffffff !important;
+        color: #333333 !important;
+        border: 1px solid #e1e5e9;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2) !important;
+        backdrop-filter: blur(10px);
+    }
+
+    /* 消费明细内部样式 */
+    .expenses-tooltip-header {
+        border-bottom: 1px solid #e1e5e9;
+        padding-bottom: 5px;
+        margin-bottom: 5px;
+        font-weight: bold;
+        color: #333333;
+    }
+
+    .expenses-tooltip-item {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 2px;
+        color: #666666;
+    }
+
+    .expenses-tooltip-cost {
+        color: #28a745;
+        margin-left: 10px;
+        font-weight: 500;
+    }
+
+    .expenses-tooltip-footer {
+        border-top: 1px solid #e1e5e9;
+        padding-top: 5px;
+        margin-top: 5px;
+        display: flex;
+        justify-content: space-between;
+        font-weight: bold;
+        color: #333333;
+    }
+
+    .expenses-tooltip-total {
+        color: #dc3545;
     }
 }`;
     }

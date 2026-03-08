@@ -1853,6 +1853,14 @@ class RoadbookApp {
                 this.openExpandModal('date', '日期备注');
             });
         }
+
+        // 绑定添加消费按钮事件
+        const addExpenseBtn = document.getElementById('addExpenseBtn');
+        if (addExpenseBtn) {
+            addExpenseBtn.addEventListener('click', () => {
+                this.addCurrentDateExpense();
+            });
+        }
     }
 
     // 移动端功能初始化
@@ -3617,6 +3625,89 @@ class RoadbookApp {
                 });
             }
         });
+
+        // 计算并显示总花费
+        let totalCost = 0;
+        const dailyExpenses = [];
+
+        allDates.forEach(date => {
+            const expenses = this.getDateExpenses(date);
+            if (expenses && expenses.length > 0) {
+                const dayCost = expenses.reduce((sum, item) => sum + (parseFloat(item.cost) || 0), 0);
+                if (dayCost > 0) {
+                    totalCost += dayCost;
+                    dailyExpenses.push({ date, cost: dayCost });
+                }
+            }
+        });
+
+        const totalContainer = document.getElementById('totalExpensesContainer');
+        const totalAmount = document.getElementById('totalExpensesAmount');
+
+        if (totalContainer && totalAmount) {
+            if (totalCost > 0) {
+                totalContainer.style.display = 'flex';
+                totalAmount.textContent = `¥${totalCost.toFixed(2)}`;
+
+                // 绑定鼠标悬停事件显示明细
+                totalContainer.onmouseover = () => {
+                    let tooltip = document.getElementById('expenses-tooltip');
+                    if (!tooltip) {
+                        tooltip = document.createElement('div');
+                        tooltip.id = 'expenses-tooltip';
+                        tooltip.style.position = 'fixed';
+                        tooltip.style.zIndex = '10000';
+                        tooltip.style.pointerEvents = 'none';
+                        tooltip.style.padding = '10px';
+                        tooltip.style.borderRadius = '4px';
+                        tooltip.style.fontSize = '12px';
+                        tooltip.style.minWidth = '180px';
+                        document.body.appendChild(tooltip);
+                    }
+
+                    let tooltipContent = '<div class="expenses-tooltip-header">每日消费明细</div>';
+                    if (dailyExpenses.length > 0) {
+                        dailyExpenses.forEach(item => {
+                            tooltipContent += `<div class="expenses-tooltip-item">
+                                <span>${this.formatDateHeader(item.date)}:</span>
+                                <span class="expenses-tooltip-cost">¥${item.cost.toFixed(2)}</span>
+                            </div>`;
+                        });
+                        tooltipContent += `<div class="expenses-tooltip-footer">
+                            <span>总计:</span>
+                            <span class="expenses-tooltip-total">¥${totalCost.toFixed(2)}</span>
+                        </div>`;
+                    } else {
+                        tooltipContent += '<div>无消费记录</div>';
+                    }
+
+                    tooltip.innerHTML = tooltipContent;
+                    tooltip.style.display = 'block';
+
+                    const rect = totalContainer.getBoundingClientRect();
+                    tooltip.style.left = rect.left + 'px';
+                    tooltip.style.top = (rect.top - tooltip.offsetHeight - 5) + 'px';
+                };
+
+                totalContainer.onmousemove = () => {
+                    const tooltip = document.getElementById('expenses-tooltip');
+                    if (tooltip && tooltip.style.display !== 'none') {
+                        // 稍微跟随鼠标，但保持在上方
+                        // tooltip.style.left = (e.clientX + 10) + 'px';
+                        // tooltip.style.top = (e.clientY - tooltip.offsetHeight - 10) + 'px';
+                    }
+                };
+
+                totalContainer.onmouseout = () => {
+                    const tooltip = document.getElementById('expenses-tooltip');
+                    if (tooltip) {
+                        tooltip.style.display = 'none';
+                    }
+                };
+            } else {
+                totalContainer.style.display = 'none';
+            }
+        }
     }
 
     // 获取所有标记点中出现过的日期（从早到晚排序）
@@ -3959,15 +4050,8 @@ class RoadbookApp {
         // 如果日期详情面板是打开的，手动保存内容并关闭面板（防止递归调用）
         const dateNotesInput = document.getElementById('dateNotesInput');
         if (dateNotesInput && this.currentDate) {
-            // 手动保存备注内容
-            if (!this.dateNotes) {
-                this.dateNotes = {};
-            }
-            const notes = dateNotesInput.value.trim();
-            this.dateNotes[this.currentDate] = notes;
-
-            // 保存到本地存储
-            this.saveToLocalStorage();
+            // 使用封装好的保存方法，确保数据结构正确
+            this.saveDateNotes();
 
             // 隐藏日期详情面板
             const dateDetailPanel = document.getElementById('dateDetailPanel');
@@ -4274,11 +4358,11 @@ class RoadbookApp {
 
         try {
             console.log('开始保存到本地存储，标记点数量:', this.markers.length);
-            if (this.markers.length > 0) {
-                this.markers.forEach((marker, index) => {
-                    console.log(`保存标记点 ${index}: ID=${marker.id}, 位置=${marker.position}, 标题=${marker.title}`);
-                });
-            }
+            // if (this.markers.length > 0) {
+            //     this.markers.forEach((marker, index) => {
+            //         console.log(`保存标记点 ${index}: ID=${marker.id}, 位置=${marker.position}, 标题=${marker.title}`);
+            //     });
+            // }
 
             localStorage.setItem('roadbookData', JSON.stringify(data));
             console.log('路书数据已保存到本地存储');
@@ -6309,6 +6393,9 @@ class RoadbookApp {
             dateNotesInput.value = this.getDateNotes(date) || '';
         }
 
+        // 渲染消费列表
+        this.renderDateExpenses(date);
+
         // 隐藏其他详情面板，显示日期详情面板
         const markerDetailPanel = document.getElementById('markerDetailPanel');
         const connectionDetailPanel = document.getElementById('connectionDetailPanel');
@@ -6324,9 +6411,126 @@ class RoadbookApp {
         if (!this.dateNotes) {
             this.dateNotes = {};
         }
-        return this.dateNotes[date] || '';
+        const entry = this.dateNotes[date];
+        if (typeof entry === 'string') return entry;
+        if (entry && entry.notes) return entry.notes;
+        return '';
     }
 
+    // 获取指定日期的消费列表
+    getDateExpenses(date) {
+        if (!this.dateNotes) {
+            this.dateNotes = {};
+        }
+        const entry = this.dateNotes[date];
+        if (entry && typeof entry === 'object' && Array.isArray(entry.expenses)) {
+            return entry.expenses;
+        }
+        return [];
+    }
+
+    renderDateExpenses(date) {
+        const list = document.getElementById('dateExpensesList');
+        if (!list) return;
+
+        list.innerHTML = '';
+        const expenses = this.getDateExpenses(date);
+
+        if (expenses.length === 0) {
+            list.innerHTML = '<li style="color: #999; font-size: 0.9em; text-align: center; padding: 5px;">暂无消费记录</li>';
+        } else {
+            expenses.forEach((expense, index) => {
+                const li = document.createElement('li');
+                li.style.display = 'flex';
+                li.style.justifyContent = 'space-between';
+                li.style.alignItems = 'center';
+                li.style.padding = '5px 0';
+                li.style.borderBottom = '1px solid #eee';
+
+                li.innerHTML = `
+                    <div style="flex: 1; display: flex; align-items: center; gap: 10px;">
+                        <span style="font-weight: bold; color: #FF5722;">¥${expense.cost}</span>
+                        <span style="color: #666; font-size: 0.9em;">${expense.remark || '无备注'}</span>
+                    </div>
+                    <button class="delete-expense-btn" data-index="${index}" style="background: none; border: none; cursor: pointer; color: #999; padding: 0 5px;">✕</button>
+                `;
+
+                li.querySelector('.delete-expense-btn').addEventListener('click', (e) => {
+                    const idx = parseInt(e.target.dataset.index);
+                    this.removeDateExpense(date, idx);
+                    this.renderDateExpenses(date); // Re-render
+                    this.updateMarkerList(); // Update total in marker list
+                });
+
+                list.appendChild(li);
+            });
+        }
+    }
+
+    addCurrentDateExpense() {
+        if (!this.currentDate) return;
+
+        const costInput = document.getElementById('expenseCostInput');
+        const remarkInput = document.getElementById('expenseRemarkInput');
+
+        if (!costInput || !remarkInput) return;
+
+        const cost = costInput.value.trim();
+        const remark = remarkInput.value.trim();
+
+        if (!cost) {
+            this.showSwalAlert('提示', '请输入金额', 'warning');
+            return;
+        }
+
+        this.addDateExpense(this.currentDate, cost, remark);
+
+        // Clear inputs
+        costInput.value = '';
+        remarkInput.value = '';
+
+        // Re-render
+        this.renderDateExpenses(this.currentDate);
+        this.updateMarkerList(); // Update total in marker list
+    }
+
+    // 添加消费记录
+    addDateExpense(date, cost, remark) {
+        if (!this.dateNotes) this.dateNotes = {};
+
+        let entry = this.dateNotes[date];
+        // 如果不存在或为字符串，转换为对象
+        if (!entry || typeof entry === 'string') {
+            entry = {
+                notes: typeof entry === 'string' ? entry : '',
+                expenses: []
+            };
+            this.dateNotes[date] = entry;
+        } else if (!entry.expenses) {
+            entry.expenses = [];
+        }
+
+        entry.expenses.push({
+            cost: parseFloat(cost) || 0,
+            remark: remark || ''
+        });
+
+        this.saveToLocalStorage();
+        return entry.expenses;
+    }
+
+    // 删除消费记录
+    removeDateExpense(date, index) {
+        if (!this.dateNotes || !this.dateNotes[date]) return;
+
+        const entry = this.dateNotes[date];
+        if (typeof entry === 'object' && Array.isArray(entry.expenses)) {
+            if (index >= 0 && index < entry.expenses.length) {
+                entry.expenses.splice(index, 1);
+                this.saveToLocalStorage();
+            }
+        }
+    }
 
     // 保存日期备注
     saveDateNotes() {
@@ -6338,7 +6542,23 @@ class RoadbookApp {
         }
 
         const notes = dateNotesInput.value.trim();
-        this.dateNotes[this.currentDate] = notes;
+        let entry = this.dateNotes[this.currentDate];
+
+        // 升级数据结构为对象，如果它还不是对象
+        if (typeof entry === 'string') {
+            this.dateNotes[this.currentDate] = {
+                notes: notes,
+                expenses: []
+            };
+        } else if (entry && typeof entry === 'object') {
+            entry.notes = notes;
+        } else {
+            // 不存在，创建新对象
+            this.dateNotes[this.currentDate] = {
+                notes: notes,
+                expenses: []
+            };
+        }
 
         // 保存到本地存储
         this.saveToLocalStorage();

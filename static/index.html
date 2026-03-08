@@ -115,6 +115,10 @@
                         <span class="filter-hint">📅 图标日期均可点</span>
                     </div>
                     <div id="markerList"></div>
+                    <div id="totalExpensesContainer" class="total-expenses-container" style="display: none;">
+                        <span>预计总花费:</span>
+                        <span id="totalExpensesAmount">0</span>
+                    </div>
                 </div>
                 <!-- 标记点详情面板 -->
                 <div class="detail-panel" id="markerDetailPanel" style="display: none;">
@@ -281,6 +285,17 @@
                                 <button type="button" id="expandDateNotesBtn" class="expand-btn" title="扩大编辑">↔️</button>
                             </label>
                             <textarea id="dateNotesInput" rows="6" placeholder="请输入日期备注信息"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>预计消费:</label>
+                            <ul id="dateExpensesList" class="expenses-list" style="list-style: none; padding: 0; margin-bottom: 10px; max-height: 150px; overflow-y: auto;">
+                                <!-- 动态生成消费项 -->
+                            </ul>
+                            <div class="expense-input-group" style="display: flex; gap: 5px;">
+                                <input type="number" id="expenseCostInput" placeholder="金额" class="form-control" style="width: 80px;">
+                                <input type="text" id="expenseRemarkInput" placeholder="备注" class="form-control" style="flex: 1;">
+                                <button type="button" id="addExpenseBtn" class="btn btn-primary">+</button>
+                            </div>
                         </div>
                     </div>
                 </div>
