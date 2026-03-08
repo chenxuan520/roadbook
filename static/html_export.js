@@ -3,6 +3,13 @@ class RoadbookHtmlExporter {
         this.app = app;
     }
 
+    #getLocalDateString(date) {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
+
     exportToHtml() {
         const data = this.prepareExportData();
         const htmlContent = this.generateHtmlContent(data);
@@ -13,7 +20,7 @@ class RoadbookHtmlExporter {
 
         const a = document.createElement('a');
         a.href = url;
-        a.download = `roadbook_${new Date().toISOString().slice(0, 10)}_${Date.now()}.html`;
+        a.download = `roadbook_${this.#getLocalDateString(new Date())}_${Date.now()}.html`;
         a.click();
 
         URL.revokeObjectURL(url);
@@ -32,7 +39,7 @@ class RoadbookHtmlExporter {
 
         const a = document.createElement('a');
         a.href = url;
-        a.download = `roadbook_${new Date().toISOString().slice(0, 10)}.txt`;
+        a.download = `roadbook_${this.#getLocalDateString(new Date())}.txt`;
         a.click();
 
         URL.revokeObjectURL(url);
@@ -75,7 +82,7 @@ class RoadbookHtmlExporter {
         // Group events by day
         const eventsByDay = {};
         events.forEach(event => {
-            const day = event.time.toISOString().split('T')[0];
+            const day = this.#getLocalDateString(event.time);
             if (!eventsByDay[day]) {
                 eventsByDay[day] = [];
             }

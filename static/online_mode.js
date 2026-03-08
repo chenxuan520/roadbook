@@ -798,8 +798,36 @@ class OnlineModeManager {
                 if (response.plans.length === 0) {
                     planList.innerHTML = '<p style="text-align: center; color: #999;">暂无计划</p>';
                 } else {
-                    // 按创建时间降序排序（最新的在前）
-                    const sortedPlans = response.plans.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+                    // Helper to parse YYYYMMDD string to a Date object
+                    const parsePlanDate = (dateStr) => {
+                        if (!dateStr || dateStr.length !== 8) return null;
+                        const year = parseInt(dateStr.substring(0, 4), 10);
+                        const month = parseInt(dateStr.substring(4, 6), 10) - 1;
+                        const day = parseInt(dateStr.substring(6, 8), 10);
+                        const date = new Date(year, month, day);
+                        // Check for invalid date strings like "00000000"
+                        return isNaN(date.getTime()) ? null : date;
+                    };
+
+                    // Sort by startTime (desc) and then by createdAt (desc) as a fallback
+                    const sortedPlans = response.plans.sort((a, b) => {
+                        const dateA = parsePlanDate(a.startTime);
+                        const dateB = parsePlanDate(b.startTime);
+
+                        if (dateA && dateB) {
+                            // If both have valid start times, sort by time
+                            return dateB - dateA;
+                        } else if (dateA) {
+                            // Only A has a date, so it comes first
+                            return -1;
+                        } else if (dateB) {
+                            // Only B has a date, so it comes first
+                            return 1;
+                        } else {
+                            // Neither has a valid start time, sort by creation time
+                            return new Date(b.createdAt) - new Date(a.createdAt);
+                        }
+                    });
 
                     sortedPlans.forEach(plan => {
                         // 格式化日期，将 YYYYMMDD 转换为 YYYY-MM-DD 并解析
@@ -1352,7 +1380,14 @@ class OnlineModeManager {
         }
 
         try {
-            // 获取当前app数据
+            // 1. 获取最新的计划元数据
+            const existingPlanResponse = await this.makeApiRequest(`/plans/${this.currentPlanId}`, 'GET');
+            if (!existingPlanResponse || !existingPlanResponse.plan) {
+                throw new Error('无法获取当前计划的最新信息。');
+            }
+            const existingPlan = existingPlanResponse.plan;
+
+            // 2. 获取当前app数据作为新的 content
             const currentData = {
                 version: (window.ROADBOOK_APP_VERSION || 'unknown'),
                 exportTime: new Date().toISOString(),
@@ -1392,12 +1427,13 @@ class OnlineModeManager {
                 dateNotes: this.app.dateNotes || {}
             };
 
+            // 3. 使用已存在的元数据和新的 content 发送 PUT 请求
             const response = await this.makeApiRequest(`/plans/${this.currentPlanId}`, 'PUT', {
-                name: this.currentPlanName,
-                description: `路书计划 - ${new Date().toLocaleDateString()}`,
-                startTime: new Date().toISOString().slice(0, 10).replace(/-/g, ''),
-                endTime: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10).replace(/-/g, ''),
-                labels: ['路书', '旅行'],
+                name: existingPlan.name,
+                description: existingPlan.description,
+                startTime: existingPlan.startTime,
+                endTime: existingPlan.endTime,
+                labels: existingPlan.labels,
                 content: currentData
             });
 
