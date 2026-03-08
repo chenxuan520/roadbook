@@ -131,7 +131,7 @@ class RoadbookApp {
             const timeoutId = setTimeout(() => controller.abort(), 3000);
 
             await fetch(url, { method: 'HEAD', mode: 'no-cors', signal: controller.signal });
-            
+
             clearTimeout(timeoutId);
             const latency = this.performanceToMilliseconds(performance.now() - startTime);
             return { status: 'ok', latency };
@@ -201,7 +201,7 @@ class RoadbookApp {
                     return false; // For frontend-only providers, this will be false
                 });
             }
-            
+
             // Handle loginRequired for backend-proxied providers (if backend fetch succeeded and provider found)
             // Backend property is 'login_required' (snake_case)
             if (backendProvider && backendProvider.login_required) {
@@ -229,7 +229,7 @@ class RoadbookApp {
             } else if (result.status === 'error') {
                 icon = '❌';
             }
-            
+
             option.text = `${icon} ${originalText}`;
             // option.disabled = (result.status === 'error'); // Removed disabled state
         });
@@ -1131,7 +1131,7 @@ class RoadbookApp {
                 this.dragStartMarker = startMarker;
                 this.map.dragging.disable();
 
-                const previewColorType = 'car';
+                const previewColorType = 'preview'; // 使用预览颜色
                 const previewLatLng = [latlng.lat, latlng.lng];
 
                 this.dragPreviewLine = L.polyline([startMarker.position, previewLatLng], {
@@ -1159,7 +1159,7 @@ class RoadbookApp {
 
             if (this.dragPreviewArrow) {
                 this.dragPreviewArrow.remove();
-                const previewColorType = 'car';
+                const previewColorType = 'preview'; // 使用预览颜色
                 this.dragPreviewArrow = this.createArrowHead(this.dragStartMarker.position, previewLatLng, previewColorType);
                 this.dragPreviewArrow.addTo(this.map);
             }
@@ -2465,6 +2465,7 @@ class RoadbookApp {
     getTransportColor(type) {
         const colors = {
             car: '#FF5722',
+            preview: '#FFD700', // 预览线 - 黄色
             train: '#2196F3',
             subway: '#9C27B0',  // 地铁 - 紫色
             plane: '#4CAF50',
@@ -4650,7 +4651,7 @@ class RoadbookApp {
                         } else if (error.message.includes('timeout') || error.name === 'AbortError') {
                              errorMessage = '搜索请求超时，请稍后再试。';
                         }
-                        
+
                         resultsList.innerHTML = `<li style="padding: 12px 15px; color: #999; cursor: default;">${errorMessage}</li>`;
                     }
                     searchResults.style.display = 'block';
@@ -5317,7 +5318,7 @@ class RoadbookApp {
                     if (!isNaN(lat) && !isNaN(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
                         bounds.extend([lat, lng]);
                         hasValidPoints = true;
-                        console.log(`添加标记点到边界: [${lat}, ${lng}]`);
+                        // console.log(`添加标记点到边界: [${lat}, ${lng}]`);
                     } else {
                         console.warn(`无效的标记点坐标: [${lat}, ${lng}]`);
                     }
@@ -5337,7 +5338,7 @@ class RoadbookApp {
                                     if (!isNaN(lat) && !isNaN(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
                                         bounds.extend([lat, lng]);
                                         hasValidPoints = true;
-                                        console.log(`添加连接线点到边界: [${lat}, ${lng}]`);
+                                        // console.log(`添加连接线点到边界: [${lat}, ${lng}]`);
                                     }
                                 }
                             });
@@ -6145,6 +6146,31 @@ class RoadbookApp {
         if (connectionLogoInput) {
             const logoValue = connectionLogoInput.value.trim();
             this.currentConnection.logo = logoValue || null;  // 如果为空则设置为null
+        }
+
+        // --- 自动同步日期到标记点 ---
+        if (this.currentConnection.dateTime) {
+            const dateOnly = this.currentConnection.dateTime.split(' ')[0]; // YYYY-MM-DD
+
+            const startMarker = this.markers.find(m => m.id === this.currentConnection.startId);
+            const endMarker = this.markers.find(m => m.id === this.currentConnection.endId);
+
+            [startMarker, endMarker].forEach(marker => {
+                if (marker) {
+                    if (!marker.dateTimes) marker.dateTimes = [];
+                    // 兼容旧数据
+                    if (marker.dateTime && !marker.dateTimes.includes(marker.dateTime)) {
+                        marker.dateTimes.push(marker.dateTime);
+                    }
+
+                    const hasDate = marker.dateTimes.some(dt => dt.startsWith(dateOnly));
+                    if (!hasDate) {
+                        marker.dateTimes.push(this.currentConnection.dateTime);
+                        marker.dateTimes.sort();
+                        console.log(`已自动为标记点 ${marker.title} 添加日期: ${dateOnly}`);
+                    }
+                }
+            });
         }
 
         // 更新连接线列表
