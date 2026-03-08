@@ -118,7 +118,7 @@ class RoadbookHtmlExporter {
                 }
 
                 if (notesText) {
-                    content += `  备注: ${notesText.replace(/\n/g, ' ')}\n`;
+                    content += `  备注: ${this.stripMarkdownLinks(notesText).replace(/\n/g, ' ')}\n`;
                 }
 
                 if (expensesList.length > 0) {
@@ -127,7 +127,7 @@ class RoadbookHtmlExporter {
                     expensesList.forEach(exp => {
                         const cost = parseFloat(exp.cost) || 0;
                         dayCost += cost;
-                        content += `    - ¥${cost.toFixed(2)}: ${exp.remark || '无备注'}\n`;
+                        content += `    - ¥${cost.toFixed(2)}: ${this.stripMarkdownLinks(exp.remark || '无备注')}\n`;
                     });
                     content += `  当日总消费: ¥${dayCost.toFixed(2)}\n`;
                     totalTripCost += dayCost;
@@ -155,6 +155,11 @@ class RoadbookHtmlExporter {
             cruise: '游轮'
         };
         return names[type] || '其他';
+    }
+
+    stripMarkdownLinks(text) {
+        if (!text) return '';
+        return text.replace(/\[([^\]]+)\]\([^\)]+\)/g, '$1');
     }
 
 

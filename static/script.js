@@ -378,7 +378,8 @@ class RoadbookApp {
         this.markers.push(markerData);
 
         // 添加事件监听
-        marker.on('click', () => {
+        marker.on('click', (e) => {
+            L.DomEvent.stopPropagation(e);
             this.showMarkerDetail(markerData);
         });
 
@@ -517,7 +518,8 @@ class RoadbookApp {
 
         // 添加连接线事件
         const self = this;
-        polyline.on('click', function() {
+        polyline.on('click', function(e) {
+            L.DomEvent.stopPropagation(e);
             self.showConnectionDetail(connection);
         });
 
@@ -1067,6 +1069,15 @@ class RoadbookApp {
         this.map.on('click', (e) => {
             if (this.currentMode === 'addMarker') {
                 this.addMarker(e.latlng);
+            } else {
+                // 如果当前处于编辑模式（有选中的标记点或连接线），则退出编辑模式
+                // 这模仿了日期编辑界面的行为：点击地图返回列表，但不调整视图
+                if (this.currentMarker) {
+                    this.hideMarkerDetail();
+                }
+                if (this.currentConnection) {
+                    this.hideConnectionDetail();
+                }
             }
         });
 
@@ -2114,7 +2125,8 @@ class RoadbookApp {
         this.setMode('view');
 
         // 添加点击事件显示详情
-        marker.on('click', () => {
+        marker.on('click', (e) => {
+            L.DomEvent.stopPropagation(e);
             this.showMarkerDetail(markerData);
         });
 
@@ -2430,7 +2442,8 @@ class RoadbookApp {
         };
 
         const self = this;
-        polyline.on('click', function() {
+        polyline.on('click', function(e) {
+            L.DomEvent.stopPropagation(e);
             self.showConnectionDetail(connection);
         });
         polyline.on('mouseover', function(e) {
@@ -5193,7 +5206,8 @@ class RoadbookApp {
             this.markers.push(markerObj);
 
             // 添加事件监听
-            marker.on('click', () => {
+            marker.on('click', (e) => {
+                L.DomEvent.stopPropagation(e);
                 this.showMarkerDetail(markerObj);
             });
 
@@ -5331,7 +5345,8 @@ class RoadbookApp {
 
             // 添加连接线事件
             const self = this;
-            polyline.on('click', function() {
+            polyline.on('click', function(e) {
+                L.DomEvent.stopPropagation(e);
                 self.showConnectionDetail(connection);
             });
 
