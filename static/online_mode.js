@@ -1456,6 +1456,20 @@ class OnlineModeManager {
     // 计算内容哈希值（完整JSON序列化版本）
     getContentHash() {
         try {
+            // 辅助函数：深度对对象键进行排序，确保序列化稳定性
+            const sortKeys = (obj) => {
+                if (typeof obj !== 'object' || obj === null) {
+                    return obj;
+                }
+                if (Array.isArray(obj)) {
+                    return obj.map(sortKeys);
+                }
+                return Object.keys(obj).sort().reduce((acc, key) => {
+                    acc[key] = sortKeys(obj[key]);
+                    return acc;
+                }, {});
+            };
+
             // 完整序列化所有相关内容，包括属性变化
             const data = {
                 markers: this.app.markers.map(m => {
@@ -1471,7 +1485,8 @@ class OnlineModeManager {
                         dateTimes: m.dateTimes || [],
                         dateTime: m.dateTime
                     };
-                    return JSON.stringify(markerData, Object.keys(markerData).sort());
+                    // 使用sortKeys确保键顺序一致
+                    return JSON.stringify(sortKeys(markerData));
                 }).sort(), // 排序确保顺序一致
                 connections: this.app.connections.map(c => {
                     const connData = {
@@ -1486,19 +1501,20 @@ class OnlineModeManager {
                         startTitle: c.startTitle,
                         endTitle: c.endTitle
                     };
-                    return JSON.stringify(connData, Object.keys(connData).sort());
+                    // 使用sortKeys确保键顺序一致
+                    return JSON.stringify(sortKeys(connData));
                 }).sort(), // 排序确保顺序一致
                 labels: this.app.labels.map(l => ({
                     markerIndex: this.app.markers.indexOf(l.marker),
                     content: l.content
                 })),
-                dateNotes: this.app.dateNotes || {},
+                dateNotes: sortKeys(this.app.dateNotes || {}),
                 currentLayer: this.app.currentLayer,
                 currentSearchMethod: this.app.currentSearchMethod
             };
 
-            // 使用稳定的JSON序列化，确保属性顺序一致
-            return JSON.stringify(data, Object.keys(data).sort());
+            // 使用sortKeys确保顶层键顺序一致
+            return JSON.stringify(sortKeys(data));
         } catch (error) {
             console.error('计算内容哈希失败:', error);
             return null;

@@ -307,6 +307,19 @@ roadbook/
   - `/api/tianmap/search` - 天地图搜索
   - `/api/v1/share/plans/:id` - 分享路书
 
+### 前端版本控制与缓存清除
+
+为了解决前端静态资源（JS/CSS）的浏览器缓存问题，本项目引入了自动版本号机制。
+
+- **工作原理**:
+  `scripts/update_version.sh` 脚本在构建或发布时运行，它会自动获取当前的 Git 版本号，并将其作为查询参数（例如 `?v=v0.0.8-2-g680e131`）添加到 `index.html` 中的 CSS 和 JS 文件引用后。
+
+- **使用方法**:
+  - **自动更新**: 每次执行 `./scripts/update_version.sh` 时，`index.html` 中的资源引用会自动更新为最新的 Git 版本。
+  - **重置**: 执行 `./scripts/update_version.sh reset` 可以移除版本号参数，恢复到原始状态（通常用于开发环境保持 git 工作区整洁）。
+
+这一机制确保了用户在部署新版本后，浏览器能强制重新加载最新的前端代码，避免因缓存导致的旧代码残留问题。
+
 ### 配置说明
 后端服务的核心配置位于 `backend/configs/config.json`。我们强烈建议您使用项目根目录下的 `./scripts/generate_config.sh` 脚本来交互式地生成此文件，以确保配置的正确性和安全性。
 

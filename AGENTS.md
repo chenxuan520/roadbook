@@ -6,7 +6,12 @@
 
 RoadbookMaker 是一个基于网页的地图标记与行程规划工具：
 
-- **前端**：`static/` 下的纯原生 JavaScript + Leaflet，直接在浏览器运行，无构建步骤（`static/index.html` 引入 `static/script.js`、`static/online_mode.js`、`static/html_export.js`）。
+- **前端**：`static/` 下的纯原生 JavaScript + Leaflet，直接在浏览器运行，无构建步骤。核心文件：
+  - `static/index.html`：入口 HTML。
+  - `static/style.css`：样式定义（含 CSS 变量实现的明亮/暗色模式）。
+  - `static/script.js`：核心地图逻辑、交互与状态管理。
+  - `static/online_mode.js`：在线模式 API 交互。
+  - `static/html_export.js`：负责生成包含完整数据与交互逻辑的独立 HTML/TXT 导出文件。
 - **后端**：`backend/` 下的 Go + Gin API 服务（入口 `backend/cmd/roadbook-api/main.go`），提供：
   - 在线模式（登录/JWT、计划 CRUD、分享读取）
   - 地图搜索聚合与代理（`/api/cnmap/search`、`/api/tianmap/search`）

@@ -1861,6 +1861,23 @@ class RoadbookApp {
                 this.addCurrentDateExpense();
             });
         }
+
+        // 绑定消费输入框回车事件
+        const expenseCostInput = document.getElementById('expenseCostInput');
+        const expenseRemarkInput = document.getElementById('expenseRemarkInput');
+
+        const handleExpenseEnter = (e) => {
+            if (e.key === 'Enter') {
+                this.addCurrentDateExpense();
+            }
+        };
+
+        if (expenseCostInput) {
+            expenseCostInput.addEventListener('keydown', handleExpenseEnter);
+        }
+        if (expenseRemarkInput) {
+            expenseRemarkInput.addEventListener('keydown', handleExpenseEnter);
+        }
     }
 
     // 移动端功能初始化
@@ -4386,11 +4403,11 @@ class RoadbookApp {
                 console.log('本地存储数据:', data);
 
                 // 检查标记点位置数据
-                if (data.markers && data.markers.length > 0) {
-                    data.markers.forEach((marker, index) => {
-                        console.log(`标记点 ${index}: ID=${marker.id}, 位置=${marker.position}, 标题=${marker.title}`);
-                    });
-                }
+                // if (data.markers && data.markers.length > 0) {
+                //     data.markers.forEach((marker, index) => {
+                //         console.log(`标记点 ${index}: ID=${marker.id}, 位置=${marker.position}, 标题=${marker.title}`);
+                //     });
+                // }
 
                 // 直接加载本地缓存数据，不显示导入提示
                 this.loadRoadbook(data, false);

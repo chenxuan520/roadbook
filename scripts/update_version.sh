@@ -41,11 +41,15 @@ if [ "$1" == "reset" ]; then
     if [ "$OS_TYPE" = "Darwin" ]; then
         # macOS需要特殊的sed语法 -i ''
         sed -i '' -E 's#<span id="version-display"[^>]*>.*</span>#<span id="version-display"></span>#g' "$INDEX_FILE"
+        # Reset CSS/JS versioning
+        sed -i '' -E 's#(href|src)="([^"]*)\?v=[^"]*"#\1="\2"#g' "$INDEX_FILE"
     else
         # Linux和其他系统
         sed -i -E 's#<span id="version-display"[^>]*>.*</span>#<span id="version-display"></span>#g' "$INDEX_FILE"
+        # Reset CSS/JS versioning
+        sed -i -E 's#(href|src)="([^"]*)\?v=[^"]*"#\1="\2"#g' "$INDEX_FILE"
     fi
-    echo "Version display has been reset in $INDEX_FILE"
+    echo "Version display and cache busting have been reset in $INDEX_FILE"
     exit 0
 fi
 
@@ -72,12 +76,31 @@ fi
 if [ "$OS_TYPE" = "Darwin" ]; then
     # macOS需要特殊的sed语法 -i ''
     sed -i '' -E 's#<span id="version-display"></span>#<span id="version-display" class="version-visible">'${VERSION_STRING}'</span>#g' "$INDEX_FILE"
+
+    # Update CSS/JS files with version query param
+    # First remove any existing version params to avoid duplication if run multiple times
+    sed -i '' -E 's#(href|src)="([^"]*)\?v=[^"]*"#\1="\2"#g' "$INDEX_FILE"
+    # Then append the new version
+    # Target specific local files to avoid breaking external CDNs
+    sed -i '' -E 's#href="style\.css"#href="style.css?v='${VERSION_STRING}'"#g' "$INDEX_FILE"
+    sed -i '' -E 's#src="script\.js"#src="script.js?v='${VERSION_STRING}'"#g' "$INDEX_FILE"
+    sed -i '' -E 's#src="html_export\.js"#src="html_export.js?v='${VERSION_STRING}'"#g' "$INDEX_FILE"
+    sed -i '' -E 's#src="online_mode\.js"#src="online_mode.js?v='${VERSION_STRING}'"#g' "$INDEX_FILE"
 else
     # Linux和其他系统
     sed -i -E 's#<span id="version-display"></span>#<span id="version-display" class="version-visible">'${VERSION_STRING}'</span>#g' "$INDEX_FILE"
+
+    # Update CSS/JS files with version query param
+    # First remove any existing version params
+    sed -i -E 's#(href|src)="([^"]*)\?v=[^"]*"#\1="\2"#g' "$INDEX_FILE"
+    # Then append the new version
+    sed -i -E 's#href="style\.css"#href="style.css?v='${VERSION_STRING}'"#g' "$INDEX_FILE"
+    sed -i -E 's#src="script\.js"#src="script.js?v='${VERSION_STRING}'"#g' "$INDEX_FILE"
+    sed -i -E 's#src="html_export\.js"#src="html_export.js?v='${VERSION_STRING}'"#g' "$INDEX_FILE"
+    sed -i -E 's#src="online_mode\.js"#src="online_mode.js?v='${VERSION_STRING}'"#g' "$INDEX_FILE"
 fi
 
-echo "Successfully updated version in $INDEX_FILE to $VERSION_STRING"
+echo "Successfully updated version in $INDEX_FILE to $VERSION_STRING (display + cache busting)"
 
 # A small check to see if it worked.
 if ! grep -q "version-visible" "$INDEX_FILE"; then
