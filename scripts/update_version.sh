@@ -75,7 +75,7 @@ fi
 # with the version string and the class attribute.
 if [ "$OS_TYPE" = "Darwin" ]; then
     # macOS需要特殊的sed语法 -i ''
-    sed -i '' -E 's#<span id="version-display"></span>#<span id="version-display" class="version-visible">'${VERSION_STRING}'</span>#g' "$INDEX_FILE"
+    sed -i '' -E 's#<span id="version-display"[^>]*>.*</span>#<span id="version-display" class="version-visible">'${VERSION_STRING}'</span>#g' "$INDEX_FILE"
 
     # Update CSS/JS files with version query param
     # First remove any existing version params to avoid duplication if run multiple times
@@ -86,9 +86,9 @@ if [ "$OS_TYPE" = "Darwin" ]; then
     sed -i '' -E 's#src="script\.js"#src="script.js?v='${VERSION_STRING}'"#g' "$INDEX_FILE"
     sed -i '' -E 's#src="html_export\.js"#src="html_export.js?v='${VERSION_STRING}'"#g' "$INDEX_FILE"
     sed -i '' -E 's#src="online_mode\.js"#src="online_mode.js?v='${VERSION_STRING}'"#g' "$INDEX_FILE"
-else
-    # Linux和其他系统
-    sed -i -E 's#<span id="version-display"></span>#<span id="version-display" class="version-visible">'${VERSION_STRING}'</span>#g' "$INDEX_FILE"
+    else
+        # Linux和其他系统
+        sed -i -E 's#<span id="version-display"[^>]*>.*</span>#<span id="version-display" class="version-visible">'${VERSION_STRING}'</span>#g' "$INDEX_FILE"
 
     # Update CSS/JS files with version query param
     # First remove any existing version params

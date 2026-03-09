@@ -52,7 +52,7 @@ RoadbookMaker 是一个基于网页的地图标记与行程规划工具：
 
 ### 前端（`static/`）
 
-- 无框架：主要逻辑集中在 `static/script.js`（地图、标记点、连接线、导入导出等）与 `static/online_mode.js`（在线模式/云端保存/登录）。
+- 无框架：主要逻辑集中在 `static/script.js`（地图、标记点、连接线、费用记录 `dateNotes`、导入导出等）与 `static/online_mode.js`（在线模式/云端保存/登录）。
 - 在线 token 存储：`localStorage` 的 key 为 `online_token`（见 `static/online_mode.js:6`）。
 
 本仓库未提供统一格式化/校验工具配置文件（例如 ESLint/Prettier/Go fmt hook），修改时建议保持周边代码的现有缩进与命名风格。

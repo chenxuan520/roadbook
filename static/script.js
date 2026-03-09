@@ -6461,12 +6461,30 @@ class RoadbookApp {
         return [];
     }
 
+
+    // 更新消费记录
+    updateDateExpense(date, index, newCost, newRemark) {
+        if (!this.dateNotes || !this.dateNotes[date]) return;
+
+        const entry = this.dateNotes[date];
+        if (typeof entry === 'object' && Array.isArray(entry.expenses)) {
+            if (index >= 0 && index < entry.expenses.length) {
+                entry.expenses[index].cost = parseFloat(newCost) || 0;
+                entry.expenses[index].remark = newRemark || '';
+                this.saveToLocalStorage();
+            }
+        }
+    }
+
     renderDateExpenses(date) {
         const list = document.getElementById('dateExpensesList');
         if (!list) return;
 
         list.innerHTML = '';
-        const expenses = this.getDateExpenses(date);
+        const expenses = this.getDateExpenses(date); // This returns a reference or copy? Let's assume array reference or we modify dateNotes directly
+
+        // Need to ensure we're getting fresh data each render
+        // Actually getDateExpenses returns entry.expenses which is a reference to the array inside dateNotes[date]
 
         if (expenses.length === 0) {
             list.innerHTML = '<li style="color: #999; font-size: 0.9em; text-align: center; padding: 5px;">暂无消费记录</li>';
@@ -6478,26 +6496,91 @@ class RoadbookApp {
                 li.style.alignItems = 'center';
                 li.style.padding = '5px 0';
                 li.style.borderBottom = '1px solid #eee';
+                // Add cursor pointer to indicate interactivity
+                li.style.cursor = 'pointer';
+                li.title = '双击编辑';
+
+                // Store data for edit
+                li.dataset.index = index;
+                li.dataset.cost = expense.cost;
+                li.dataset.remark = expense.remark || '';
 
                 li.innerHTML = `
-                    <div style="flex: 1; display: flex; align-items: center; gap: 10px;">
-                        <span style="font-weight: bold; color: #FF5722;">¥${expense.cost}</span>
-                        <span style="color: #666; font-size: 0.9em;">${expense.remark || '无备注'}</span>
+                    <div class="expense-display" style="flex: 1; display: flex; align-items: center; gap: 10px;">
+                        <span class="expense-cost" style="font-weight: bold; color: #FF5722;">¥${expense.cost}</span>
+                        <span class="expense-remark" style="color: #666; font-size: 0.9em;">${expense.remark || '无备注'}</span>
+                    </div>
+                    <div class="expense-edit-form" style="display: none; flex: 1; gap: 5px; align-items: center;">
+                        <input type="number" class="edit-cost" value="${expense.cost}" step="0.01" style="width: 80px; padding: 2px;">
+                        <input type="text" class="edit-remark" value="${expense.remark || ''}" placeholder="备注" style="flex: 1; padding: 2px;">
+                        <button class="save-edit-btn" style="background: #4caf50; color: white; border: none; border-radius: 3px; cursor: pointer; padding: 2px 8px;">🆗</button>
+                        <button class="cancel-edit-btn" style="background: #9e9e9e; color: white; border: none; border-radius: 3px; cursor: pointer; padding: 2px 8px;">✕</button>
                     </div>
                     <button class="delete-expense-btn" data-index="${index}" style="background: none; border: none; cursor: pointer; color: #999; padding: 0 5px;">✕</button>
                 `;
 
+                // Delete button
                 li.querySelector('.delete-expense-btn').addEventListener('click', (e) => {
+                    e.stopPropagation(); // Prevent triggering edit
                     const idx = parseInt(e.target.dataset.index);
                     this.removeDateExpense(date, idx);
-                    this.renderDateExpenses(date); // Re-render
-                    this.updateMarkerList(); // Update total in marker list
+                    this.renderDateExpenses(date);
+                    this.updateMarkerList();
                 });
+
+                // Double click to edit
+                li.addEventListener('dblclick', function() {
+                    const displayDiv = this.querySelector('.expense-display');
+                    const editDiv = this.querySelector('.expense-edit-form');
+                    const deleteBtn = this.querySelector('.delete-expense-btn');
+
+                    displayDiv.style.display = 'none';
+                    editDiv.style.display = 'flex';
+                    deleteBtn.style.display = 'none';
+                    this.style.cursor = 'default';
+                });
+
+                // Save edit
+                li.querySelector('.save-edit-btn').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const costInput = li.querySelector('.edit-cost');
+                    const remarkInput = li.querySelector('.edit-remark');
+
+                    const newCost = costInput.value.trim();
+                    const newRemark = remarkInput.value.trim();
+
+                    if (!newCost) {
+                        this.showSwalAlert('提示', '请输入金额', 'warning');
+                        return;
+                    }
+
+                    this.updateDateExpense(date, index, newCost, newRemark);
+                    this.renderDateExpenses(date);
+                    this.updateMarkerList();
+                });
+
+                // Cancel edit
+                li.querySelector('.cancel-edit-btn').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.renderDateExpenses(date); // Simply re-render to reset state
+                });
+
+                // Support Enter key to save
+                const handleEnter = (e) => {
+                    if (e.key === 'Enter') {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        li.querySelector('.save-edit-btn').click();
+                    }
+                };
+                li.querySelector('.edit-cost').addEventListener('keydown', handleEnter);
+                li.querySelector('.edit-remark').addEventListener('keydown', handleEnter);
 
                 list.appendChild(li);
             });
         }
     }
+
 
     addCurrentDateExpense() {
         if (!this.currentDate) return;
