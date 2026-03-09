@@ -14,10 +14,10 @@ import (
 
 // GaodePOI defines the structure for a single Point of Interest from Gaode API.
 type GaodePOI struct {
-	Name     string `json:"name"`
-	Location string `json:"location"` // "lng,lat"
-	Address  string `json:"address"`
-	ID       string `json:"id"`
+	Name     string      `json:"name"`
+	Location string      `json:"location"` // "lng,lat"
+	Address  interface{} `json:"address"`
+	ID       string      `json:"id"`
 }
 
 // GaodeResponse defines the structure of the top-level JSON response from Gaode API.
@@ -91,9 +91,24 @@ func Search(query string, apiKey string) ([]domain.NominatimResult, error) {
 			continue
 		}
 
+		addressStr := ""
+		if poi.Address != nil {
+			if addr, ok := poi.Address.(string); ok {
+				addressStr = addr
+			} else if addrArr, ok := poi.Address.([]interface{}); ok {
+				var parts []string
+				for _, partVal := range addrArr {
+					if p, ok := partVal.(string); ok {
+						parts = append(parts, p)
+					}
+				}
+				addressStr = strings.Join(parts, "")
+			}
+		}
+
 		displayName := poi.Name
-		if poi.Address != "" {
-			displayName += ", " + poi.Address
+		if addressStr != "" {
+			displayName += ", " + addressStr
 		}
 
 		// Use a hash of the POI ID for a more stable PlaceID
