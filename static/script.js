@@ -2453,6 +2453,18 @@ class RoadbookApp {
             self.hideConnectionTooltip();
         });
 
+        // 绑定图标点击事件
+        iconMarker.on('click', function(e) {
+            L.DomEvent.stopPropagation(e);
+            self.showConnectionDetail(connection);
+        });
+        iconMarker.on('mouseover', function(e) {
+            self.showConnectionTooltip(connection, e.latlng, e);
+        });
+        iconMarker.on('mouseout', function() {
+            self.hideConnectionTooltip();
+        });
+
         this.connections.push(connection);
 
         this.addHistory('addConnection', {
@@ -5358,6 +5370,18 @@ class RoadbookApp {
                 self.hideConnectionTooltip();
             });
 
+            // 绑定图标点击事件
+            iconMarker.on('click', function(e) {
+                L.DomEvent.stopPropagation(e);
+                self.showConnectionDetail(connection);
+            });
+            iconMarker.on('mouseover', function(e) {
+                self.showConnectionTooltip(connection, e.latlng, e);
+            });
+            iconMarker.on('mouseout', function() {
+                self.hideConnectionTooltip();
+            });
+
             this.connections.push(connection);
         });
 
@@ -5376,6 +5400,11 @@ class RoadbookApp {
             this.dateNotes = data.dateNotes;
         } else {
             this.dateNotes = {};
+        }
+
+        // 加载上次使用的日期范围
+        if (data.lastDateRange) {
+            this.lastDateRange = data.lastDateRange;
         }
 
         this.updateMarkerList();

@@ -1299,7 +1299,8 @@ class OnlineModeManager {
                             markerIndex: this.app.markers.indexOf(l.marker),
                             content: l.content
                         })),
-                        dateNotes: this.app.dateNotes || {}
+                        dateNotes: this.app.dateNotes || {},
+                        lastDateRange: this.app.lastDateRange
                     };
                 } else {
                     // 如果不是当前计划，获取云端的原始内容
@@ -1424,7 +1425,8 @@ class OnlineModeManager {
                     markerIndex: this.app.markers.indexOf(l.marker),
                     content: l.content
                 })),
-                dateNotes: this.app.dateNotes || {}
+                dateNotes: this.app.dateNotes || {},
+                lastDateRange: this.app.lastDateRange
             };
 
             // 3. 使用已存在的元数据和新的 content 发送 PUT 请求
@@ -1545,6 +1547,7 @@ class OnlineModeManager {
                     content: l.content
                 })),
                 dateNotes: sortKeys(this.app.dateNotes || {}),
+                lastDateRange: sortKeys(this.app.lastDateRange || {}),
                 currentLayer: this.app.currentLayer,
                 currentSearchMethod: this.app.currentSearchMethod
             };
