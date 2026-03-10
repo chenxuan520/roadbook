@@ -1315,6 +1315,8 @@ class RoadbookApp {
             importBtn.addEventListener('click', () => {
                 const importFile = document.getElementById('importFile');
                 if (importFile) {
+                    // 每次点击前清空 value，确保选择同一个文件也能触发 change 事件
+                    importFile.value = '';
                     importFile.click();
                 }
             });
@@ -4392,7 +4394,7 @@ class RoadbookApp {
         };
 
         try {
-            console.log('开始保存到本地存储，标记点数量:', this.markers.length);
+            // console.log('开始保存到本地存储，标记点数量:', this.markers.length);
             // if (this.markers.length > 0) {
             //     this.markers.forEach((marker, index) => {
             //         console.log(`保存标记点 ${index}: ID=${marker.id}, 位置=${marker.position}, 标题=${marker.title}`);
@@ -4400,7 +4402,7 @@ class RoadbookApp {
             // }
 
             localStorage.setItem('roadbookData', JSON.stringify(data));
-            console.log('路书数据已保存到本地存储');
+            // console.log('路书数据已保存到本地存储');
 
             // 验证保存的数据
             const savedData = localStorage.getItem('roadbookData');
@@ -5215,6 +5217,8 @@ class RoadbookApp {
         // 清除现有数据
         this.clearAll();
 
+        let versionWarning = null;
+
         // 版本兼容性检查
         if (data.version) {
             console.log(`导入路书版本: ${data.version}`);
@@ -5222,15 +5226,14 @@ class RoadbookApp {
             // 只有在手动导入时才提示版本问题
             if (isImport) {
                 const currentVersion = window.ROADBOOK_APP_VERSION;
+
                 // 确保当前版本不是 unknown 且格式正确
                 if (currentVersion && currentVersion !== 'unknown') {
                     const compareResult = this.compareVersions(data.version, currentVersion);
+
                     if (compareResult === 1) { // 导入版本 > 当前版本
-                        this.showSwalAlert(
-                            '⚠️ 版本警告',
-                            `导入的数据版本 (${data.version}) 高于当前应用版本 (${currentVersion})。\n可能包含当前版本不支持的特性，建议升级应用。`,
-                            'warning'
-                        );
+                        versionWarning = `⚠️ 版本警告: 导入的数据版本 (${data.version}) 高于当前应用版本 (${currentVersion})。<br>可能包含当前版本不支持的特性，建议升级应用。`;
+                        console.warn(versionWarning.replace(/<br>/g, '\n'));
                     }
                 }
             }
@@ -5238,7 +5241,7 @@ class RoadbookApp {
 
         // 加载标记点
         data.markers.forEach(markerData => {
-            console.log(`加载标记点: ID=${markerData.id}, 位置=${markerData.position}, 标题=${markerData.title}`);
+            // console.log(`加载标记点: ID=${markerData.id}, 位置=${markerData.position}, 标题=${markerData.title}`);
 
             // 使用导入的图标信息或默认图标
             const iconConfig = markerData.icon || { type: 'default', icon: '📍', color: '#667eea' };
@@ -5465,7 +5468,26 @@ class RoadbookApp {
 
         // 只在手动导入文件时显示提示
         if (isImport) {
-            this.showSwalAlert('导入成功', `路书导入成功！\n标记点: ${markerCount} 个\n连接线: ${connectionCount} 条`, 'success');
+            let title = '导入成功';
+            let message = `路书导入成功！\n标记点: ${markerCount} 个\n连接线: ${connectionCount} 条`;
+            let icon = 'success';
+
+            if (versionWarning) {
+                // 如果有版本警告，使用 HTML 显示，并改变样式
+                message = `路书导入成功！<br>标记点: ${markerCount} 个<br>连接线: ${connectionCount} 条<br><br><span style="color: #856404; background-color: #fff3cd; padding: 10px; border-radius: 4px; display: inline-block; text-align: left; font-size: 0.9em; border: 1px solid #ffeeba; width: 100%; box-sizing: border-box;">${versionWarning}</span>`;
+            }
+
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    title: title,
+                    html: versionWarning ? message : message.replace(/\n/g, '<br>'),
+                    icon: icon,
+                    confirmButtonText: '确定',
+                    confirmButtonColor: '#667eea'
+                });
+            } else {
+                this.showSwalAlert(title, message.replace(/<br>/g, '\n'), icon);
+            }
         }
 
         // 自动调整视窗以包含所有元素（取代定位到第一个标记点）
