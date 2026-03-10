@@ -69,6 +69,21 @@ type LoginResponse struct {
 
 #### 响应体 (错误): `ErrorResponse` (例如：401 未授权, 429 请求过多)
 
+### 2. 刷新 Token
+
+刷新当前的 JWT Token。需要有效的 Token 才能刷新。
+
+*   **端点:** `POST /api/v1/refresh`
+*   **认证:** 需要 (JWT)
+
+#### 响应体 (成功): `LoginResponse` (包含新的 Token)
+
+```json
+{
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.new-token-string..."
+}
+```
+
 ## 健康检查
 
 ### 2. Ping（包含版本信息）
@@ -377,7 +392,6 @@ type GetPlanResponse struct {
 ```
 
 #### 响应体 (错误): `ErrorResponse` (例如：404 未找到)
-
 ### 5. 更新/保存计划
 
 使用新的属性和内容更新现有的路书计划。这将覆盖现有计划的详细信息。
@@ -496,7 +510,6 @@ type SavePlanResponse struct {
 ```
 
 #### 响应体 (错误): `ErrorResponse` (例如：404 未找到)
-
 ### 6. 删除计划
 
 根据计划ID删除路书计划。
@@ -524,7 +537,6 @@ type DeletePlanResponse struct {
 ```
 
 #### 响应体 (错误): `ErrorResponse` (例如：404 未找到)
-
 ### 7. 分享计划 (无需授权)
 
 根据计划ID获取计划的完整详细信息和内容，无需认证。
@@ -613,3 +625,100 @@ type DeletePlanResponse struct {
 ```
 
 #### 响应体 (错误): `ErrorResponse` (例如：404 未找到)
+## 搜索与地理服务
+
+### 1. 获取搜索提供商配置
+
+获取后端支持的搜索提供商列表及其配置信息。
+
+*   **端点:** `GET /api/search/providers`
+*   **认证:** 无
+
+#### 响应体 (成功)
+
+```json
+[
+  {
+    "name": "gaode",
+    "login_required": false
+  },
+  {
+    "name": "baidu",
+    "login_required": false
+  },
+  {
+    "name": "tianmap",
+    "login_required": false
+  }
+]
+```
+
+### 2. 地图搜索 (聚合接口)
+
+后端代理了多种地图服务的搜索接口，统一返回 Nominatim 格式的数据。
+
+*   **高德搜索**: `GET /api/gaode/search?q={query}` (可能需要认证，视配置而定)
+*   **百度搜索**: `GET /api/cnmap/search?q={query}` (无需认证)
+*   **天地图搜索**: `GET /api/tianmap/search?q={query}` (无需认证)
+
+#### 请求参数:
+*   `q` (string): 搜索关键词
+
+#### 响应体 (成功): `NominatimResult[]`
+
+返回 OpenStreetMap Nominatim 格式的 JSON 数组。
+
+```json
+[
+  {
+    "place_id": 123456,
+    "licence": "Data © AutoNavi",
+    "osm_type": "node",
+    "osm_id": 123456,
+    "boundingbox": ["39.90", "39.91", "116.39", "116.40"],
+    "lat": "39.90923",
+    "lon": "116.397428",
+    "display_name": "天安门, 北京市, 中国",
+    "class": "place",
+    "type": "poi",
+    "importance": 0.8
+  }
+]
+```
+
+### 3. 交通场站查询 (TrafficPos)
+
+根据经纬度查询附近的交通场站（火车站、机场），用于辅助生成交通连线。
+
+*   **端点:** `GET /api/trafficpos`
+*   **认证:** 无
+
+#### 请求参数:
+*   `lat` (float): 纬度
+*   `lon` (float): 经度
+
+#### 响应体 (成功)
+
+```json
+{
+  "stations": [
+    {
+      "name": "北京南站",
+      "lat": 39.865,
+      "lon": 116.379,
+      "distance": 5.2,
+      "type": "train"
+    }
+  ],
+  "airports": [
+    {
+      "name": "北京首都国际机场",
+      "iata": "PEK",
+      "lat": 40.080,
+      "lon": 116.584,
+      "distance": 25.5,
+      "type": "plane"
+    }
+  ]
+}
+```
