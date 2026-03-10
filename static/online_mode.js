@@ -1680,10 +1680,16 @@ class OnlineModeManager {
 
     // 获取API基础URL（根据环境判断）
     getApiBaseUrl() {
+        if (typeof apiBaseUrl !== 'undefined') {
+            return apiBaseUrl + '/api/v1';
+        }
+
+        const custom = localStorage.getItem('custom_api_base_url');
+        if (custom) return custom + '/api/v1';
+
         // 检查是否是本地开发环境（域名是localhost、127.0.0.1或类似本地地址）
         const hostname = window.location.hostname || '';
         const protocol = window.location.protocol || '';
-        console.log('当前页面主机名:', hostname, '协议:', protocol);
 
         // 检查是否为本地开发环境
         if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '0.0.0.0') {
@@ -1693,9 +1699,7 @@ class OnlineModeManager {
             return 'http://127.0.0.1:5436/api/v1';
         } else {
             // 生产环境使用当前域名
-            const url = window.location.origin + '/api/v1';
-            console.log('生产环境API URL:', url);
-            return url;
+            return window.location.origin + '/api/v1';
         }
     }
 

@@ -1368,6 +1368,19 @@ body.dark-mode .theme-toggle-btn:hover {
         font-size: 0.8rem;
         padding: 0.4rem 0.8rem;
     }
+
+    /* 移动端隐藏搜索框、地图切换、清除缓存按钮和GitHub角标 */
+    .search-box,
+    #mapSourceSelect,
+    #clearCacheBtn,
+    .github-corner {
+        display: none !important;
+    }
+
+    /* 移动端调整主题切换按钮位置 */
+    .theme-toggle-container {
+        right: 15px !important;
+    }
 }
 
 /* 图标选择模态框样式 */

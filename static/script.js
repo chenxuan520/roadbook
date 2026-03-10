@@ -1,8 +1,10 @@
 const apiBaseUrl = (() => {
+    const custom = localStorage.getItem('custom_api_base_url');
+    if (custom) return custom;
     const hostname = window.location.hostname || '';
     const protocol = window.location.protocol || '';
 
-    if (hostname === 'localhost' || hostname === '127.0.0.1' || protocol === 'file:') {
+    if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '0.0.0.0' || protocol === 'file:') {
         return 'http://127.0.0.1:5436';
     } else {
         return window.location.origin;
@@ -904,16 +906,7 @@ class RoadbookApp {
 
     // 获取分享API基础URL
     getShareApiBaseUrl() {
-        // 检查是否是本地开发环境
-        const hostname = window.location.hostname || '';
-        const protocol = window.location.protocol || '';
-
-        if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '0.0.0.0' || protocol === 'file:') {
-            return 'http://127.0.0.1:5436/api/v1';
-        } else {
-            // 生产环境使用当前域名
-            return `${protocol}//${hostname}/api/v1`;
-        }
+        return apiBaseUrl + '/api/v1';
     }
 
     // 继续正常初始化流程
@@ -5179,6 +5172,45 @@ class RoadbookApp {
         }, 100); // 稍微延时以确保数据加载完成
     }
 
+    /**
+     * 比较两个版本号的大小
+     * @param {string} v1 - 例如 "v0.0.9-4-gb666551"
+     * @param {string} v2 - 例如 "v0.0.10"
+     * @returns {number} 1: v1 > v2, -1: v1 < v2, 0: 相等或无法比较
+     */
+    compareVersions(v1, v2) {
+        // 1. 提取语义化版本和提交偏移量
+        // 正则匹配：v(主).(次).(补丁)-(偏移量)-g(哈希)
+        const regex = /^v?(\d+)\.(\d+)\.(\d+)(?:-(\d+)-g[0-9a-f]+)?$/;
+
+        const parse = (v) => {
+            if (!v || typeof v !== 'string') return null;
+            const match = v.match(regex);
+            if (!match) return null; // 格式不对，无法比较
+            return {
+                major: parseInt(match[1]),
+                minor: parseInt(match[2]),
+                patch: parseInt(match[3]),
+                offset: match[4] ? parseInt(match[4]) : 0 // 没有偏移量则视为0
+            };
+        };
+
+        const p1 = parse(v1);
+        const p2 = parse(v2);
+
+        if (!p1 || !p2) return 0; // 无法比较时视为相等
+
+        // 2. 依次比较
+        if (p1.major !== p2.major) return p1.major > p2.major ? 1 : -1;
+        if (p1.minor !== p2.minor) return p1.minor > p2.minor ? 1 : -1;
+        if (p1.patch !== p2.patch) return p1.patch > p2.patch ? 1 : -1;
+
+        // 3. 版本号相同，比较偏移量 (提交次数越多越新)
+        if (p1.offset !== p2.offset) return p1.offset > p2.offset ? 1 : -1;
+
+        return 0;
+    }
+
     loadRoadbook(data, isImport = true) {
         // 清除现有数据
         this.clearAll();
@@ -5186,6 +5218,22 @@ class RoadbookApp {
         // 版本兼容性检查
         if (data.version) {
             console.log(`导入路书版本: ${data.version}`);
+
+            // 只有在手动导入时才提示版本问题
+            if (isImport) {
+                const currentVersion = window.ROADBOOK_APP_VERSION;
+                // 确保当前版本不是 unknown 且格式正确
+                if (currentVersion && currentVersion !== 'unknown') {
+                    const compareResult = this.compareVersions(data.version, currentVersion);
+                    if (compareResult === 1) { // 导入版本 > 当前版本
+                        this.showSwalAlert(
+                            '⚠️ 版本警告',
+                            `导入的数据版本 (${data.version}) 高于当前应用版本 (${currentVersion})。\n可能包含当前版本不支持的特性，建议升级应用。`,
+                            'warning'
+                        );
+                    }
+                }
+            }
         }
 
         // 加载标记点

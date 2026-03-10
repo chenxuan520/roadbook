@@ -4,3 +4,10 @@ run.sh
 data
 *.log
 *.pid
+
+# Cloudflare Worker
+cloudflare/node_modules/
+cloudflare/wrangler.log
+.wrangler/
+cloudflare/.wrangler/
+.DS_Store

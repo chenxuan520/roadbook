@@ -119,7 +119,11 @@ Gin 内置了一个“允许来源列表 + 可选 null origin”逻辑：
 - 后端计划文件目录是相对路径 `data/`（见 `backend/internal/plan/repository.go:17`）。
 - Docker 镜像会创建 `/app/data` 并将后端工作目录设置为 `/app`（见 `Dockerfile:35`、`docker-entrypoint.sh:7`），保证相对路径落在容器内可写目录。
 
-## 附：可选 Cloudflare Worker
+## 附：Cloudflare Worker 后端 (Alternative Backend)
 
-`cloudflare/` 目录包含一个 Cloudflare Worker 的部署说明，用于“交通枢纽定位服务 (TrafficPos)”（见 `cloudflare/README.md:1`）。这属于可选组件，不影响本仓库主应用运行。
+`cloudflare/` 目录包含一个完整的 Cloudflare Worker 实现，可作为 Go 后端的 **Serverless 替代方案**。
+
+- **功能**：实现了 Go 后端的全部核心功能（JWT 认证、计划 CRUD、搜索代理、KV 数据存储）。
+- **部署**：详情见 `cloudflare/README.md`。
+- **配置**：前端通过双击标题配置 BaseURL 即可无缝切换到 Worker 后端。
 

@@ -1,99 +1,137 @@
-# Cloudflare Worker: 交通枢纽定位服务 (TrafficPos)
+# Roadbook Cloudflare Worker 后端服务
 
-这是一个基于 Cloudflare Worker 的轻量级地理位置服务。它接收用户输入的经纬度，返回最近的**机场（IATA三字码）**和**高铁站（中文名）**。
+这是一个基于 Cloudflare Worker 的全功能后端服务，旨在替代 Go 后端（`roadbook-api`）。它提供了完整的路书管理、用户认证、地图搜索代理以及交通枢纽定位功能。
 
-## ✨ 特性
-- **零成本**：完全依赖 Cloudflare 免费版（Workers + KV）。
-- **极速响应**：数据预加载至边缘存储（KV），查询时无需请求 GitHub。
-- **自定义数据源**：使用托管在 GitHub Release 的优化数据集。
-  - 来源：`chenxuan520/gh-action-shell`
-- **双模更新**：支持手动 URL 触发更新或 Cron 定时自动更新。
+**核心特性：**
+*   **全功能替代**：支持计划 CRUD、用户认证、分享、地图代理（高德/百度/天地图）。
+*   **KV 存储**：所有数据（用户计划、缓存）均存储在 Cloudflare KV 中，无需额外数据库。
+*   **单文件部署**：所有逻辑封装在 `worker.js` 中。
+*   **兼容性**：前端无需改动代码，只需配置 BaseURL 即可无缝切换。
 
 ---
 
 ## 🚀 部署指南
 
-### 第一步：创建 KV 存储 (数据库)
-为了避免每次请求都去下载几 MB 的数据，我们需要创建一个 KV 命名空间来缓存数据。
+### 第一步：创建 KV 命名空间
 
-1. 登录 Cloudflare Dashboard。
-2. 在左侧菜单点击 **Workers & Pages** -> **KV**。
-3. 点击 **Create a Namespace**。
-4. 输入名称：`GEO_DATA` (或者你喜欢的名字)，点击 **Add**。
-5. **记下这个名字**，下一步要用。
+Worker 需要一个 KV 命名空间来存储用户计划数据和缓存。
+
+1.  登录 Cloudflare Dashboard。
+2.  在左侧菜单点击 **Workers & Pages** -> **KV**。
+3.  点击 **Create a Namespace**。
+4.  输入名称：`ROADBOOK_DATA` (或者你喜欢的名字)，点击 **Add**。
+5.  **记下这个 KV 的 ID**。
 
 ### 第二步：创建 Worker 并绑定 KV
-1. **创建 Worker**：
-   - 回到 **Workers & Pages** -> **Overview**。
-   - 点击 **Create Application** -> **Create Worker**。
-   - 命名为 `geo-locator` (或其他)，点击 **Deploy**。
 
-2. **绑定 KV (关键步骤)**：
-   - 进入刚创建的 Worker 详情页。
-   - 点击顶部的 **Settings** (设置) -> **Variables** (变量)。
-   - 向下滚动找到 **KV Namespace Bindings**。
-   - 点击 **Add Binding**。
-   - **Variable name (变量名)**：填写 `GEO_KV` (**注意：必须完全一致，否则脚本无法运行**)。
-   - **KV Namespace**：选择你在第一步创建的 `GEO_DATA`。
-   - 点击 **Save and Deploy**。
+1.  **创建 Worker**：
+    *   回到 **Workers & Pages** -> **Overview**。
+    *   点击 **Create Application** -> **Create Worker**。
+    *   命名为 `roadbook-backend` (或其他)，点击 **Deploy**。
 
-### 第三步：写入代码
-1. 点击 Worker 详情页右上角的 **Edit code**。
-2. 打开本项目中的 `trafficpos.js` 文件。
-3. 将 `trafficpos.js` 中的**所有内容**复制并粘贴到 Cloudflare 编辑器中（覆盖原有内容）。
-4. 点击右上角的 **Deploy**。
+2.  **绑定 KV (关键步骤)**：
+    *   进入刚创建的 Worker 详情页。
+    *   点击顶部的 **Settings** (设置) -> **Variables** (变量)。
+    *   向下滚动找到 **KV Namespace Bindings**。
+    *   点击 **Add Binding**。
+    *   **Variable name (变量名)**：填写 `ROADBOOK_KV` (**必须完全一致**)。
+    *   **KV Namespace**：选择你在第一步创建的 `ROADBOOK_DATA`。
+    *   点击 **Save and Deploy**。
 
----
+### 第三步：部署代码
 
-## ⚡️ 初始化数据 (必须执行一次)
-
-部署完成后，KV 里面是空的。你需要手动触发一次更新，把 GitHub 的数据拉取下来。
-
-1. 在浏览器访问你的 Worker 地址，并带上 `action=force_update` 参数：
-   `https://你的worker名.workers.dev/?action=force_update`
-
-2. 当看到网页显示 **"✅ 数据已从 GitHub 下载并成功更新至 KV 存储！"** 时，说明初始化完成。
+1.  点击 Worker 详情页右上角的 **Edit code**。
+2.  打开本项目中的 `cloudflare/worker.js` 文件。
+3.  将 `worker.js` 中的**所有内容**复制并粘贴到 Cloudflare 编辑器中（覆盖原有内容）。
+4.  点击右上角的 **Deploy**。
 
 ---
 
-## 📡 API 使用说明
+## ⚙️ 配置说明
 
-现在你可以正常调用 API 了。
+您可以通过修改 `worker.js` 顶部的 `CONFIG` 对象或设置 Cloudflare **Environment Variables (环境变量)** 来配置服务。
 
-**请求格式：**
-`GET https://你的worker名.workers.dev/?lat={纬度}&lon={经度}`
+**推荐在 Cloudflare 后台设置环境变量，这样无需修改代码。**
 
-**请求示例：**
-`GET https://你的worker名.workers.dev/?lat=31.2304&lon=121.4737`
+| 变量名 | 默认值 | 说明 |
+| :--- | :--- | :--- |
+| `JWT_SECRET` | `changeme...` | **必须修改**。用于签发 Token 的密钥，越长越安全。 |
+| `GAODE_KEY` | (空) | **可选**。高德地图 API Key (Web服务类型)，用于高德搜索代理。 |
+| `TIAN_KEY` | `75f0434f...` | **可选**。天地图 API Key，默认使用内置 Key。 |
+| `USERS_JSON` | (无) | **可选**。用于配置多用户（见下文）。 |
 
-**返回结果示例：**
-`
+### 🔐 用户管理
+
+Worker 默认不开放注册，采用与 Go 后端一致的“配置文件”方式管理用户。
+
+#### 默认用户
+*   **用户名**：`admin`
+*   **密码**：`admin`
+
+#### 如何添加/修改用户？
+为了安全起见，用户密码存储为 salted SHA256 哈希。
+
+**1. 生成密码哈希**
+在您的电脑终端（Mac/Linux）运行以下命令：
+```bash
+# 格式: echo -n "SALT+PASSWORD" | shasum -a 256
+# 例如：Salt 是 "mysalt123"，密码是 "mypassword"
+echo -n "mysalt123mypassword" | shasum -a 256
+```
+会得到类似 `5e884898da28...` 的哈希值。
+
+**2. 配置 Cloudflare 环境变量**
+在 Worker 的 **Settings** -> **Variables** 中添加一个名为 `USERS_JSON` 的变量，值为 JSON 字符串：
+
+```json
 {
-  "input": {
-    "lat": 31.2304,
-    "lon": 121.4737
+  "admin": {
+    "salt": "randomsalt123",
+    "hash": "55235b4ea8c4dfb2056be247a067d077eb4217d16bae7553cf25a353b13b72bc"
   },
-  "nearest_airport": {
-    "code": "SHA",
-    "name": "Shanghai Hongqiao International Airport",
-    "dist_km": 13.5
-  },
-  "nearest_station": {
-    "name": "上海虹桥",
-    "dist_km": 14.2
+  "user2": {
+    "salt": "mysalt123",
+    "hash": "生成的哈希值..."
   }
 }
-`
+```
+这样您就拥有了 `admin` 和 `user2` 两个用户。如果不设置此环境变量，默认只使用代码中内置的 `admin/admin` 账号。
 
 ---
 
-## ⏰ (可选) 设置自动更新
+## 💻 前端对接指南
 
-为了保证数据不过时，建议设置每周自动更新一次。
+前端页面已经内置了对自定义后端的支持。
 
-1. 在 Worker 详情页，点击 **Triggers** (触发器)。
-2. 找到 **Cron Triggers**，点击 **Add Cron Trigger**。
-3. 选择更新频率，例如 `Weekly` (每周)。
-4. 点击 **Add Trigger**。
+1.  部署好 Worker 后，获取 Worker 的 URL（例如 `https://roadbook-backend.yourname.workers.dev`）。
+2.  打开您的 Roadbook 前端页面。
+3.  **双击页面顶部的标题 "RoadbookMaker"**。
+4.  在弹出的输入框中填入 Worker URL（**注意：不要带末尾的 `/`**）。
+5.  刷新页面。
 
-设置完成后，Worker 会在后台自动执行下载更新任务，无需人工干预。
+现在，前端的所有 API 请求（登录、搜索、保存计划等）都会发送到您的 Cloudflare Worker。
+
+---
+
+## 📡 API 功能列表
+
+Worker 实现了以下后端 API：
+
+*   **基础**：`/api/ping` (健康检查)
+*   **认证**：
+    *   `POST /api/v1/login` (登录)
+    *   `POST /api/v1/refresh` (Token 续期)
+*   **计划管理**：
+    *   `GET /api/v1/plans` (列表)
+    *   `POST /api/v1/plans` (创建)
+    *   `GET /api/v1/plans/:id` (详情)
+    *   `PUT /api/v1/plans/:id` (更新)
+    *   `DELETE /api/v1/plans/:id` (删除)
+    *   `GET /api/share/plans/:id` (公开分享)
+*   **搜索代理**：
+    *   `GET /api/cnmap/search` (百度搜索)
+    *   `GET /api/tianmap/search` (天地图搜索)
+    *   `GET /api/gaode/search` (高德搜索)
+    *   `GET /api/search/providers` (搜索源状态)
+*   **工具**：
+    *   `GET /api/trafficpos` (最近交通枢纽查询，自动从 GitHub 拉取数据缓存到 KV)

@@ -1,0 +1,15 @@
+name = "roadbook-worker"
+main = "worker.js"
+compatibility_date = "2023-10-01"
+
+# 绑定 KV 命名空间
+# 本地开发时，Wrangler 会自动模拟 KV，无需真实 ID
+[[kv_namespaces]]
+binding = "ROADBOOK_KV"
+id = "local_kv_id"
+preview_id = "local_kv_preview_id"
+
+# 环境变量配置 (可选，用于覆盖 CONFIG 中的默认值)
+[vars]
+# JWT_SECRET = "local-secret-key"
+# GAODE_KEY = "your_key_here"

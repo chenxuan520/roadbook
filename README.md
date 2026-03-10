@@ -223,7 +223,19 @@ sudo nginx -t && sudo systemctl reload nginx
     docker rm roadbook
     ```
 
+### Cloudflare Worker 部署 (Serverless)
+如果您不想维护服务器，可以使用 Cloudflare Worker 部署全功能后端。
+它支持所有核心功能（计划管理、用户认证、搜索代理等），数据存储在 Cloudflare KV 中。
+
+详细部署指南请参考 [cloudflare/README.md](cloudflare/README.md)。
+
 ## 📋 使用教程
+
+### 配置后端地址
+如果您使用 Cloudflare Worker 或自定义后端地址：
+1. **双击页面顶部的标题 "RoadbookMaker"**。
+2. 输入您的后端 API 地址（例如 `https://your-worker.workers.dev`）。
+3. 刷新页面即可生效。
 
 ### 添加标记点
 1. 点击工具栏"添加标记点"按钮或按 `A` 键

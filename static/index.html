@@ -12,7 +12,7 @@
     <div class="container">
         <header>
             <div class="header-top">
-                <h1 id="mainTitle">RoadbookMaker</h1>
+                <h1 id="mainTitle" ondblclick="const url = prompt('请输入后端 API 地址 (例如 https://api.example.com)', localStorage.getItem('custom_api_base_url') || ''); if(url) { localStorage.setItem('custom_api_base_url', url.replace(/\/$/, '')); alert('设置成功，请刷新页面生效'); }">RoadbookMaker</h1>
                 <div id="onlineModeActions" class="online-mode-actions"></div>
                 <span id="version-display"></span>
                 <div class="theme-toggle-container">
