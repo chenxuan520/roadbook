@@ -18,7 +18,7 @@ set -e
 : "${API_BASE_URL:=http://localhost:5436}"
 : "${ADMIN_USERNAME:=admin}"
 : "${ADMIN_PASSWORD:=password}"
-: "${CONFIG_FILE:=./backend/configs/config.json}"
+: "${CONFIG_FILE:=/tmp/roadbook_test_config.json}"
 
 # --- Helper Functions ---
 # Utility for colored output
@@ -59,7 +59,8 @@ cleanup() {
             print_info "Server did not exit in time, sending SIGKILL..."
             kill -9 "$SERVER_PID" 2>/dev/null || true
         fi
-        wait "$SERVER_PID" 2>/dev/null || true
+        # Remove wait command to prevent hanging if process is already zombie/gone
+        # wait "$SERVER_PID" 2>/dev/null || true
     fi
 }
 trap cleanup EXIT
@@ -107,7 +108,8 @@ fi
 
 # Start the server in the background
 print_step "Starting backend server"
-(cd backend && GIN_MODE=release ./roadbook-api) &
+# Export CONFIG_FILE environment variable for the backend process
+(cd backend && export CONFIG_FILE="$CONFIG_FILE" && GIN_MODE=release ./roadbook-api) &
 SERVER_PID=$!
 print_info "Backend server started with PID: $SERVER_PID"
 

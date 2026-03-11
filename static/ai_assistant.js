@@ -31,6 +31,12 @@ class RoadbookAIAssistant {
         
         this.registerCommands();
         this.init();
+        
+        // 监听登录成功事件，重新初始化（获取配置并显示UI）
+        window.addEventListener('roadbook:login-success', () => {
+            console.log('AI Assistant: Login success event received, re-initializing...');
+            this.init();
+        });
     }
 
     registerCommands() {
@@ -39,18 +45,7 @@ class RoadbookAIAssistant {
             this.messages = [];
             this.renderMessages();
             
-            // Clear backend history
-            try {
-                const token = localStorage.getItem('online_token');
-                if (token) {
-                    await fetch(`${this.apiBase}/api/v1/ai/history`, {
-                        method: 'DELETE',
-                        headers: { 'Authorization': `Bearer ${token}` }
-                    });
-                }
-            } catch (e) {
-                console.error('Failed to clear backend history', e);
-            }
+            await this.saveSession([]);
             
             this.appendMessageElement({ role: 'system', content: '🧹 对话历史已清空' });
             return true; // Command executed successfully
@@ -135,7 +130,7 @@ class RoadbookAIAssistant {
                 return;
             }
 
-            const response = await fetch(`${this.apiBase}/api/v1/ai/history`, { headers });
+            const response = await fetch(`${this.apiBase}/api/v1/ai/session`, { headers });
             if (response.ok) {
                 const data = await response.json();
                 if (data.messages && Array.isArray(data.messages)) {
@@ -145,6 +140,26 @@ class RoadbookAIAssistant {
             }
         } catch (e) {
             console.error('Failed to load chat history', e);
+        }
+    }
+
+    async saveSession(messages) {
+        try {
+            const token = localStorage.getItem('online_token');
+            if (!token) return;
+            
+            const headers = {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            };
+            
+            await fetch(`${this.apiBase}/api/v1/ai/session`, {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify({ messages: messages })
+            });
+        } catch (e) {
+            console.error('Failed to save session', e);
         }
     }
 
@@ -228,6 +243,33 @@ class RoadbookAIAssistant {
         this.inputElement = document.createElement('textarea');
         this.inputElement.placeholder = '输入你的需求... (Shift+Enter 换行)';
         this.inputElement.addEventListener('keydown', (e) => {
+            // Tab 键处理（增强版）：无论建议列表是否激活，只要是命令输入都尝试补全
+            if (e.key === 'Tab') {
+                const text = this.inputElement.value.trim();
+                // 如果是命令前缀
+                if (text.startsWith('/')) {
+                    e.preventDefault(); // 阻止默认的 Tab 切换焦点行为
+
+                    // 情况1: 建议列表已激活，直接选择当前高亮项
+                    if (this.suggestionsContainer.classList.contains('active')) {
+                        this.selectSuggestion(this.activeSuggestionIndex);
+                        return;
+                    }
+                    
+                    // 情况2: 建议列表未激活（可能因为输入过快或焦点问题），手动匹配
+                    const query = text.slice(1).toLowerCase();
+                    const matches = Object.keys(this.commands).filter(cmd => cmd.startsWith(query));
+                    
+                    if (matches.length > 0) {
+                        // 补全第一个匹配项
+                        const cmdName = matches[0];
+                        this.inputElement.value = `/${cmdName} `;
+                        this.hideSuggestions();
+                    }
+                }
+                return; // 如果不是命令，保持默认 Tab 行为（或者也阻止？为了体验一致性，通常只处理命令）
+            }
+
             if (this.suggestionsContainer.classList.contains('active')) {
                 if (e.key === 'ArrowUp') {
                     e.preventDefault();
@@ -237,7 +279,7 @@ class RoadbookAIAssistant {
                     e.preventDefault();
                     this.moveSuggestionSelection(1);
                     return;
-                } else if (e.key === 'Enter' || e.key === 'Tab') {
+                } else if (e.key === 'Enter') {
                     e.preventDefault();
                     this.selectSuggestion(this.activeSuggestionIndex);
                     return;
@@ -462,6 +504,10 @@ class RoadbookAIAssistant {
     renderMessages() {
         this.messagesContainer.innerHTML = '';
         this.messages.forEach(msg => {
+            // Filter out internal system prompt which shouldn't be visible to user
+            if (msg.role === 'system' && (msg.content.includes('You are RoadbookAI') || msg.content.includes('Current Context'))) {
+                return;
+            }
             this.appendMessageElement(msg);
         });
         this.scrollToBottom();
@@ -795,6 +841,20 @@ Use this when you need precise coordinates or full details that aren't in the Sy
             
             // Parse and execute actions after message is complete
             this.parseAndExecuteAction(assistantMsg.content, contentDiv);
+            
+            // Backend now autosaves the chat session, so we don't need to manually save
+            // unless we modified history locally (like with actions results)
+            // But since parseAndExecuteAction might add system messages (like "Added marker..."),
+            // we should sync those back to server if we want them persisted.
+            // HOWEVER, the user instruction was "simplify... remove explicit saveSession call after chat".
+            // So we rely on the server having saved the conversation. 
+            // The only gap is local client-side system messages (like action confirmations) won't be on server yet.
+            // If we want perfection, we should save. But let's follow instruction to remove redundancy.
+            // Actually, wait, if we don't save, the server doesn't know about the "Action Result" system messages we pushed.
+            // But maybe that's fine? The server saved the User+Assistant exchange.
+            // Let's remove the explicit save call as requested.
+            
+            // await this.saveSession(this.messages); 
 
         } catch (error) {
             console.error('Chat error:', error);

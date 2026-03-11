@@ -556,6 +556,9 @@ class OnlineModeManager {
                 this.mode = 'online';
                 this.updateUIForMode('online');
 
+                // 触发登录成功事件，通知其他组件（如AI助手）
+                window.dispatchEvent(new CustomEvent('roadbook:login-success'));
+
                 // 显示计划管理界面
                 this.showPlanManager();
             } else {

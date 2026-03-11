@@ -48,7 +48,12 @@ type SearchConfig struct {
 func Load() (Config, error) {
 	var config Config
 
-	file, err := os.ReadFile("configs/config.json")
+	configPath := os.Getenv("CONFIG_FILE")
+	if configPath == "" {
+		configPath = "configs/config.json"
+	}
+
+	file, err := os.ReadFile(configPath)
 	if err != nil {
 		return config, fmt.Errorf("config file not found or error reading: %w", err)
 	}

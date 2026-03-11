@@ -2064,19 +2064,14 @@ class RoadbookApp {
         }
     }
 
-    addMarker(latlng) {
-        const markerId = Date.now();
-
-        // 从搜索框获取名称,如果为空则使用默认名称
-        const searchInput = document.getElementById('searchInput');
-        const markerTitle = searchInput.value.trim() ? searchInput.value.trim() : `标记点${this.markers.length + 1}`;
-
-        // 根据名称动态获取图标
-        const iconConfig = this.getIconForName(markerTitle);
-
+    // 创建标记点实体并绑定事件（公共逻辑）
+    createMarkerEntity(lat, lng, title = null, id = null, customIconConfig = null) {
+        const markerId = id || Date.now();
+        const markerTitle = title || `标记点${this.markers.length + 1}`;
+        const iconConfig = customIconConfig || this.getIconForName(markerTitle);
         const icon = this.createMarkerIcon(iconConfig, this.markers.length + 1);
 
-        const marker = L.marker([latlng.lat, latlng.lng], {
+        const marker = L.marker([lat, lng], {
             icon: icon,
             draggable: true,
             title: markerTitle
@@ -2105,7 +2100,7 @@ class RoadbookApp {
         const markerData = {
             id: markerId, // 不可见不可编辑的唯一ID
             marker: marker,
-            position: [latlng.lat, latlng.lng],
+            position: [lat, lng],
             title: markerTitle,
             labels: [], // 存储标注文本，不直接显示
             logo: null, // 添加logo属性，默认为空
@@ -2114,10 +2109,6 @@ class RoadbookApp {
             dateTimes: [newMarkerDateTime], // 改为数组，支持多个时间点
             dateTime: newMarkerDateTime // 使用第一个时间点作为默认时间
         };
-
-        this.markers.push(markerData);
-        this.updateMarkerList();
-        this.setMode('view');
 
         // 添加点击事件显示详情
         marker.on('click', (e) => {
@@ -2183,15 +2174,29 @@ class RoadbookApp {
             console.log(`拖拽后本地存储已保存`);
         });
 
+        return markerData;
+    }
+
+    addMarker(latlng) {
+        // 从搜索框获取名称,如果为空则使用默认名称
+        const searchInput = document.getElementById('searchInput');
+        const markerTitle = searchInput.value.trim() ? searchInput.value.trim() : null;
+
+        const markerData = this.createMarkerEntity(latlng.lat, latlng.lng, markerTitle);
+
+        this.markers.push(markerData);
+        this.updateMarkerList();
+        this.setMode('view');
+
         // 记录添加操作到历史栈
         this.addHistory('addMarker', {
-            id: markerId,
-            position: [latlng.lat, latlng.lng],
-            title: markerTitle,
-            icon: iconConfig,
-            createdAt: this.getCurrentLocalDateTime(),
-            dateTimes: [this.getCurrentLocalDateTime()],
-            dateTime: this.getCurrentLocalDateTime()
+            id: markerData.id,
+            position: markerData.position,
+            title: markerData.title,
+            icon: markerData.icon,
+            createdAt: markerData.createdAt,
+            dateTimes: markerData.dateTimes,
+            dateTime: markerData.dateTime
         });
 
         // 保存到本地存储
@@ -2229,59 +2234,21 @@ class RoadbookApp {
             markerId = Date.now() + Math.floor(Math.random() * 10000);
         }
 
-        // Use provided title or default
-        const markerTitle = title || `标记点${this.markers.length + 1}`;
-        const iconConfig = this.getIconForName(markerTitle);
-        const icon = this.createMarkerIcon(iconConfig, this.markers.length + 1);
-
-        const marker = L.marker([parsedLat, parsedLng], {
-            icon: icon,
-            draggable: true,
-            title: markerTitle
-        }).addTo(this.map);
-
-        // Date logic (copied from addMarker)
-        let newMarkerDateTime = this.getCurrentLocalDateTime();
-        if (this.markers.length > 0) {
-            const lastMarker = this.markers[this.markers.length - 1];
-            if (lastMarker.dateTimes && lastMarker.dateTimes.length > 0) {
-                newMarkerDateTime = lastMarker.dateTimes[0];
-            } else if (lastMarker.dateTime) {
-                newMarkerDateTime = lastMarker.dateTime;
-            } else {
-                const lastDateTime = new Date();
-                newMarkerDateTime = `${lastDateTime.getFullYear()}-${String(lastDateTime.getMonth() + 1).padStart(2, '0')}-${String(lastDateTime.getDate()).padStart(2, '0')} 00:00:00`;
-            }
-        } else {
-            const today = new Date();
-            newMarkerDateTime = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')} 00:00:00`;
-        }
-
-        const markerData = {
-            id: markerId,
-            marker: marker,
-            position: [parsedLat, parsedLng],
-            title: markerTitle,
-            labels: [],
-            logo: null,
-            icon: iconConfig,
-            createdAt: this.getCurrentLocalDateTime(),
-            dateTimes: [newMarkerDateTime],
-            dateTime: newMarkerDateTime
-        };
+        // Use createMarkerEntity to create the marker and bind events
+        const markerData = this.createMarkerEntity(parsedLat, parsedLng, title, markerId);
 
         this.markers.push(markerData);
         this.updateMarkerList();
-        
+
         // Add to history
         this.addHistory('addMarker', {
-            id: markerId,
-            position: [parsedLat, parsedLng],
-            title: markerTitle,
-            icon: iconConfig,
-            createdAt: this.getCurrentLocalDateTime(),
-            dateTimes: [newMarkerDateTime],
-            dateTime: newMarkerDateTime
+            id: markerData.id,
+            position: markerData.position,
+            title: markerData.title,
+            icon: markerData.icon,
+            createdAt: markerData.createdAt,
+            dateTimes: markerData.dateTimes,
+            dateTime: markerData.dateTime
         });
 
         this.saveToLocalStorage();
@@ -2337,14 +2304,24 @@ class RoadbookApp {
             updated = true;
         }
 
-        if (typeof lat === 'number' && typeof lng === 'number') {
-             const oldPosition = [...marker.position];
-             marker.position = [lat, lng];
-             marker.marker.setLatLng([lat, lng]);
-             
+        // Convert to number if they are strings, handle potential whitespace
+        let parsedLat = lat;
+        let parsedLng = lng;
+
+        if (typeof lat === 'string') {
+            parsedLat = parseFloat(lat.trim());
+        }
+        if (typeof lng === 'string') {
+            parsedLng = parseFloat(lng.trim());
+        }
+
+        if (!isNaN(parsedLat) && !isNaN(parsedLng) && typeof parsedLat === 'number' && typeof parsedLng === 'number') {
+             marker.position = [parsedLat, parsedLng];
+             marker.marker.setLatLng([parsedLat, parsedLng]);
+
              // Record history? (Maybe skip for AI bulk ops to avoid clutter, or keep for undo)
              // For now, let's keep it simple and just update
-             
+
              updated = true;
         }
 
@@ -2379,18 +2356,18 @@ class RoadbookApp {
 
         if (transportType && connection.transportType !== transportType) {
             connection.transportType = transportType;
-            
+
             // Re-draw connection with new style
             // updateConnections() re-sets latlngs and arrow heads, but might not change color/style if polyline object is reused without style update
             // createConnection sets color on creation.
             // Let's update style manually here
             const newColor = this.getTransportColor(transportType);
             connection.polyline.setStyle({ color: newColor });
-            
+
             if (connection.endCircle) {
                 connection.endCircle.setStyle({ fillColor: newColor });
             }
-            
+
             // Icon marker update
             if (connection.iconMarker) {
                 const transportIcon = this.getTransportIcon(transportType);
@@ -2405,7 +2382,7 @@ class RoadbookApp {
             }
 
             // Arrow head update is handled in updateConnections called below (it recreates arrow)
-            
+
             this.updateConnections();
             this.saveToLocalStorage();
             return true;

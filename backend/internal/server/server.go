@@ -88,8 +88,8 @@ func NewRouter(cfg config.Config) *gin.Engine {
 			
 			// AI routes
 			authenticated.GET("/ai/config", handler.GetAIConfig(&cfg))
-			authenticated.GET("/ai/history", handler.GetAIHistory)
-			authenticated.DELETE("/ai/history", handler.ClearAIHistory)
+			authenticated.GET("/ai/session", handler.GetAISession)
+			authenticated.POST("/ai/session", handler.SaveAISession)
 			authenticated.POST("/ai/chat", handler.AIChat(&cfg))
 		}
 

@@ -3081,17 +3081,17 @@ body.dark-mode .leaflet-tile {
 }
 
 .ai-toggle-btn {
-    width: 64px;
-    height: 64px;
+    width: 44px;
+    height: 44px;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     border-radius: 50%;
     cursor: grab;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 32px;
+    font-size: 22px;
     color: white;
-    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.5);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.5);
     transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s;
     position: relative;
     user-select: none;
@@ -3377,6 +3377,7 @@ body.dark-mode .ai-input-area textarea:focus {
 
 .ai-command-item:hover, .ai-command-item.selected {
     background-color: var(--bg-primary, #f5f7fa);
+    border-left: 3px solid #667eea;
 }
 
 .ai-command-item .cmd-name {

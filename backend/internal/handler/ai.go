@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 
@@ -14,23 +16,17 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// SessionStore stores chat history for users.
-// Key: SessionID (or UserID/IP), Value: List of messages
-type SessionStore struct {
-	sync.RWMutex
-	Sessions map[string][]Message
-}
+const (
+	AIDataDir     = "data/ai"
+	AISessionFile = "session.json"
+)
 
-var globalSessionStore = &SessionStore{
-	Sessions: make(map[string][]Message),
-}
-
-// Max history to keep (last N messages)
-const MaxHistory = 10 // 5 pairs
+var sessionFileLock sync.RWMutex
 
 type AIChatRequest struct {
 	Messages []Message `json:"messages"`
-	SessionID string    `json:"session_id"` // Optional: Client can provide a session ID
+	// SessionID is no longer used for persistence, but kept for compatibility if needed
+	SessionID string `json:"session_id,omitempty"`
 }
 
 type Message struct {
@@ -52,44 +48,15 @@ type OpenAIStreamResponse struct {
 	} `json:"choices"`
 }
 
-func getSessionID(c *gin.Context) string {
-	// Simple session ID based on IP for now, or use a cookie/token if available
-	// If the client provides a session_id in the request, we could use that,
-	// but here we generate a consistent key for the user.
-	// For authorized users, use UserID. For guests, use IP.
-	// Since this is a simple implementation, let's use IP.
-	return c.ClientIP()
+func getSessionFilePath() string {
+	return filepath.Join(AIDataDir, AISessionFile)
 }
 
-// UpdateHistory appends new messages and trims to MaxHistory
-func (s *SessionStore) UpdateHistory(sessionID string, newMessages []Message) {
-	s.Lock()
-	defer s.Unlock()
-
-	// In this design, the frontend sends the *full* context it wants the AI to see.
-	// But we also want to *store* the history for recovery.
-	// So we can simply overwrite the session with the latest valid chain provided by the client,
-	// OR append the new exchange.
-	// Given the requirement "frontend fully passes content" but "backend stores for recovery",
-	// the most robust way is: Save what the frontend sent (plus the AI reply).
-	
-	// Truncate if necessary (though frontend might have already done it)
-	if len(newMessages) > MaxHistory {
-		newMessages = newMessages[len(newMessages)-MaxHistory:]
+func ensureAIDir() error {
+	if _, err := os.Stat(AIDataDir); os.IsNotExist(err) {
+		return os.MkdirAll(AIDataDir, 0755)
 	}
-	s.Sessions[sessionID] = newMessages
-}
-
-func (s *SessionStore) AppendMessage(sessionID string, msg Message) {
-	s.Lock()
-	defer s.Unlock()
-	
-	hist := s.Sessions[sessionID]
-	hist = append(hist, msg)
-	if len(hist) > MaxHistory {
-		hist = hist[len(hist)-MaxHistory:]
-	}
-	s.Sessions[sessionID] = hist
+	return nil
 }
 
 func GetAIConfig(cfg *config.Config) gin.HandlerFunc {
@@ -101,26 +68,68 @@ func GetAIConfig(cfg *config.Config) gin.HandlerFunc {
 	}
 }
 
-func GetAIHistory(c *gin.Context) {
-	sessionID := getSessionID(c)
-	globalSessionStore.RLock()
-	history, exists := globalSessionStore.Sessions[sessionID]
-	globalSessionStore.RUnlock()
+// GetAISession reads the single synchronized session from disk
+func GetAISession(c *gin.Context) {
+	sessionFileLock.RLock()
+	defer sessionFileLock.RUnlock()
 
-	if !exists {
-		history = []Message{}
+	path := getSessionFilePath()
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		c.JSON(http.StatusOK, gin.H{"messages": []Message{}})
+		return
 	}
-	c.JSON(http.StatusOK, gin.H{"messages": history})
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read session file"})
+		return
+	}
+
+	var messages []Message
+	if err := json.Unmarshal(data, &messages); err != nil {
+		// If corrupted or empty, return empty list
+		c.JSON(http.StatusOK, gin.H{"messages": []Message{}})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"messages": messages})
 }
 
-func ClearAIHistory(c *gin.Context) {
-	sessionID := getSessionID(c)
-	globalSessionStore.Lock()
-	delete(globalSessionStore.Sessions, sessionID)
-	globalSessionStore.Unlock()
-	c.Status(http.StatusNoContent)
+// SaveAISession overwrites the single synchronized session on disk
+func SaveAISession(c *gin.Context) {
+	var req struct {
+		Messages []Message `json:"messages"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+		return
+	}
+
+	sessionFileLock.Lock()
+	defer sessionFileLock.Unlock()
+
+	if err := ensureAIDir(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create data directory"})
+		return
+	}
+
+	path := getSessionFilePath()
+	data, err := json.MarshalIndent(req.Messages, "", "  ") // Indent for readability
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to marshal messages"})
+		return
+	}
+
+	if err := os.WriteFile(path, data, 0644); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to write session file"})
+		return
+	}
+
+	c.Status(http.StatusOK)
 }
 
+// AIChat is now stateless. It receives context, streams response.
+// The client is responsible for saving the history via SaveAISession.
 func AIChat(cfg *config.Config) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if !cfg.AI.Enabled {
@@ -133,18 +142,6 @@ func AIChat(cfg *config.Config) gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
 			return
 		}
-
-		sessionID := getSessionID(c)
-
-		// 1. Update session store with the user's latest input (presuming it includes history)
-		// NOTE: User requirement says "Backend stores 5 session items for recovery".
-		// But also "Frontend passes content".
-		// So we take the incoming messages as the "current truth" for this conversation turn.
-		// We save it to the store so next time /history is called, we have it.
-		// However, we must wait for the AI response to append THAT to the store too.
-		
-		// Let's first save the user's input messages to the store.
-		globalSessionStore.UpdateHistory(sessionID, req.Messages)
 
 		// Prepare request to OpenAI
 		openAIReq := OpenAIRequest{
@@ -183,15 +180,13 @@ func AIChat(cfg *config.Config) gin.HandlerFunc {
 			return
 		}
 
-		// Stream response back to client AND capture it for history
+		// Stream response back to client
 		c.Header("Content-Type", "text/event-stream")
 		c.Header("Cache-Control", "no-cache")
 		c.Header("Connection", "keep-alive")
 		c.Header("Transfer-Encoding", "chunked")
 
-		// Create a TeeReader-like mechanism? No, we need to parse SSE for history.
-		// We will read from resp.Body, write to c.Writer, and accumulate content.
-		
+		// Just proxy the stream and record response
 		reader := bufio.NewReader(resp.Body)
 		var fullResponse strings.Builder
 
@@ -200,8 +195,6 @@ func AIChat(cfg *config.Config) gin.HandlerFunc {
 			if err != nil {
 				return false
 			}
-
-			// Write raw line to client immediately to minimize latency
 			w.Write(line)
 
 			// Parse line for history accumulation
@@ -221,11 +214,35 @@ func AIChat(cfg *config.Config) gin.HandlerFunc {
 			return true
 		})
 
-		// After stream finishes, append AI response to history
+		// After stream finishes, save session to disk
 		aiMsg := Message{
 			Role:    "assistant",
 			Content: fullResponse.String(),
 		}
-		globalSessionStore.AppendMessage(sessionID, aiMsg)
+		
+		// Filter out system messages from history before saving
+		// We don't want to save the huge context prompt or temporary system notifications
+		var messagesToSave []Message
+		for _, msg := range req.Messages {
+			if msg.Role != "system" {
+				messagesToSave = append(messagesToSave, msg)
+			}
+		}
+		// Append the new assistant response
+		messagesToSave = append(messagesToSave, aiMsg)
+		
+		sessionFileLock.Lock()
+		defer sessionFileLock.Unlock()
+
+		if err := ensureAIDir(); err != nil {
+			// Log error but don't disrupt the response (too late anyway)
+			return
+		}
+
+		path := getSessionFilePath()
+		data, err := json.MarshalIndent(messagesToSave, "", "  ")
+		if err == nil {
+			_ = os.WriteFile(path, data, 0644)
+		}
 	}
 }
