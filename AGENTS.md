@@ -11,10 +11,12 @@ RoadbookMaker 是一个基于网页的地图标记与行程规划工具：
   - `static/style.css`：样式定义（含 CSS 变量实现的明亮/暗色模式）。
   - `static/script.js`：核心地图逻辑、交互与状态管理。
   - `static/online_mode.js`：在线模式 API 交互。
+  - `static/ai_assistant.js`：AI 助手功能，实现自然语言驱动的地图操作。
   - `static/html_export.js`：负责生成包含完整数据与交互逻辑的独立 HTML/TXT 导出文件。
 - **后端**：`backend/` 下的 Go + Gin API 服务（入口 `backend/cmd/roadbook-api/main.go`），提供：
   - 在线模式（登录/JWT、计划 CRUD、分享读取）
   - 地图搜索聚合与代理（`/api/cnmap/search`、`/api/tianmap/search`）
+  - AI 助手代理（`/api/v1/ai/*`），负责与大语言模型交互
   - `trafficpos` 等辅助 API（`/api/trafficpos`）
 - **部署**：Nginx 提供静态资源，并反向代理 `/api/` 到后端（见 `nginx.prod.conf:25`）；Docker 镜像把前端 + 后端打包在一起（见 `Dockerfile`、`Dockerfile.local`、`docker-entrypoint.sh`）。
 
@@ -52,7 +54,7 @@ RoadbookMaker 是一个基于网页的地图标记与行程规划工具：
 
 ### 前端（`static/`）
 
-- 无框架：主要逻辑集中在 `static/script.js`（地图、标记点、连接线、费用记录 `dateNotes`、导入导出等）与 `static/online_mode.js`（在线模式/云端保存/登录）。
+- 无框架：主要逻辑集中在 `static/script.js`（地图、标记点、连接线、费用记录 `dateNotes`、导入导出等）、`static/online_mode.js`（在线模式/云端保存/登录）与 `static/ai_assistant.js`（AI 助手）。
 - 在线 token 存储：`localStorage` 的 key 为 `online_token`（见 `static/online_mode.js:6`）。
 ### 维护规则
 
@@ -89,7 +91,7 @@ RoadbookMaker 是一个基于网页的地图标记与行程规划工具：
 
 ### 认证与访问控制
 
-- JWT 认证通过 `Authorization: Bearer <token>` 传递（见 `backend/internal/middleware/middleware.go:90`-`backend/internal/middleware/middleware.go:112`）。
+- JWT 认证通过 `Authorization: Bearer <token>` 传递（见 `backend/internal/middleware/middleware.go:90`-`backend/internal/middleware/middleware.go:112`）。所有 `/api/v1` 下（除登录和分享外）的接口，包括计划管理和 AI 助手，都需要认证。
 - `/api/v1/login` 有 IP 限流中间件（见 `backend/internal/server/server.go:69` 与 `backend/internal/middleware/middleware.go:69`）。
 - 计划文件仓库包含路径遍历防御：对 `id` 做 `filepath.Base(id) == id` 校验（见 `backend/internal/plan/repository.go:54`、`backend/internal/plan/repository.go:76`、`backend/internal/plan/repository.go:148`）。
 
@@ -108,7 +110,7 @@ RoadbookMaker 是一个基于网页的地图标记与行程规划工具：
 
 - 默认读取路径：运行目录下的 `configs/config.json`（见 `backend/internal/config/config.go:26`）。
 - 生成位置：项目根目录脚本写入 `backend/configs/config.json`（见 `scripts/generate_config.sh:23`、`scripts/generate_config.sh:114`）。
-- 字段：`port`、`allowed_origins`、`allow_null_origin_for_dev`、`jwtSecret`、`users`（见 `backend/internal/config/config.go:15`-`backend/internal/config/config.go:21`）。
+- 字段：`port`、`allowed_origins`、`allow_null_origin_for_dev`、`jwtSecret`、`users`、`search`、`ai`（见 `backend/internal/config/config.go:15`-`backend/internal/config/config.go:23`）。
 
 ### CORS
 

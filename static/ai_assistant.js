@@ -4,10 +4,10 @@ class RoadbookAIAssistant {
         this.app = app;
         this.enabled = false;
         this.model = '';
-        this.apiBase = window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1') || window.location.protocol === 'file:' 
-            ? 'http://127.0.0.1:5436' 
+        this.apiBase = window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1') || window.location.protocol === 'file:'
+            ? 'http://127.0.0.1:5436'
             : window.location.origin;
-        
+
         // DOM Elements
         this.container = null;
         this.chatWindow = null;
@@ -15,23 +15,23 @@ class RoadbookAIAssistant {
         this.inputElement = null;
         this.sendBtn = null;
         this.toggleBtn = null;
-        
+
         // State
         this.isOpen = false;
         this.isDragging = false;
         this.dragOffset = { x: 0, y: 0 };
         this.messages = [];
         this.isStreaming = false;
-        
+
         // Command System
         this.commands = {};
         this.suggestionsContainer = null;
         this.activeSuggestionIndex = -1;
         this.filteredCommands = [];
-        
+
         this.registerCommands();
         this.init();
-        
+
         // 监听登录成功事件，重新初始化（获取配置并显示UI）
         window.addEventListener('roadbook:login-success', () => {
             console.log('AI Assistant: Login success event received, re-initializing...');
@@ -44,13 +44,13 @@ class RoadbookAIAssistant {
         this.registerCommand('clear', '清空当前对话历史', async () => {
             this.messages = [];
             this.renderMessages();
-            
+
             await this.saveSession([]);
-            
+
             this.appendMessageElement({ role: 'system', content: '🧹 对话历史已清空' });
             return true; // Command executed successfully
         });
-        
+
         this.registerCommand('help', '显示可用命令', () => {
             let helpText = '### 可用命令\n\n';
             Object.entries(this.commands).forEach(([name, cmd]) => {
@@ -60,7 +60,7 @@ class RoadbookAIAssistant {
             return true;
         });
     }
-    
+
     registerCommand(name, description, handler) {
         this.commands[name] = {
             description,
@@ -73,15 +73,15 @@ class RoadbookAIAssistant {
         try {
             const config = await this.fetchConfig();
             console.log('AI Assistant: Config fetched', config);
-            
+
             // 无论是否配置成功，都尝试创建UI，方便调试（如果未启用会显示警告）
             // 如果后端未配置，config可能为null，此时我们假设未启用
             const isEnabled = config && config.enabled;
             this.model = config ? config.model : '';
-            
+
             // 如果未登录，localStorage中没有token，fetchConfig返回null
             // 这里我们尝试总是创建UI，但在没有config时给出提示
-            
+
             if (isEnabled) {
                 this.enabled = true;
                 this.createUI();
@@ -90,7 +90,7 @@ class RoadbookAIAssistant {
             } else {
                 console.warn('AI Assistant: Disabled by config or not logged in. UI not created.');
                 // 如果你希望在未登录时也能看到图标（虽然不能用），可以取消下面这行的注释
-                // this.createUI(); 
+                // this.createUI();
             }
         } catch (error) {
             console.error('Failed to initialize AI Assistant:', error);
@@ -104,10 +104,10 @@ class RoadbookAIAssistant {
                 console.warn('AI Assistant: No online_token found in localStorage. Please login first.');
                 return null;
             }
-            
+
             const headers = { 'Authorization': `Bearer ${token}` };
             console.log(`AI Assistant: Fetching config from ${this.apiBase}/api/v1/ai/config`);
-            
+
             const response = await fetch(`${this.apiBase}/api/v1/ai/config`, { headers });
             if (response.ok) {
                 return await response.json();
@@ -147,12 +147,12 @@ class RoadbookAIAssistant {
         try {
             const token = localStorage.getItem('online_token');
             if (!token) return;
-            
+
             const headers = {
                 'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json'
             };
-            
+
             await fetch(`${this.apiBase}/api/v1/ai/session`, {
                 method: 'POST',
                 headers: headers,
@@ -168,29 +168,29 @@ class RoadbookAIAssistant {
         this.container = document.createElement('div');
         this.container.id = 'ai-assistant-container';
         this.container.className = 'ai-assistant-container';
-        
+
         // Floating Toggle Button (The "Ball")
         this.toggleBtn = document.createElement('div');
         this.toggleBtn.className = 'ai-toggle-btn';
         this.toggleBtn.innerHTML = '🤖';
         this.toggleBtn.title = 'AI 助手';
-        this.toggleBtn.onclick = (e) => {
+        this.toggleBtn.onclick = () => {
             // Prevent click when dragging ends
             if (this.isDragging) return;
             this.toggleChat();
         };
-        
+
         // Drag functionality for the button
         let chatStartLeft, chatStartTop;
-        
-        this.setupDraggable(this.toggleBtn, this.container, 
+
+        this.setupDraggable(this.toggleBtn, this.container,
             // onDragStart
             () => {
                 if (this.isOpen && this.chatWindow) {
                     const rect = this.chatWindow.getBoundingClientRect();
                     chatStartLeft = rect.left;
                     chatStartTop = rect.top;
-                    
+
                     // Temporarily remove transition to make dragging smooth
                     this.chatWindow.style.transition = 'none';
                 }
@@ -213,7 +213,7 @@ class RoadbookAIAssistant {
         // Chat Window (attached directly to body for fixed positioning)
         this.chatWindow = document.createElement('div');
         this.chatWindow.className = 'ai-chat-window';
-        
+
         // Header
         const header = document.createElement('div');
         header.className = 'ai-header';
@@ -222,24 +222,24 @@ class RoadbookAIAssistant {
             <span class="ai-close-btn">&times;</span>
         `;
         header.querySelector('.ai-close-btn').onclick = () => this.toggleChat();
-        
+
         // Make window draggable via header
         this.setupWindowDraggable(header, this.chatWindow);
-        
+
         // Messages Area
         this.messagesContainer = document.createElement('div');
         this.messagesContainer.className = 'ai-messages';
-        
+
         // Input Area
         const inputArea = document.createElement('div');
         inputArea.className = 'ai-input-area';
         inputArea.style.position = 'relative'; // For suggestions positioning
-        
+
         // Suggestions Container
         this.suggestionsContainer = document.createElement('div');
         this.suggestionsContainer.className = 'ai-command-suggestions';
         inputArea.appendChild(this.suggestionsContainer);
-        
+
         this.inputElement = document.createElement('textarea');
         this.inputElement.placeholder = '输入你的需求... (Shift+Enter 换行)';
         this.inputElement.addEventListener('keydown', (e) => {
@@ -255,11 +255,11 @@ class RoadbookAIAssistant {
                         this.selectSuggestion(this.activeSuggestionIndex);
                         return;
                     }
-                    
+
                     // 情况2: 建议列表未激活（可能因为输入过快或焦点问题），手动匹配
                     const query = text.slice(1).toLowerCase();
                     const matches = Object.keys(this.commands).filter(cmd => cmd.startsWith(query));
-                    
+
                     if (matches.length > 0) {
                         // 补全第一个匹配项
                         const cmdName = matches[0];
@@ -288,13 +288,13 @@ class RoadbookAIAssistant {
                     return;
                 }
             }
-            
+
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 this.sendMessage();
             }
         });
-        
+
         this.inputElement.addEventListener('input', (e) => {
             this.handleInput(e.target.value);
         });
@@ -311,60 +311,67 @@ class RoadbookAIAssistant {
         this.chatWindow.appendChild(inputArea);
 
         this.container.appendChild(this.toggleBtn);
-        
+
         document.body.appendChild(this.container);
         document.body.appendChild(this.chatWindow);
+
+        // Set initial position under the help button
+        const helpBtn = document.getElementById('helpBtn');
+        if (helpBtn) {
+            const rect = helpBtn.getBoundingClientRect();
+            this.container.style.top = `${rect.bottom + 80}px`;
+            this.container.style.left = `${rect.left}px`;
+            this.container.style.right = 'auto';
+            this.container.style.bottom = 'auto';
+        }
     }
 
     setupDraggable(handle, target, onDragStart, onDrag, onDragEnd) {
         let isDragging = false;
         let startX, startY, initialLeft, initialTop;
-        let hasMoved = false;
 
         const onMouseDown = (e) => {
             if (e.target !== handle && !handle.contains(e.target)) return;
             isDragging = true;
-            hasMoved = false;
             startX = e.clientX;
             startY = e.clientY;
             const rect = target.getBoundingClientRect();
             initialLeft = rect.left;
             initialTop = rect.top;
-            
+
             e.preventDefault();
-            
+
             if (onDragStart) onDragStart();
-            
+
             document.addEventListener('mousemove', onMouseMove);
             document.addEventListener('mouseup', onMouseUp);
         };
 
         const onMouseMove = (e) => {
             if (!isDragging) return;
-            
+
             const dx = e.clientX - startX;
             const dy = e.clientY - startY;
-            
+
             if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
-                hasMoved = true;
                 this.isDragging = true; // Set class-level flag
             }
-            
+
             let newLeft = initialLeft + dx;
             let newTop = initialTop + dy;
-            
+
             // Boundary checks
             const maxLeft = window.innerWidth - target.offsetWidth;
             const maxTop = window.innerHeight - target.offsetHeight;
-            
+
             newLeft = Math.max(0, Math.min(newLeft, maxLeft));
             newTop = Math.max(0, Math.min(newTop, maxTop));
-            
+
             target.style.left = `${newLeft}px`;
             target.style.top = `${newTop}px`;
-            target.style.bottom = 'auto'; 
+            target.style.bottom = 'auto';
             target.style.right = 'auto';
-            
+
             if (onDrag) {
                 // Pass effective displacement (actual movement after boundaries)
                 onDrag(newLeft - initialLeft, newTop - initialTop);
@@ -377,9 +384,9 @@ class RoadbookAIAssistant {
             setTimeout(() => {
                 this.isDragging = false;
             }, 50);
-            
+
             if (onDragEnd) onDragEnd();
-            
+
             document.removeEventListener('mousemove', onMouseMove);
             document.removeEventListener('mouseup', onMouseUp);
         };
@@ -394,38 +401,38 @@ class RoadbookAIAssistant {
         const onMouseDown = (e) => {
             // Don't drag if clicking close button
             if (e.target.closest('.ai-close-btn')) return;
-            
+
             isDragging = true;
             startX = e.clientX;
             startY = e.clientY;
-            
+
             // Get current computed style or style property
             const rect = target.getBoundingClientRect();
             initialLeft = rect.left;
             initialTop = rect.top;
-            
+
             e.preventDefault();
-            
+
             document.addEventListener('mousemove', onMouseMove);
             document.addEventListener('mouseup', onMouseUp);
         };
 
         const onMouseMove = (e) => {
             if (!isDragging) return;
-            
+
             const dx = e.clientX - startX;
             const dy = e.clientY - startY;
-            
+
             let newLeft = initialLeft + dx;
             let newTop = initialTop + dy;
-            
+
             // Boundary checks
             const maxLeft = window.innerWidth - target.offsetWidth;
             const maxTop = window.innerHeight - target.offsetHeight;
-            
+
             newLeft = Math.max(0, Math.min(newLeft, maxLeft));
             newTop = Math.max(0, Math.min(newTop, maxTop));
-            
+
             target.style.left = `${newLeft}px`;
             target.style.top = `${newTop}px`;
         };
@@ -441,11 +448,11 @@ class RoadbookAIAssistant {
 
     toggleChat() {
         this.isOpen = !this.isOpen;
-        
+
         if (this.isOpen) {
             // Calculate optimal position before showing
             this.positionWindow();
-            
+
             this.chatWindow.classList.add('open');
             // Wait for transition
             setTimeout(() => {
@@ -456,19 +463,19 @@ class RoadbookAIAssistant {
             this.chatWindow.classList.remove('open');
         }
     }
-    
+
     positionWindow() {
         const btnRect = this.toggleBtn.getBoundingClientRect();
         const winWidth = 380; // Approximate width or get actual if rendered
         const winHeight = 600; // Approximate height
-        
+
         const screenW = window.innerWidth;
         const screenH = window.innerHeight;
-        
+
         // Horizontal positioning
         // Default to left of button
         let left = btnRect.left - winWidth - 10;
-        
+
         // If not enough space on left, try right
         if (left < 10) {
             left = btnRect.right + 10;
@@ -477,11 +484,11 @@ class RoadbookAIAssistant {
                 left = (screenW - winWidth) / 2;
             }
         }
-        
+
         // Vertical positioning
         // Default to bottom aligned with button
         let top = btnRect.bottom - winHeight;
-        
+
         // If goes off top
         if (top < 10) {
             // Try aligning top with button top
@@ -492,11 +499,11 @@ class RoadbookAIAssistant {
                 top = (screenH - winHeight) / 2;
             }
         }
-        
+
         // Final boundary enforcement
         left = Math.max(10, Math.min(left, screenW - winWidth - 10));
         top = Math.max(10, Math.min(top, screenH - winHeight - 10));
-        
+
         this.chatWindow.style.left = `${left}px`;
         this.chatWindow.style.top = `${top}px`;
     }
@@ -516,14 +523,14 @@ class RoadbookAIAssistant {
     appendMessageElement(msg) {
         const msgDiv = document.createElement('div');
         msgDiv.className = `ai-message ${msg.role}`;
-        
+
         const contentDiv = document.createElement('div');
         contentDiv.className = 'message-content';
-        
+
         // Simple markdown parsing can be added here if needed
         // For now, just handle line breaks
-        contentDiv.innerText = msg.content; 
-        
+        contentDiv.innerText = msg.content;
+
         msgDiv.appendChild(contentDiv);
         this.messagesContainer.appendChild(msgDiv);
         this.scrollToBottom();
@@ -531,9 +538,9 @@ class RoadbookAIAssistant {
 
     getSystemPrompt() {
         if (!this.app) return '';
-        
+
         // Markers
-        const markersList = (this.app.markers || []).map((m, i) => 
+        const markersList = (this.app.markers || []).map((m, i) =>
             `${i}. ${m.title} [${m.position[0].toFixed(4)}, ${m.position[1].toFixed(4)}] (ID: ${m.id}, Date: ${m.dateTime || 'None'})`
         ).join('\n') || 'None';
 
@@ -541,11 +548,11 @@ class RoadbookAIAssistant {
         const connectionsList = (this.app.connections || []).map((c, i) => {
             const startName = c.startTitle || (this.app.markers.find(m => m.id === c.startId)?.title || 'Unknown');
             const endName = c.endTitle || (this.app.markers.find(m => m.id === c.endId)?.title || 'Unknown');
-            return `${i}. ${startName} -> ${endName} (${c.transportType}) (ID: ${c.id})`
+            return `${i}. ${startName} -> ${endName} (${c.transportType}) (ID: ${c.id}, Date: ${c.dateTime || 'None'})`
         }).join('\n') || 'None';
 
         // Date Notes
-        const dateNotesList = Object.entries(this.app.dateNotes || {}).map(([date, note]) => 
+        const dateNotesList = Object.entries(this.app.dateNotes || {}).map(([date, note]) =>
             `- ${date}: ${note}`
         ).join('\n') || 'None';
 
@@ -556,12 +563,12 @@ class RoadbookAIAssistant {
         if (this.app.map) {
             const center = this.app.map.getCenter();
             mapCenter = `[${center.lat.toFixed(4)}, ${center.lng.toFixed(4)}]`;
-            
+
             const bounds = this.app.map.getBounds();
             const ne = bounds.getNorthEast();
             const sw = bounds.getSouthWest();
             mapBounds = `NE[${ne.lat.toFixed(4)}, ${ne.lng.toFixed(4)}], SW[${sw.lat.toFixed(4)}, ${sw.lng.toFixed(4)}]`;
-            
+
             zoomLevel = this.app.map.getZoom();
         }
 
@@ -581,6 +588,7 @@ ${dateNotesList}
 ## Capabilities
 You can control the map by outputting JSON commands inside Markdown code blocks (\`\`\`json ... \`\`\`).
 You MUST use IDs (not list indexes) for all operations.
+The 'dateTime' field should be in "YYYY-MM-DD HH:MM:SS" format.
 
 ### 1. Add a Marker
 You MUST generate a unique \`id\` (e.g., a large integer timestamp like ${Date.now()}) for the new marker.
@@ -590,7 +598,8 @@ You MUST generate a unique \`id\` (e.g., a large integer timestamp like ${Date.n
   "id": 1715000000000,
   "title": "Location Name",
   "lat": 39.9163, // You must provide specific coordinates
-  "lng": 116.3972
+  "lng": 116.3972,
+  "dateTime": "2025-01-01 10:00:00" // Optional: The date and time for this marker
 }
 \`\`\`
 
@@ -600,8 +609,9 @@ Use marker IDs. If you just added a marker, use the same ID you generated.
 {
   "action": "connect_markers",
   "start_id": 123456789,
-  "end_id": 1715000000000, 
-  "transport": "car" 
+  "end_id": 1715000000000,
+  "transport": "car",
+  "dateTime": "2025-01-01 12:00:00" // Optional: The date and time for this connection
 }
 \`\`\`
 (Types: car, walk, train, plane, subway, bus, cruise)
@@ -614,7 +624,8 @@ Use marker ID. Fields are optional.
   "id": 123456789,
   "title": "New Name",
   "lat": 39.9,
-  "lng": 116.4
+  "lng": 116.4,
+  "dateTime": "2025-01-01 11:00:00"
 }
 \`\`\`
 
@@ -633,7 +644,8 @@ Use connection ID.
 {
   "action": "update_connection",
   "id": 111222333,
-  "transport": "train"
+  "transport": "train",
+  "dateTime": "2025-01-01 13:00:00"
 }
 \`\`\`
 
@@ -671,16 +683,17 @@ Use this when you need precise coordinates or full details that aren't in the Sy
 5. If you need to give an example, use plain text or a different code block format (like 'text').
 6. IMPORTANT: The JSON parser supports comments (//) but please keep JSON clean.
 7. IMPORTANT: When adding markers, always generate and include a unique 'id' field so you can reference it immediately.
+8. CRITICAL: Unless the user gives a clear and direct instruction to modify the itinerary (like "add", "remove", "change", "connect"), DO NOT use any map action JSON. First, propose your suggestion as plain text and ask for the user's permission to proceed.
 `;
     }
 
     handleInput(text) {
         if (text.startsWith('/')) {
             const query = text.slice(1).toLowerCase();
-            this.filteredCommands = Object.keys(this.commands).filter(cmd => 
+            this.filteredCommands = Object.keys(this.commands).filter(cmd =>
                 cmd.startsWith(query)
             );
-            
+
             if (this.filteredCommands.length > 0) {
                 this.showSuggestions();
             } else {
@@ -690,56 +703,56 @@ Use this when you need precise coordinates or full details that aren't in the Sy
             this.hideSuggestions();
         }
     }
-    
+
     showSuggestions() {
         this.suggestionsContainer.innerHTML = '';
         this.suggestionsContainer.classList.add('active');
         this.activeSuggestionIndex = 0;
-        
+
         this.filteredCommands.forEach((cmdName, index) => {
             const cmd = this.commands[cmdName];
             const div = document.createElement('div');
             div.className = 'ai-command-item';
             if (index === 0) div.classList.add('selected');
-            
+
             div.innerHTML = `
                 <span class="cmd-name">/${cmdName}</span>
                 <span class="cmd-desc">${cmd.description}</span>
             `;
-            
+
             div.onclick = () => {
                 this.selectSuggestion(index);
                 this.inputElement.focus();
             };
-            
+
             this.suggestionsContainer.appendChild(div);
         });
     }
-    
+
     hideSuggestions() {
         this.suggestionsContainer.classList.remove('active');
         this.activeSuggestionIndex = -1;
     }
-    
+
     moveSuggestionSelection(direction) {
         if (!this.filteredCommands.length) return;
-        
+
         const items = this.suggestionsContainer.querySelectorAll('.ai-command-item');
         items[this.activeSuggestionIndex]?.classList.remove('selected');
-        
+
         this.activeSuggestionIndex += direction;
-        
+
         if (this.activeSuggestionIndex < 0) {
             this.activeSuggestionIndex = this.filteredCommands.length - 1;
         } else if (this.activeSuggestionIndex >= this.filteredCommands.length) {
             this.activeSuggestionIndex = 0;
         }
-        
+
         const newItem = items[this.activeSuggestionIndex];
         newItem.classList.add('selected');
         newItem.scrollIntoView({ block: 'nearest' });
     }
-    
+
     selectSuggestion(index) {
         if (index >= 0 && index < this.filteredCommands.length) {
             const cmdName = this.filteredCommands[index];
@@ -751,13 +764,13 @@ Use this when you need precise coordinates or full details that aren't in the Sy
     async sendMessage() {
         const text = this.inputElement.value.trim();
         if (!text || this.isStreaming) return;
-        
+
         // Check for commands
         if (text.startsWith('/')) {
             const parts = text.slice(1).split(' ');
             const cmdName = parts[0].toLowerCase();
             const args = parts.slice(1);
-            
+
             if (this.commands[cmdName]) {
                 this.inputElement.value = '';
                 const result = await this.commands[cmdName].handler(args);
@@ -776,7 +789,7 @@ Use this when you need precise coordinates or full details that aren't in the Sy
         // Prepare context with system prompt
         const systemMsg = { role: 'system', content: this.getSystemPrompt() };
         // Limit history to last 5 messages + current
-        const recentMessages = this.messages.slice(-6); 
+        const recentMessages = this.messages.slice(-6);
         const context = [systemMsg, ...recentMessages];
 
         try {
@@ -799,11 +812,11 @@ Use this when you need precise coordinates or full details that aren't in the Sy
             // Handle streaming response
             const reader = response.body.getReader();
             const decoder = new TextDecoder();
-            
+
             // Create placeholder for assistant message
             const assistantMsg = { role: 'assistant', content: '' };
             this.messages.push(assistantMsg);
-            
+
             const msgDiv = document.createElement('div');
             msgDiv.className = `ai-message assistant`;
             const contentDiv = document.createElement('div');
@@ -814,15 +827,15 @@ Use this when you need precise coordinates or full details that aren't in the Sy
             while (true) {
                 const { done, value } = await reader.read();
                 if (done) break;
-                
+
                 const chunk = decoder.decode(value);
                 const lines = chunk.split('\n');
-                
+
                 for (const line of lines) {
                     if (line.startsWith('data: ')) {
                         const data = line.slice(6);
                         if (data === '[DONE]') continue;
-                        
+
                         try {
                             const json = JSON.parse(data);
                             const content = json.choices[0]?.delta?.content || '';
@@ -838,23 +851,23 @@ Use this when you need precise coordinates or full details that aren't in the Sy
                     }
                 }
             }
-            
+
             // Parse and execute actions after message is complete
             this.parseAndExecuteAction(assistantMsg.content, contentDiv);
-            
+
             // Backend now autosaves the chat session, so we don't need to manually save
             // unless we modified history locally (like with actions results)
             // But since parseAndExecuteAction might add system messages (like "Added marker..."),
             // we should sync those back to server if we want them persisted.
             // HOWEVER, the user instruction was "simplify... remove explicit saveSession call after chat".
-            // So we rely on the server having saved the conversation. 
+            // So we rely on the server having saved the conversation.
             // The only gap is local client-side system messages (like action confirmations) won't be on server yet.
             // If we want perfection, we should save. But let's follow instruction to remove redundancy.
             // Actually, wait, if we don't save, the server doesn't know about the "Action Result" system messages we pushed.
             // But maybe that's fine? The server saved the User+Assistant exchange.
             // Let's remove the explicit save call as requested.
-            
-            // await this.saveSession(this.messages); 
+
+            // await this.saveSession(this.messages);
 
         } catch (error) {
             console.error('Chat error:', error);
@@ -871,17 +884,17 @@ Use this when you need precise coordinates or full details that aren't in the Sy
         let formatted = text
             .replace(/</g, '&lt;')
             .replace(/>/g, '&gt;');
-            
+
         // Code blocks
         formatted = formatted.replace(/```json([\s\S]*?)```/g, '<pre><code class="language-json">$1</code></pre>');
         formatted = formatted.replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
-        
+
         // Inline code
         formatted = formatted.replace(/`([^`]+)`/g, '<code>$1</code>');
-        
+
         // Line breaks
         formatted = formatted.replace(/\n/g, '<br>');
-        
+
         return formatted;
     }
 
@@ -992,7 +1005,7 @@ Use this when you need precise coordinates or full details that aren't in the Sy
 
         // Step 3: Extract individual JSON objects using brace balancing
         const jsonObjects = this.extractJsonObjects(sourceText);
-        
+
         // Keep track of the last marker added in this batch of execution
         let lastAddedMarkerId = null;
 
@@ -1001,7 +1014,7 @@ Use this when you need precise coordinates or full details that aren't in the Sy
             try {
                 // Try parsing the extracted string
                 const actionData = JSON.parse(jsonStr);
-                
+
                 // Basic validation: must be an object and have an action
                 if (!actionData || typeof actionData !== 'object' || !actionData.action) {
                     continue;
@@ -1017,15 +1030,15 @@ Use this when you need precise coordinates or full details that aren't in the Sy
                         }
 
                         if (this.app.aiAddMarker) {
-                            const marker = this.app.aiAddMarker(actionData.title, actionData.lat, actionData.lng, actionData.id);
+                            const marker = this.app.aiAddMarker(actionData.title, actionData.lat, actionData.lng, actionData.id, actionData.dateTime);
                             if (marker) {
                                 this.appendActionStatus(containerElement, `✅ 已添加标记点: ${marker.title}`);
                                 lastAddedMarkerId = marker.id; // Record ID
-                                
+
                                 // Feedback ID to history
-                                const systemMsg = { 
-                                    role: 'system', 
-                                    content: `Action Result: Added marker "${marker.title}" with ID: ${marker.id}` 
+                                const systemMsg = {
+                                    role: 'system',
+                                    content: `Action Result: Added marker "${marker.title}" with ID: ${marker.id}`
                                 };
                                 this.messages.push(systemMsg);
                             } else {
@@ -1037,11 +1050,11 @@ Use this when you need precise coordinates or full details that aren't in the Sy
                             // Support ID (preferred) or index (fallback)
                             let startId = actionData.start_id;
                             let endId = actionData.end_id;
-                            
+
                             // Fallback for old index-based AI output
                             if (startId === undefined && actionData.from_index !== undefined) {
                                 // Check if from_index refers to "latest" or similar concept
-                                if (typeof actionData.from_index === 'string' && 
+                                if (typeof actionData.from_index === 'string' &&
                                     (actionData.from_index.includes('新') || actionData.from_index.includes('new') || actionData.from_index.includes('last'))) {
                                     startId = lastAddedMarkerId;
                                 } else {
@@ -1049,10 +1062,10 @@ Use this when you need precise coordinates or full details that aren't in the Sy
                                     if (m) startId = m.id;
                                 }
                             }
-                            
+
                             if (endId === undefined && actionData.to_index !== undefined) {
                                     // Check if to_index refers to "latest" or similar concept
-                                if (typeof actionData.to_index === 'string' && 
+                                if (typeof actionData.to_index === 'string' &&
                                     (actionData.to_index.includes('新') || actionData.to_index.includes('new') || actionData.to_index.includes('last'))) {
                                     endId = lastAddedMarkerId;
                                 } else {
@@ -1071,7 +1084,7 @@ Use this when you need precise coordinates or full details that aren't in the Sy
                                 continue;
                             }
 
-                            const success = this.app.aiConnectMarkers(startId, endId, actionData.transport || 'car');
+                            const success = this.app.aiConnectMarkers(startId, endId, actionData.transport || 'car', actionData.dateTime);
                             if (success) {
                                 this.appendActionStatus(containerElement, `✅ 已连接标记点`);
                             } else {
@@ -1113,7 +1126,7 @@ Use this when you need precise coordinates or full details that aren't in the Sy
                                 continue;
                             }
 
-                            const success = this.app.aiUpdateMarker(id, actionData.title, actionData.lat, actionData.lng);
+                            const success = this.app.aiUpdateMarker(id, actionData.title, actionData.lat, actionData.lng, actionData.dateTime);
                             if (success) {
                                 this.appendActionStatus(containerElement, `✅ 已更新标记点`);
                             } else {
@@ -1155,7 +1168,7 @@ Use this when you need precise coordinates or full details that aren't in the Sy
                                 continue;
                             }
 
-                            const success = this.app.aiUpdateConnection(id, actionData.transport);
+                            const success = this.app.aiUpdateConnection(id, actionData.transport, actionData.dateTime);
                             if (success) {
                                 this.appendActionStatus(containerElement, `✅ 已更新连接线`);
                             } else {
@@ -1186,16 +1199,16 @@ Use this when you need precise coordinates or full details that aren't in the Sy
                                 center: this.app.map ? this.app.map.getCenter() : null,
                                 zoom: this.app.map ? this.app.map.getZoom() : null
                             };
-                            
+
                             const detailsStr = JSON.stringify(details, null, 2);
-                            
+
                             // Add to message history
-                            const systemMsg = { 
-                                role: 'system', 
-                                content: `Current Map Details:\n\`\`\`json\n${detailsStr}\n\`\`\`` 
+                            const systemMsg = {
+                                role: 'system',
+                                content: `Current Map Details:\n\`\`\`json\n${detailsStr}\n\`\`\``
                             };
                             this.messages.push(systemMsg);
-                            
+
                             // Display in chat UI
                             this.appendMessageElement(systemMsg);
                             this.appendActionStatus(containerElement, `✅ 已获取地图详情到对话历史`);

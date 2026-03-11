@@ -2065,7 +2065,7 @@ class RoadbookApp {
     }
 
     // 创建标记点实体并绑定事件（公共逻辑）
-    createMarkerEntity(lat, lng, title = null, id = null, customIconConfig = null) {
+    createMarkerEntity(lat, lng, title = null, id = null, customIconConfig = null, dateTime = null) {
         const markerId = id || Date.now();
         const markerTitle = title || `标记点${this.markers.length + 1}`;
         const iconConfig = customIconConfig || this.getIconForName(markerTitle);
@@ -2077,24 +2077,27 @@ class RoadbookApp {
             title: markerTitle
         }).addTo(this.map);
 
-        // 确定新标记点的时间 - 如果有上一个点则使用其时间，否则为当天00:00
-        let newMarkerDateTime = this.getCurrentLocalDateTime();
-        if (this.markers.length > 0) {
-            // 使用最后一个标记点的时间
-            const lastMarker = this.markers[this.markers.length - 1];
-            if (lastMarker.dateTimes && lastMarker.dateTimes.length > 0) {
-                newMarkerDateTime = lastMarker.dateTimes[0]; // 使用上一个点的第一个时间
-            } else if (lastMarker.dateTime) {
-                newMarkerDateTime = lastMarker.dateTime;
+        let newMarkerDateTime = dateTime;
+        if (!newMarkerDateTime) {
+            // 确定新标记点的时间 - 如果有上一个点则使用其时间，否则为当天00:00
+            newMarkerDateTime = this.getCurrentLocalDateTime();
+            if (this.markers.length > 0) {
+                // 使用最后一个标记点的时间
+                const lastMarker = this.markers[this.markers.length - 1];
+                if (lastMarker.dateTimes && lastMarker.dateTimes.length > 0) {
+                    newMarkerDateTime = lastMarker.dateTimes[0]; // 使用上一个点的第一个时间
+                } else if (lastMarker.dateTime) {
+                    newMarkerDateTime = lastMarker.dateTime;
+                } else {
+                    // 如果上一个点也没有时间，则使用当天00:00
+                    const lastDateTime = new Date();
+                    newMarkerDateTime = `${lastDateTime.getFullYear()}-${String(lastDateTime.getMonth() + 1).padStart(2, '0')}-${String(lastDateTime.getDate()).padStart(2, '0')} 00:00:00`;
+                }
             } else {
-                // 如果上一个点也没有时间，则使用当天00:00
-                const lastDateTime = new Date();
-                newMarkerDateTime = `${lastDateTime.getFullYear()}-${String(lastDateTime.getMonth() + 1).padStart(2, '0')}-${String(lastDateTime.getDate()).padStart(2, '0')} 00:00:00`;
+                // 如果没有上一个点，使用当天00:00
+                const today = new Date();
+                newMarkerDateTime = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')} 00:00:00`;
             }
-        } else {
-            // 如果没有上一个点，使用当天00:00
-            const today = new Date();
-            newMarkerDateTime = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')} 00:00:00`;
         }
 
         const markerData = {
@@ -2207,7 +2210,7 @@ class RoadbookApp {
     }
 
     // AI Helper: Add marker without UI interaction
-    aiAddMarker(title, lat, lng, id = null) {
+    aiAddMarker(title, lat, lng, id = null, dateTime = null) {
         console.log(`aiAddMarker called: title="${title}", lat=${lat} (${typeof lat}), lng=${lng} (${typeof lng}), id=${id}`);
 
         // Convert to number if they are strings, handle potential whitespace
@@ -2235,7 +2238,7 @@ class RoadbookApp {
         }
 
         // Use createMarkerEntity to create the marker and bind events
-        const markerData = this.createMarkerEntity(parsedLat, parsedLng, title, markerId);
+        const markerData = this.createMarkerEntity(parsedLat, parsedLng, title, markerId, null, dateTime);
 
         this.markers.push(markerData);
         this.updateMarkerList();
@@ -2256,7 +2259,7 @@ class RoadbookApp {
     }
 
     // AI Helper: Connect markers by ID
-    aiConnectMarkers(startId, endId, transportType = 'car') {
+    aiConnectMarkers(startId, endId, transportType = 'car', dateTime = null) {
         const startMarker = this.markers.find(m => m.id === startId);
         const endMarker = this.markers.find(m => m.id === endId);
 
@@ -2265,7 +2268,7 @@ class RoadbookApp {
             return false;
         }
 
-        this.createConnection(startMarker, endMarker, transportType);
+        this.createConnection(startMarker, endMarker, transportType, dateTime);
         return true;
     }
 
@@ -2281,7 +2284,7 @@ class RoadbookApp {
     }
 
     // AI Helper: Update marker by ID
-    aiUpdateMarker(id, title, lat, lng) {
+    aiUpdateMarker(id, title, lat, lng, dateTime = null) {
         const marker = this.markers.find(m => m.id === id);
         if (!marker) {
             console.error('Invalid marker ID for aiUpdateMarker:', id);
@@ -2301,6 +2304,12 @@ class RoadbookApp {
                  const newIcon = this.createMarkerIcon(newIconConfig, this.markers.indexOf(marker) + 1);
                  marker.marker.setIcon(newIcon);
             }
+            updated = true;
+        }
+
+        if (dateTime) {
+            marker.dateTime = dateTime;
+            marker.dateTimes = [dateTime];
             updated = true;
         }
 
@@ -2347,12 +2356,14 @@ class RoadbookApp {
     }
 
     // AI Helper: Update connection by ID
-    aiUpdateConnection(id, transportType) {
+    aiUpdateConnection(id, transportType, dateTime = null) {
         const connection = this.connections.find(c => c.id === id);
         if (!connection) {
             console.error('Invalid connection ID for aiUpdateConnection:', id);
             return false;
         }
+
+        let updated = false;
 
         if (transportType && connection.transportType !== transportType) {
             connection.transportType = transportType;
@@ -2381,8 +2392,16 @@ class RoadbookApp {
                 connection.iconMarker.setIcon(newIcon);
             }
 
-            // Arrow head update is handled in updateConnections called below (it recreates arrow)
+            updated = true;
+        }
 
+        if (dateTime) {
+            connection.dateTime = dateTime;
+            updated = true;
+        }
+
+        if (updated) {
+            // Arrow head update is handled in updateConnections called below (it recreates arrow)
             this.updateConnections();
             this.saveToLocalStorage();
             return true;
@@ -2538,7 +2557,7 @@ class RoadbookApp {
         return Math.round(durationHours);
     }
 
-    createConnection(startMarker, endMarker, _transportType) { // transportType is now ignored, but kept for compatibility
+    createConnection(startMarker, endMarker, _transportType, dateTime = null) { // transportType is now ignored, but kept for compatibility
         if (!startMarker || !endMarker) {
             console.error('创建连接失败：起始点或终点无效。');
             return;
@@ -2600,12 +2619,15 @@ class RoadbookApp {
             })
         }).addTo(this.map);
 
-        // 使用起始点的时间作为连接线的默认时间
-        let connectionDateTime = this.getCurrentLocalDateTime();
-        if (startMarker.dateTimes && startMarker.dateTimes.length > 0) {
-            connectionDateTime = startMarker.dateTimes[0];
-        } else if (startMarker.dateTime) {
-            connectionDateTime = startMarker.dateTime;
+        let connectionDateTime = dateTime;
+        if (!connectionDateTime) {
+            // 使用起始点的时间作为连接线的默认时间
+            connectionDateTime = this.getCurrentLocalDateTime();
+            if (startMarker.dateTimes && startMarker.dateTimes.length > 0) {
+                connectionDateTime = startMarker.dateTimes[0];
+            } else if (startMarker.dateTime) {
+                connectionDateTime = startMarker.dateTime;
+            }
         }
 
         const connection = {

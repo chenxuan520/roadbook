@@ -625,6 +625,117 @@ type DeletePlanResponse struct {
 ```
 
 #### 响应体 (错误): `ErrorResponse` (例如：404 未找到)
+
+## AI 助手模块
+
+AI 助手相关的所有端点都需要 JWT 认证。
+
+### 1. 获取 AI 配置
+
+获取后端配置的 AI 助手信息。
+
+*   **端点:** `GET /api/v1/ai/config`
+*   **认证:** 需要 (JWT)
+
+#### 响应体 (成功)
+
+```json
+{
+  "enabled": true,
+  "model": "generalv3.5"
+}
+```
+- `enabled` (boolean): AI 功能是否在后端开启。
+- `model` (string): 后端配置的默认模型名称。
+
+### 2. AI 对话
+
+向 AI 发送消息并发起流式对话。
+
+*   **端点:** `POST /api/v1/ai/chat`
+*   **认证:** 需要 (JWT)
+
+#### 请求体: `AIChatRequest`
+
+```json
+{
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are RoadbookAI..."
+    },
+    {
+      "role": "user",
+      "content": "帮我在北京故宫添加一个标记"
+    }
+  ]
+}
+```
+- `messages` (array): 对话历史，遵循 OpenAI 的消息格式。
+
+#### 响应体 (成功): Stream (流式响应)
+响应是一个 `text/event-stream` 流。每一条消息都是一个 `data:` 事件，内容是 AI 模型返回的 JSON 块。最后以 `data: [DONE]` 结束。
+
+**流式消息示例:**
+```
+data: {"choices":[{"delta":{"content":"当然，"}}]}
+
+data: {"choices":[{"delta":{"content":"正在为您添加标记..."}}]}
+
+data: [DONE]
+```
+
+### 3. 获取对话历史
+
+从服务器获取最近一次的对话历史记录。
+
+*   **端点:** `GET /api/v1/ai/session`
+*   **认证:** 需要 (JWT)
+
+#### 响应体 (成功)
+
+```json
+{
+  "messages": [
+    {
+      "role": "user",
+      "content": "帮我在北京故宫添加一个标记"
+    },
+    {
+      "role": "assistant",
+      "content": "好的，已为您添加标记“故宫”。"
+    }
+  ]
+}
+```
+
+### 4. 保存对话历史
+
+将前端的对话历史完整地保存到服务器。
+
+*   **端点:** `POST /api/v1/ai/session`
+*   **认证:** 需要 (JWT)
+
+#### 请求体
+
+```json
+{
+  "messages": [
+    {
+      "role": "user",
+      "content": "帮我在北京故宫添加一个标记"
+    },
+    {
+      "role": "assistant",
+      "content": "好的，已为您添加标记“故宫”。"
+    }
+  ]
+}
+```
+
+#### 响应体 (成功)
+*   **状态码:** `200 OK` (无响应体内容)
+
 ## 搜索与地理服务
 
 ### 1. 获取搜索提供商配置
