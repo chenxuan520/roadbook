@@ -85,6 +85,12 @@ func NewRouter(cfg config.Config) *gin.Engine {
 			authenticated.GET("/plans/:id", planHandler.GetPlanHandler)
 			authenticated.PUT("/plans/:id", planHandler.SavePlanHandler)
 			authenticated.DELETE("/plans/:id", planHandler.DeletePlanHandler)
+			
+			// AI routes
+			authenticated.GET("/ai/config", handler.GetAIConfig(&cfg))
+			authenticated.GET("/ai/history", handler.GetAIHistory)
+			authenticated.DELETE("/ai/history", handler.ClearAIHistory)
+			authenticated.POST("/ai/chat", handler.AIChat(&cfg))
 		}
 
 		// 现有cnmap/tianmap搜索接口

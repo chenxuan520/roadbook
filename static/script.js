@@ -2201,6 +2201,218 @@ class RoadbookApp {
         this.showMarkerDetail(markerData);
     }
 
+    // AI Helper: Add marker without UI interaction
+    aiAddMarker(title, lat, lng, id = null) {
+        console.log(`aiAddMarker called: title="${title}", lat=${lat} (${typeof lat}), lng=${lng} (${typeof lng}), id=${id}`);
+
+        // Convert to number if they are strings, handle potential whitespace
+        let parsedLat = lat;
+        let parsedLng = lng;
+
+        if (typeof lat === 'string') {
+            parsedLat = parseFloat(lat.trim());
+        }
+        if (typeof lng === 'string') {
+            parsedLng = parseFloat(lng.trim());
+        }
+
+        if (isNaN(parsedLat) || isNaN(parsedLng)) {
+            console.error('Invalid coordinates for aiAddMarker:', lat, lng);
+            return null;
+        }
+
+        // Use provided ID or generate one
+        let markerId = id;
+        if (!markerId || this.markers.find(m => m.id === markerId)) {
+            // If ID is missing or conflicts, generate a new one
+            if (id) console.warn(`AI provided ID ${id} conflicts or is invalid, generating new ID`);
+            markerId = Date.now() + Math.floor(Math.random() * 10000);
+        }
+
+        // Use provided title or default
+        const markerTitle = title || `标记点${this.markers.length + 1}`;
+        const iconConfig = this.getIconForName(markerTitle);
+        const icon = this.createMarkerIcon(iconConfig, this.markers.length + 1);
+
+        const marker = L.marker([parsedLat, parsedLng], {
+            icon: icon,
+            draggable: true,
+            title: markerTitle
+        }).addTo(this.map);
+
+        // Date logic (copied from addMarker)
+        let newMarkerDateTime = this.getCurrentLocalDateTime();
+        if (this.markers.length > 0) {
+            const lastMarker = this.markers[this.markers.length - 1];
+            if (lastMarker.dateTimes && lastMarker.dateTimes.length > 0) {
+                newMarkerDateTime = lastMarker.dateTimes[0];
+            } else if (lastMarker.dateTime) {
+                newMarkerDateTime = lastMarker.dateTime;
+            } else {
+                const lastDateTime = new Date();
+                newMarkerDateTime = `${lastDateTime.getFullYear()}-${String(lastDateTime.getMonth() + 1).padStart(2, '0')}-${String(lastDateTime.getDate()).padStart(2, '0')} 00:00:00`;
+            }
+        } else {
+            const today = new Date();
+            newMarkerDateTime = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')} 00:00:00`;
+        }
+
+        const markerData = {
+            id: markerId,
+            marker: marker,
+            position: [parsedLat, parsedLng],
+            title: markerTitle,
+            labels: [],
+            logo: null,
+            icon: iconConfig,
+            createdAt: this.getCurrentLocalDateTime(),
+            dateTimes: [newMarkerDateTime],
+            dateTime: newMarkerDateTime
+        };
+
+        this.markers.push(markerData);
+        this.updateMarkerList();
+        
+        // Add to history
+        this.addHistory('addMarker', {
+            id: markerId,
+            position: [parsedLat, parsedLng],
+            title: markerTitle,
+            icon: iconConfig,
+            createdAt: this.getCurrentLocalDateTime(),
+            dateTimes: [newMarkerDateTime],
+            dateTime: newMarkerDateTime
+        });
+
+        this.saveToLocalStorage();
+        return markerData;
+    }
+
+    // AI Helper: Connect markers by ID
+    aiConnectMarkers(startId, endId, transportType = 'car') {
+        const startMarker = this.markers.find(m => m.id === startId);
+        const endMarker = this.markers.find(m => m.id === endId);
+
+        if (!startMarker || !endMarker) {
+            console.error('Invalid marker IDs for aiConnectMarkers:', startId, endId, 'Start:', startMarker, 'End:', endMarker);
+            return false;
+        }
+
+        this.createConnection(startMarker, endMarker, transportType);
+        return true;
+    }
+
+    // AI Helper: Remove marker by ID
+    aiRemoveMarker(id) {
+        const marker = this.markers.find(m => m.id === id);
+        if (!marker) {
+            console.error('Invalid marker ID for aiRemoveMarker:', id);
+            return false;
+        }
+        this.removeMarker(marker);
+        return true;
+    }
+
+    // AI Helper: Update marker by ID
+    aiUpdateMarker(id, title, lat, lng) {
+        const marker = this.markers.find(m => m.id === id);
+        if (!marker) {
+            console.error('Invalid marker ID for aiUpdateMarker:', id);
+            return false;
+        }
+
+        let updated = false;
+
+        if (title) {
+            marker.title = title;
+            // Also update marker tooltip/popup if necessary, currently title is mostly used for list and export
+            // Re-creating icon might be needed if title affects icon (e.g. "Hotel" vs "Park")
+            const newIconConfig = this.getIconForName(title);
+            // Only update icon if type changed or it's default
+            if (marker.icon.type === 'default' || newIconConfig.type !== marker.icon.type) {
+                 marker.icon = newIconConfig;
+                 const newIcon = this.createMarkerIcon(newIconConfig, this.markers.indexOf(marker) + 1);
+                 marker.marker.setIcon(newIcon);
+            }
+            updated = true;
+        }
+
+        if (typeof lat === 'number' && typeof lng === 'number') {
+             const oldPosition = [...marker.position];
+             marker.position = [lat, lng];
+             marker.marker.setLatLng([lat, lng]);
+             
+             // Record history? (Maybe skip for AI bulk ops to avoid clutter, or keep for undo)
+             // For now, let's keep it simple and just update
+             
+             updated = true;
+        }
+
+        if (updated) {
+            this.updateConnections(); // Update lines connected to this marker
+            this.updateLabels();      // Update labels attached to this marker
+            this.updateMarkerList();  // Refresh list
+            this.saveToLocalStorage();
+            return true;
+        }
+        return false;
+    }
+
+    // AI Helper: Remove connection by ID
+    aiRemoveConnection(id) {
+        const connection = this.connections.find(c => c.id === id);
+        if (!connection) {
+            console.error('Invalid connection ID for aiRemoveConnection:', id);
+            return false;
+        }
+        this.removeConnection(connection);
+        return true;
+    }
+
+    // AI Helper: Update connection by ID
+    aiUpdateConnection(id, transportType) {
+        const connection = this.connections.find(c => c.id === id);
+        if (!connection) {
+            console.error('Invalid connection ID for aiUpdateConnection:', id);
+            return false;
+        }
+
+        if (transportType && connection.transportType !== transportType) {
+            connection.transportType = transportType;
+            
+            // Re-draw connection with new style
+            // updateConnections() re-sets latlngs and arrow heads, but might not change color/style if polyline object is reused without style update
+            // createConnection sets color on creation.
+            // Let's update style manually here
+            const newColor = this.getTransportColor(transportType);
+            connection.polyline.setStyle({ color: newColor });
+            
+            if (connection.endCircle) {
+                connection.endCircle.setStyle({ fillColor: newColor });
+            }
+            
+            // Icon marker update
+            if (connection.iconMarker) {
+                const transportIcon = this.getTransportIcon(transportType);
+                const iconHtml = `<div style="background-color: white; border: 2px solid ${newColor}; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-size: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.3);">${transportIcon}</div>`;
+                const newIcon = L.divIcon({
+                    className: 'transport-icon',
+                    html: iconHtml,
+                    iconSize: [30, 30],
+                    iconAnchor: [15, 15]
+                });
+                connection.iconMarker.setIcon(newIcon);
+            }
+
+            // Arrow head update is handled in updateConnections called below (it recreates arrow)
+            
+            this.updateConnections();
+            this.saveToLocalStorage();
+            return true;
+        }
+        return false;
+    }
+
     showIconModal() {
         document.getElementById('iconModal').style.display = 'block';
         // 重置选择状态
@@ -7039,6 +7251,7 @@ class RoadbookApp {
             linkElement.href = `https://www.xiaohongshu.com/search_result/?keyword=${encodeURIComponent(query)}`;
         }
     }
+
 }
 
 // 初始化应用

@@ -16,12 +16,12 @@
 const CONFIG = {
   JWT_SECRET: "changeme-to-a-secure-random-string-please",
   // Default Users Configuration (matches Go backend structure)
-  // Password is "admin", Salt is "randomsalt123"
-  // echo -n "randomsalt123admin" | shasum -a 256
+  // Password is "password", Salt is "2d133fd795f2dd1e5815ca4db70d779d"
+  // echo -n "2d133fd795f2dd1e5815ca4db70d779d" | shasum -a 256
   USERS: {
     "admin": {
-      "salt": "randomsalt123",
-      "hash": "55235b4ea8c4dfb2056be247a067d077eb4217d16bae7553cf25a353b13b72bc"
+      "salt": "2d133fd795f2dd1e5815ca4db70d779d",
+      "hash": "560179c13d7f5a5b179040648fb1845b29ea014edbf9f23dfe62d6acf7c8d686"
     }
   },
   // Tianditu Token (default from Go backend)

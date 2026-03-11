@@ -19,6 +19,14 @@ type Config struct {
 	JwtSecret             string                       `json:"jwtSecret"`
 	Users                 map[string]UserCredentials `json:"users"`
 	Search                SearchConfig                 `json:"search"`
+	AI                    AIConfig                     `json:"ai"`
+}
+
+type AIConfig struct {
+	Enabled bool   `json:"enabled"`
+	BaseURL string `json:"base_url,omitempty"`
+	Key     string `json:"key,omitempty"`
+	Model   string `json:"model,omitempty"`
 }
 
 // SearchProviderConfig holds configuration for a single search provider, like an API key.
