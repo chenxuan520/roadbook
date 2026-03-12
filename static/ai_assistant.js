@@ -59,7 +59,12 @@ class RoadbookAIAssistant {
 
             const prompt = args.join(' ');
             // Construct a strong prompt to force map generation
-            const aiPrompt = `Please generate a detailed itinerary based on the following description. You MUST output JSON commands (add_marker, connect_markers) to visualize this on the map.
+            const aiPrompt = `Please generate a COMPLETE and DETAILED itinerary based on the following description. You MUST output JSON commands (add_marker, connect_markers) to visualize the FULL itinerary on the map.
+IMPORTANT RULES:
+1. Do NOT stop to ask the user questions or for clarification. Generate the full itinerary immediately based on your best understanding.
+2. Ensure every significant location mentioned or implied is added as a marker, and they are logically connected.
+3. Try to use "search_location" for accurate coordinates first. However, if search fails or returns no results, DO NOT ask the user. Instead, use your internal knowledge to provide the best possible estimated coordinates and proceed with generating the itinerary.
+4. Generate the entire plan first, then let the user make adjustments later.
 Description: ${prompt}`;
 
             // Send as a user message (which triggers the AI)
@@ -709,20 +714,22 @@ Use connection ID.
 }
 \`\`\`
 
-### 7. Export Data
-Trigger the export roadbook function (download JSON).
-\`\`\`json
-{
-  "action": "export_data"
-}
-\`\`\`
-
-### 8. Get Map Details
+### 7. Get Map Details
 Request detailed map data (JSON) to be added to the conversation history.
 Use this when you need precise coordinates or full details that aren't in the System Context.
 \`\`\`json
 {
   "action": "get_map_details"
+}
+\`\`\`
+
+### 8. Search Location
+Search for a location to get coordinates. Use this when the user mentions a place name but doesn't provide coordinates, or when you need more accurate coordinates than your internal knowledge.
+This tool returns up to 3 search results. You should use the results to propose a plan or directly add markers.
+\`\`\`json
+{
+  "action": "search_location",
+  "query": "Tiananmen Square"
 }
 \`\`\`
 
@@ -845,14 +852,24 @@ Use this when you need precise coordinates or full details that aren't in the Sy
             this.inputElement.value = '';
         }
 
+        await this.generateAIResponse();
+    }
+
+    async generateAIResponse() {
+        if (this.isStreaming) return;
+        
         this.isStreaming = true;
         this.sendBtn.disabled = true;
 
         // Prepare context with system prompt
         const systemMsg = { role: 'system', content: this.getSystemPrompt() };
-        // Limit history to last 5 messages + current
+        // Limit history to last 6 messages (to include the latest user message and some context)
         const recentMessages = this.messages.slice(-6);
         const context = [systemMsg, ...recentMessages];
+
+        // AbortController for timeout management
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s total timeout for connection
 
         try {
             const token = localStorage.getItem('online_token');
@@ -864,8 +881,11 @@ Use this when you need precise coordinates or full details that aren't in the Sy
             const response = await fetch(`${this.apiBase}/api/v1/ai/chat`, {
                 method: 'POST',
                 headers: headers,
-                body: JSON.stringify({ messages: context })
+                body: JSON.stringify({ messages: context }),
+                signal: controller.signal
             });
+
+            clearTimeout(timeoutId); // Clear connection timeout
 
             if (!response.ok) {
                 throw new Error('API request failed');
@@ -886,54 +906,76 @@ Use this when you need precise coordinates or full details that aren't in the Sy
             msgDiv.appendChild(contentDiv);
             this.messagesContainer.appendChild(msgDiv);
 
-            while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
+            // Read loop with activity timeout
+            let activityTimeoutId = null;
+            const resetActivityTimeout = () => {
+                if (activityTimeoutId) clearTimeout(activityTimeoutId);
+                activityTimeoutId = setTimeout(() => {
+                    console.warn('AI stream stalled, aborting...');
+                    reader.cancel(); // Cancel the reader
+                    // We don't throw here because we want to keep what we have so far
+                    // But we need to break the loop. Reader cancel usually makes read() return done or reject.
+                }, 30000); // 30s no data timeout
+            };
 
-                const chunk = decoder.decode(value);
-                const lines = chunk.split('\n');
+            resetActivityTimeout();
 
-                for (const line of lines) {
-                    if (line.startsWith('data: ')) {
-                        const data = line.slice(6);
-                        if (data === '[DONE]') continue;
+            try {
+                while (true) {
+                    const { done, value } = await reader.read();
+                    resetActivityTimeout(); // Reset timeout on data
 
-                        try {
-                            const json = JSON.parse(data);
-                            const content = json.choices[0]?.delta?.content || '';
-                            if (content) {
-                                assistantMsg.content += content;
-                                // Simple markdown formatting for code blocks
-                                contentDiv.innerHTML = this.formatMessageContent(assistantMsg.content);
-                                this.scrollToBottom();
+                    if (done) break;
+
+                    const chunk = decoder.decode(value, { stream: true });
+                    const lines = chunk.split('\n');
+
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            const data = line.slice(6);
+                            if (data === '[DONE]') continue;
+
+                            try {
+                                const json = JSON.parse(data);
+                                const content = json.choices[0]?.delta?.content || '';
+                                if (content) {
+                                    assistantMsg.content += content;
+                                    // Simple markdown formatting for code blocks
+                                    contentDiv.innerHTML = this.formatMessageContent(assistantMsg.content);
+                                    this.scrollToBottom();
+                                }
+                            } catch (e) {
+                                // console.error('Error parsing stream:', e);
                             }
-                        } catch (e) {
-                            // console.error('Error parsing stream:', e);
                         }
                     }
                 }
+            } catch (streamError) {
+                console.error('Stream reading error:', streamError);
+                // If it was just a stall, we might want to keep the partial message
+                if (assistantMsg.content.length === 0) {
+                    throw streamError; // Rethrow if we got nothing
+                }
+                this.appendMessageElement({ role: 'system', content: '⚠️ 回复传输中断，已显示部分内容' });
+            } finally {
+                if (activityTimeoutId) clearTimeout(activityTimeoutId);
             }
 
-            // Parse and execute actions after message is complete
-            this.parseAndExecuteAction(assistantMsg.content, contentDiv);
-
-            // Backend now autosaves the chat session, so we don't need to manually save
-            // unless we modified history locally (like with actions results)
-            // But since parseAndExecuteAction might add system messages (like "Added marker..."),
-            // we should sync those back to server if we want them persisted.
-            // HOWEVER, the user instruction was "simplify... remove explicit saveSession call after chat".
-            // So we rely on the server having saved the conversation.
-            // The only gap is local client-side system messages (like action confirmations) won't be on server yet.
-            // If we want perfection, we should save. But let's follow instruction to remove redundancy.
-            // Actually, wait, if we don't save, the server doesn't know about the "Action Result" system messages we pushed.
-            // But maybe that's fine? The server saved the User+Assistant exchange.
-            // Let's remove the explicit save call as requested.
-
-            // await this.saveSession(this.messages);
+            // Parse and execute actions after message is complete (or interrupted)
+            if (assistantMsg.content.length > 0) {
+                // Use setTimeout to allow the finally block to execute first and reset isStreaming
+                setTimeout(() => {
+                    this.parseAndExecuteAction(assistantMsg.content, contentDiv);
+                }, 0);
+            }
 
         } catch (error) {
             console.error('Chat error:', error);
-            this.appendMessageElement({ role: 'system', content: '❌ 发送失败，请稍后重试' });
+            if (error.name === 'AbortError') {
+                this.appendMessageElement({ role: 'system', content: '❌ 请求超时，请检查网络或稍后重试' });
+            } else {
+                this.appendMessageElement({ role: 'system', content: '❌ 发送失败，请稍后重试' });
+            }
         } finally {
             this.isStreaming = false;
             this.sendBtn.disabled = false;
@@ -1070,6 +1112,7 @@ Use this when you need precise coordinates or full details that aren't in the Sy
 
         // Keep track of the last marker added in this batch of execution
         let lastAddedMarkerId = null;
+        let hasExecutedSyncAction = false;
 
         // Step 4: Parse and execute each JSON object
         for (const jsonStr of jsonObjects) {
@@ -1097,12 +1140,12 @@ Use this when you need precise coordinates or full details that aren't in the Sy
                                 this.appendActionStatus(containerElement, `✅ 已添加标记点: ${marker.title}`);
                                 lastAddedMarkerId = marker.id; // Record ID
 
-                                // Feedback ID to history
                                 const systemMsg = {
-                                    role: 'system',
+                                    role: 'user', // Changed from 'system' to 'user' to ensure compatibility with LLM APIs which might restrict system messages position
                                     content: `Action Result: Added marker "${marker.title}" with ID: ${marker.id}`
                                 };
                                 this.messages.push(systemMsg);
+                                hasExecutedSyncAction = true;
                             } else {
                                 this.appendActionStatus(containerElement, `❌ 添加失败: 坐标无效`);
                             }
@@ -1149,8 +1192,20 @@ Use this when you need precise coordinates or full details that aren't in the Sy
                             const success = this.app.aiConnectMarkers(startId, endId, actionData.transport || 'car', actionData.dateTime);
                             if (success) {
                                 this.appendActionStatus(containerElement, `✅ 已连接标记点`);
+                                const systemMsg = {
+                                    role: 'user', 
+                                    content: `Action Result: Connected markers ${startId} and ${endId}`
+                                };
+                                this.messages.push(systemMsg);
+                                hasExecutedSyncAction = true;
                             } else {
                                 this.appendActionStatus(containerElement, `❌ 连接失败: ID无效 (Start: ${startId}, End: ${endId})`);
+                                const systemMsg = {
+                                    role: 'user',
+                                    content: `Action Failed: Connect markers failed - ID invalid (Start: ${startId}, End: ${endId})`
+                                };
+                                this.messages.push(systemMsg);
+                                hasExecutedSyncAction = true; // Still trigger response to let AI know it failed
                             }
                         }
                     } else if (actionData.action === 'remove_marker') {
@@ -1170,8 +1225,20 @@ Use this when you need precise coordinates or full details that aren't in the Sy
                             const success = this.app.aiRemoveMarker(id);
                             if (success) {
                                 this.appendActionStatus(containerElement, `✅ 已删除标记点`);
+                                const systemMsg = {
+                                    role: 'user',
+                                    content: `Action Result: Removed marker with ID: ${id}`
+                                };
+                                this.messages.push(systemMsg);
+                                hasExecutedSyncAction = true;
                             } else {
                                 this.appendActionStatus(containerElement, `❌ 删除失败: ID无效`);
+                                const systemMsg = {
+                                    role: 'user',
+                                    content: `Action Failed: Remove marker failed - ID invalid (${id})`
+                                };
+                                this.messages.push(systemMsg);
+                                hasExecutedSyncAction = true;
                             }
                         }
                     } else if (actionData.action === 'update_marker') {
@@ -1191,8 +1258,20 @@ Use this when you need precise coordinates or full details that aren't in the Sy
                             const success = this.app.aiUpdateMarker(id, actionData.title, actionData.lat, actionData.lng, actionData.dateTime);
                             if (success) {
                                 this.appendActionStatus(containerElement, `✅ 已更新标记点`);
+                                const systemMsg = {
+                                    role: 'user',
+                                    content: `Action Result: Updated marker with ID: ${id}`
+                                };
+                                this.messages.push(systemMsg);
+                                hasExecutedSyncAction = true;
                             } else {
                                 this.appendActionStatus(containerElement, `❌ 更新失败: ID无效`);
+                                const systemMsg = {
+                                    role: 'user',
+                                    content: `Action Failed: Update marker failed - ID invalid (${id})`
+                                };
+                                this.messages.push(systemMsg);
+                                hasExecutedSyncAction = true;
                             }
                         }
                     } else if (actionData.action === 'remove_connection') {
@@ -1212,8 +1291,20 @@ Use this when you need precise coordinates or full details that aren't in the Sy
                             const success = this.app.aiRemoveConnection(id);
                             if (success) {
                                 this.appendActionStatus(containerElement, `✅ 已删除连接线`);
+                                const systemMsg = {
+                                    role: 'user',
+                                    content: `Action Result: Removed connection with ID: ${id}`
+                                };
+                                this.messages.push(systemMsg);
+                                hasExecutedSyncAction = true;
                             } else {
                                 this.appendActionStatus(containerElement, `❌ 删除失败: ID无效`);
+                                const systemMsg = {
+                                    role: 'user',
+                                    content: `Action Failed: Remove connection failed - ID invalid (${id})`
+                                };
+                                this.messages.push(systemMsg);
+                                hasExecutedSyncAction = true;
                             }
                         }
                     } else if (actionData.action === 'update_connection') {
@@ -1233,15 +1324,27 @@ Use this when you need precise coordinates or full details that aren't in the Sy
                             const success = this.app.aiUpdateConnection(id, actionData.transport, actionData.dateTime);
                             if (success) {
                                 this.appendActionStatus(containerElement, `✅ 已更新连接线`);
+                                const systemMsg = {
+                                    role: 'user',
+                                    content: `Action Result: Updated connection with ID: ${id}`
+                                };
+                                this.messages.push(systemMsg);
+                                hasExecutedSyncAction = true;
                             } else {
                                 this.appendActionStatus(containerElement, `❌ 更新失败: ID无效`);
+                                const systemMsg = {
+                                    role: 'user',
+                                    content: `Action Failed: Update connection failed - ID invalid (${id})`
+                                };
+                                this.messages.push(systemMsg);
+                                hasExecutedSyncAction = true;
                             }
                         }
-                    } else if (actionData.action === 'export_data') {
-                        if (this.app && this.app.exportRoadbook) {
-                            this.app.exportRoadbook();
-                            this.appendActionStatus(containerElement, `✅ 已触发数据导出`);
-                        }
+                    // } else if (actionData.action === 'export_data') {
+                    //     if (this.app && this.app.exportRoadbook) {
+                    //         this.app.exportRoadbook();
+                    //         this.appendActionStatus(containerElement, `✅ 已触发数据导出`);
+                    //     }
                     } else if (actionData.action === 'get_map_details') {
                         if (this.app) {
                             const details = {
@@ -1266,14 +1369,52 @@ Use this when you need precise coordinates or full details that aren't in the Sy
 
                             // Add to message history
                             const systemMsg = {
-                                role: 'system',
+                                role: 'user', // Changed from 'system' to 'user' for compatibility
                                 content: `Current Map Details:\n\`\`\`json\n${detailsStr}\n\`\`\``
                             };
                             this.messages.push(systemMsg);
 
-                            // Display in chat UI
-                            this.appendMessageElement(systemMsg);
+                            // Display status only (do NOT display the full JSON content)
                             this.appendActionStatus(containerElement, `✅ 已获取地图详情到对话历史`);
+
+                            // Auto-trigger next AI response to act on map details
+                            this.generateAIResponse();
+                        }
+                    } else if (actionData.action === 'search_location') {
+                        if (this.app && this.app.aiSearchLocation) {
+                            const query = actionData.query;
+                            if (!query) {
+                                this.appendActionStatus(containerElement, `❌ 搜索失败: 未提供查询词`);
+                                continue;
+                            }
+
+                            this.appendActionStatus(containerElement, `🔍 正在搜索: ${query}...`);
+                            
+                            // Execute search
+                            this.app.aiSearchLocation(query).then(results => {
+                                let content = '';
+                                if (results && results.length > 0) {
+                                    const resultsStr = JSON.stringify(results, null, 2);
+                                    content = `Search Results for "${query}":\n\`\`\`json\n${resultsStr}\n\`\`\``;
+                                    this.appendActionStatus(containerElement, `✅ 搜索完成，找到 ${results.length} 个结果`);
+                                } else {
+                                    content = `Search Results for "${query}": No results found.`;
+                                    this.appendActionStatus(containerElement, `⚠️ 未找到相关结果`);
+                                }
+
+                                // Add to message history
+                                const systemMsg = {
+                                    role: 'user', // Changed from 'system' to 'user' for compatibility
+                                    content: content
+                                };
+                                this.messages.push(systemMsg);
+                                
+                                // Display status only (do NOT display the full JSON content)
+                                // this.appendMessageElement(systemMsg); // REMOVED to prevent showing raw JSON
+                                
+                                // Auto-trigger next AI response to act on search results
+                                this.generateAIResponse();
+                            });
                         }
                     }
                 }
@@ -1281,6 +1422,10 @@ Use this when you need precise coordinates or full details that aren't in the Sy
                 console.error('Error executing action:', actionError);
                 this.appendActionStatus(containerElement, `❌ 执行出错: ${actionError.message}`);
             }
+        }
+
+        if (hasExecutedSyncAction) {
+            this.generateAIResponse();
         }
     }
 

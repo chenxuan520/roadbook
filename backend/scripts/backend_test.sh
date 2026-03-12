@@ -195,14 +195,14 @@ if [ -n "$JWT_TOKEN" ]; then
         print_fail "Test 4: Refresh token failed with status code ${REFRESH_STATUS}. Body: $REFRESH_BODY"
         FAIL_COUNT=$((FAIL_COUNT + 1))
     fi
-    
+
     # Test 5: Create Plan
     print_info "Test 5: Testing POST /api/v1/plans..."
     CREATE_FULL_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "${API_BASE_URL}/api/v1/plans" \
         -H "Authorization: Bearer ${JWT_TOKEN}" \
         -H "Content-Type: application/json" \
         -d '{"name": "Test Plan", "description": "A plan for testing"}')
-    
+
     CREATE_BODY=$(echo "$CREATE_FULL_RESPONSE" | head -n -1)
     CREATE_STATUS=$(echo "$CREATE_FULL_RESPONSE" | tail -n 1)
 
@@ -226,7 +226,7 @@ if [ -n "$JWT_TOKEN" ]; then
             -H "Authorization: Bearer ${JWT_TOKEN}")
         LIST_BODY=$(echo "$FULL_LIST_RESPONSE" | head -n -1)
         LIST_RESPONSE_CODE=$(echo "$FULL_LIST_RESPONSE" | tail -n 1)
-        
+
         if [ "$LIST_RESPONSE_CODE" -eq 200 ]; then
             if echo "$LIST_BODY" | jq -e '.plans | (type == "array" and length > 0)' > /dev/null; then
                 print_pass "Test 6: List plans successful and returned correct structure."
@@ -259,7 +259,7 @@ if [ -n "$JWT_TOKEN" ]; then
             print_fail "Test 8: Share plan failed with status code ${SHARE_RESPONSE}"
             FAIL_COUNT=$((FAIL_COUNT + 1))
         fi
-        
+
         # Test 9: Update Plan
         print_info "Test 9: Testing PUT /api/v1/plans/${PLAN_ID}..."
         UPDATE_RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -X PUT "${API_BASE_URL}/api/v1/plans/${PLAN_ID}" \
@@ -272,7 +272,7 @@ if [ -n "$JWT_TOKEN" ]; then
             print_fail "Test 9: Update plan failed with status code ${UPDATE_RESPONSE}"
             FAIL_COUNT=$((FAIL_COUNT + 1))
         fi
-        
+
         # Test 10: Delete Plan
         print_info "Test 10: Testing DELETE /api/v1/plans/${PLAN_ID}..."
         DELETE_RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -X DELETE "${API_BASE_URL}/api/v1/plans/${PLAN_ID}" \
@@ -292,6 +292,48 @@ if [ -n "$JWT_TOKEN" ]; then
             print_pass "Test 11: Plan correctly deleted (received 404 Not Found)."
         else
             print_fail "Test 11: Verification of deletion failed. Expected 404, but got ${VERIFY_DELETE_RESPONSE}"
+            FAIL_COUNT=$((FAIL_COUNT + 1))
+        fi
+
+        # Test 12: AI Session Management
+        print_step "AI Session Tests"
+
+        # 12.1 Set Session
+        print_info "Test 12.1: POST /api/v1/ai/session..."
+        SESSION_PAYLOAD='{"messages":[{"role":"user","content":"Hello"},{"role":"assistant","content":"Hi"}]}'
+        SET_SESSION_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "${API_BASE_URL}/api/v1/ai/session" \
+            -H "Authorization: Bearer ${JWT_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d "$SESSION_PAYLOAD")
+        SET_SESSION_STATUS=$(echo "$SET_SESSION_RESPONSE" | tail -n 1)
+
+        if [ "$SET_SESSION_STATUS" -eq 200 ]; then
+            print_pass "Test 12.1: Session saved successfully."
+        else
+            print_fail "Test 12.1: Failed to save session. Status: $SET_SESSION_STATUS"
+            FAIL_COUNT=$((FAIL_COUNT + 1))
+        fi
+
+        # 12.2 Get Session
+        print_info "Test 12.2: GET /api/v1/ai/session..."
+        GET_SESSION_RESPONSE=$(curl -s -w "\n%{http_code}" -X GET "${API_BASE_URL}/api/v1/ai/session" \
+            -H "Authorization: Bearer ${JWT_TOKEN}")
+        GET_SESSION_BODY=$(echo "$GET_SESSION_RESPONSE" | head -n -1)
+        GET_SESSION_STATUS=$(echo "$GET_SESSION_RESPONSE" | tail -n 1)
+
+        if [ "$GET_SESSION_STATUS" -eq 200 ]; then
+            # Verify content using jq
+            MESSAGE_COUNT=$(echo "$GET_SESSION_BODY" | jq '.messages | length')
+            FIRST_ROLE=$(echo "$GET_SESSION_BODY" | jq -r '.messages[0].role')
+
+            if [ "$MESSAGE_COUNT" -eq 2 ] && [ "$FIRST_ROLE" = "user" ]; then
+                print_pass "Test 12.2: Session retrieved successfully with correct content."
+            else
+                print_fail "Test 12.2: Session retrieved but content mismatch. Body: $GET_SESSION_BODY"
+                FAIL_COUNT=$((FAIL_COUNT + 1))
+            fi
+        else
+            print_fail "Test 12.2: Failed to get session. Status: $GET_SESSION_STATUS"
             FAIL_COUNT=$((FAIL_COUNT + 1))
         fi
     fi

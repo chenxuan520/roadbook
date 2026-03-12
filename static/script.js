@@ -4861,6 +4861,112 @@ class RoadbookApp {
             return;
         }
 
+        this.fetchSearchResults(query)
+            .then(data => {
+                if (Array.isArray(data) && data.length > 0) {
+                    // Check if it's Photon GeoJSON features or standard list
+                    if (data[0].geometry && data[0].properties) {
+                         this.showPhotonSearchResults(data);
+                    } else {
+                         this.showSearchResults(data);
+                    }
+                } else if (data && data.features && data.features.length > 0) {
+                    // Photon raw response
+                    this.showPhotonSearchResults(data.features);
+                } else {
+                    // 没有找到结果，显示提示
+                    const searchResults = document.getElementById('searchResults');
+                    if (searchResults) {
+                        const resultsList = document.getElementById('resultsList');
+                        if (resultsList) {
+                            resultsList.innerHTML = '<li style="padding: 12px 15px; color: #999; cursor: default;">未找到相关地点，请尝试其他关键词</li>';
+                        }
+                        searchResults.style.display = 'block';
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('搜索地点时出错:', error);
+                // 显示错误信息
+                const searchResults = document.getElementById('searchResults');
+                if (searchResults) {
+                    const resultsList = document.getElementById('resultsList');
+                    if (resultsList) {
+                        let errorMessage = '搜索失败，请检查网络连接';
+
+                        // 提取状态码
+                        const statusMatch = error.message.match(/(\d{3})/);
+                        const statusCode = statusMatch ? parseInt(statusMatch[1], 10) : 0;
+
+                        if (statusCode === 401) {
+                            errorMessage = '搜索失败：未授权，请登录。';
+                        } else if (statusCode === 403) {
+                            errorMessage = '搜索失败：无权限，请检查API密钥或配置。';
+                        } else if (statusCode === 400) {
+                            errorMessage = '搜索失败：请求参数错误。';
+                        } else if (statusCode === 404) {
+                            errorMessage = '搜索失败：服务或资源未找到。';
+                        } else if (error.message.includes('API Error')) {
+                             const apiErrorMessage = error.message.replace(/Search API Error: |Overpass API Error: /, '');
+                             errorMessage = `搜索失败：${apiErrorMessage}`;
+                        } else if (error.message.includes('timeout') || error.name === 'AbortError') {
+                             errorMessage = '搜索请求超时，请稍后再试。';
+                        } else if (error.message === 'Search config error') {
+                             errorMessage = '搜索方式配置错误';
+                        } else if (error.message === 'Search not supported') {
+                             errorMessage = '当前地图不支持搜索';
+                        }
+
+                        resultsList.innerHTML = `<li style="padding: 12px 15px; color: #999; cursor: default;">${errorMessage}</li>`;
+                    }
+                    searchResults.style.display = 'block';
+                }
+            });
+    }
+
+    // AI Helper: Search location and return data
+    async aiSearchLocation(query) {
+        try {
+            const results = await this.fetchSearchResults(query);
+            let formattedResults = [];
+
+            if (Array.isArray(results)) {
+                if (results.length > 0 && results[0].geometry && results[0].properties) {
+                    // Photon/GeoJSON features
+                    formattedResults = results.slice(0, 3).map(f => ({
+                        name: f.properties.name || f.properties.street || 'Unknown',
+                        lat: f.geometry.coordinates[1],
+                        lng: f.geometry.coordinates[0],
+                        address: [f.properties.city, f.properties.country].filter(Boolean).join(', ')
+                    }));
+                } else {
+                    // Standard results
+                    formattedResults = results.slice(0, 3).map(r => ({
+                        name: r.display_name || r.name,
+                        lat: parseFloat(r.lat),
+                        lng: parseFloat(r.lon),
+                        type: r.type
+                    }));
+                }
+            } else if (results && results.features) {
+                 // Photon raw response
+                 formattedResults = results.features.slice(0, 3).map(f => ({
+                    name: f.properties.name || f.properties.street || 'Unknown',
+                    lat: f.geometry.coordinates[1],
+                    lng: f.geometry.coordinates[0],
+                    address: [f.properties.city, f.properties.country].filter(Boolean).join(', ')
+                }));
+            }
+
+            return formattedResults;
+        } catch (e) {
+            console.error('AI Search failed:', e);
+            return [];
+        }
+    }
+
+    // 核心搜索逻辑，返回Promise
+    fetchSearchResults(query) {
         // 使用当前选择的搜索方法
         let searchConfig;
 
@@ -4868,16 +4974,7 @@ class RoadbookApp {
             // 自动模式：检查当前地图是否支持搜索
             const currentMapConfig = this.mapSearchConfig[this.currentLayer];
             if (!currentMapConfig || !currentMapConfig.searchable) {
-                // 显示地图不支持搜索的提示
-                const searchResults = document.getElementById('searchResults');
-                if (searchResults) {
-                    const resultsList = document.getElementById('resultsList');
-                    if (resultsList) {
-                        resultsList.innerHTML = `<li style="padding: 12px 15px; color: #999; cursor: default;">当前地图(${currentMapConfig.name})不支持地点搜索</li>`;
-                    }
-                    searchResults.style.display = 'block';
-                }
-                return;
+                return Promise.reject(new Error('Search not supported'));
             }
             searchConfig = currentMapConfig;
         } else if (this.currentSearchMethod === 'nominatim') {
@@ -4960,20 +5057,10 @@ class RoadbookApp {
                 name: '天地图'
             };
         } else {
-            // Fallback for unknown search method
-            console.error('未知的搜索方式:', this.currentSearchMethod);
-            const searchResults = document.getElementById('searchResults');
-            if (searchResults) {
-                const resultsList = document.getElementById('resultsList');
-                if (resultsList) {
-                    resultsList.innerHTML = '<li style="padding: 12px 15px; color: #999; cursor: default;">搜索方式配置错误</li>';
-                }
-                searchResults.style.display = 'block';
-            }
-            return;
+            return Promise.reject(new Error('Search config error'));
         }
 
-        let url, searchPromise;
+        let url;
 
         if (searchConfig.parser === 'overpass') {
             // 构建Overpass API查询 - 使用英文搜索
@@ -4990,10 +5077,9 @@ class RoadbookApp {
             );out center;`;
 
             url = `${searchConfig.searchUrl}?data=${encodeURIComponent(overpassQuery)}`;
-            searchPromise = fetch(url)
+            return fetch(url)
                 .then(async response => {
                     if (!response.ok) {
-                        // 对于Overpass，错误信息可能在响应体中
                         try {
                             const errData = await response.json();
                             throw new Error(`Overpass API Error: ${response.status} ${errData.message || response.statusText}`);
@@ -5026,10 +5112,9 @@ class RoadbookApp {
             }
 
             url = `${searchConfig.searchUrl}?${params.toString()}`;
-            searchPromise = fetch(url, { headers })
+            return fetch(url, { headers })
                 .then(async response => {
                     if (!response.ok) {
-                        // 尝试解析JSON错误消息如果存在
                         try {
                             const errData = await response.json();
                             throw new Error(`${searchConfig.name || 'Search'} API Error: ${response.status} ${errData.message || errData.error || response.statusText}`);
@@ -5040,60 +5125,6 @@ class RoadbookApp {
                     return response.json();
                 });
         }
-
-        searchPromise
-            .then(data => {
-                if (data && data.length > 0) {
-                    this.showSearchResults(data);
-                } else if (data && data.features && data.features.length > 0) {
-                    // Photon服务返回的是GeoJSON格式
-                    this.showPhotonSearchResults(data.features);
-                } else {
-                    // 没有找到结果，显示提示
-                    const searchResults = document.getElementById('searchResults');
-                    if (searchResults) {
-                        const resultsList = document.getElementById('resultsList');
-                        if (resultsList) {
-                            resultsList.innerHTML = '<li style="padding: 12px 15px; color: #999; cursor: default;">未找到相关地点，请尝试其他关键词</li>';
-                        }
-                        searchResults.style.display = 'block';
-                    }
-                }
-            })
-            .catch(error => {
-                console.error('搜索地点时出错:', error);
-                // 显示错误信息
-                const searchResults = document.getElementById('searchResults');
-                if (searchResults) {
-                    const resultsList = document.getElementById('resultsList');
-                    if (resultsList) {
-                        let errorMessage = '搜索失败，请检查网络连接';
-
-                        // 提取状态码
-                        const statusMatch = error.message.match(/(\d{3})/);
-                        const statusCode = statusMatch ? parseInt(statusMatch[1], 10) : 0;
-
-                        if (statusCode === 401) {
-                            errorMessage = '搜索失败：未授权，请登录。'; // Specific for 401
-                        } else if (statusCode === 403) {
-                            errorMessage = '搜索失败：无权限，请检查API密钥或配置。'; // Specific for 403
-                        } else if (statusCode === 400) {
-                            errorMessage = '搜索失败：请求参数错误。'; // Specific for 400
-                        } else if (statusCode === 404) {
-                            errorMessage = '搜索失败：服务或资源未找到。'; // Specific for 404
-                        } else if (error.message.includes('API Error')) {
-                             // Attempt to extract more specific error from message
-                             const apiErrorMessage = error.message.replace(/Search API Error: |Overpass API Error: /, '');
-                             errorMessage = `搜索失败：${apiErrorMessage}`;
-                        } else if (error.message.includes('timeout') || error.name === 'AbortError') {
-                             errorMessage = '搜索请求超时，请稍后再试。';
-                        }
-
-                        resultsList.innerHTML = `<li style="padding: 12px 15px; color: #999; cursor: default;">${errorMessage}</li>`;
-                    }
-                    searchResults.style.display = 'block';
-                }
-            });
     }
 
     // 显示Photon搜索结果下拉框
