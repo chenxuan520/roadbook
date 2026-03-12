@@ -4,9 +4,8 @@ class RoadbookAIAssistant {
         this.app = app;
         this.enabled = false;
         this.model = '';
-        this.apiBase = window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1') || window.location.protocol === 'file:'
-            ? 'http://127.0.0.1:5436'
-            : window.location.origin;
+        // Reuse the global apiBaseUrl from script.js, with a fallback just in case.
+        this.apiBase = typeof apiBaseUrl !== 'undefined' ? apiBaseUrl : (window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1') || window.location.protocol === 'file:' ? 'http://127.0.0.1:5436' : window.location.origin);
 
         // DOM Elements
         this.container = null;

@@ -1726,6 +1726,11 @@ class RoadbookApp {
 
         // 添加键盘事件监听器
         document.addEventListener('keydown', (e) => {
+            // 添加一个保护，以防 e.key 未定义（可能由某些浏览器扩展或代理脚本引起）
+            if (!e || !e.key) {
+                return;
+            }
+
             // 检查是否按下Ctrl+Z（或Cmd+Z）且没有在输入框中输入
             if ((e.ctrlKey || e.metaKey) && e.key === 'z' &&
                 !['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {

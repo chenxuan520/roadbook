@@ -152,18 +152,12 @@ export default {
         for (const key of list.keys) {
             const plan = await env.ROADBOOK_KV.get(key.name, "json");
             if (plan) {
-                plans.push({
-                    id: plan.id,
-                    name: plan.name,
-                    description: plan.description,
-                    updated_at: plan.updated_at,
-                    labels: plan.labels,
-                    owner: plan.owner // Return owner info if available
-                });
+                // Frontend expects the full plan object for sorting and display
+                plans.push(plan);
             }
         }
-        plans.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
-        return json(plans);
+        // Frontend expects the array to be wrapped in a "plans" object.
+        return json({ plans: plans });
       }
 
       if (method === "POST") {
