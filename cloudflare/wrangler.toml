@@ -6,8 +6,8 @@ compatibility_date = "2023-10-01"
 # 本地开发时，Wrangler 会自动模拟 KV，无需真实 ID
 [[kv_namespaces]]
 binding = "ROADBOOK_KV"
-id = "local_kv_id"
-preview_id = "local_kv_preview_id"
+id = "c1e6c2e7951d48d59c6c3c4f8453aa12"
+preview_id = "c1e6c2e7951d48d59c6c3c4f8453aa12"
 
 # 环境变量配置 (可选，用于覆盖 CONFIG 中的默认值)
 [vars]

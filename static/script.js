@@ -1086,6 +1086,12 @@ class RoadbookApp {
         // 添加地图点击事件
         this.map.on('click', (e) => {
             if (this.isMobileDevice()) return; // 移动端禁止点击地图操作
+
+            // 新增: 如果AI助手窗口是打开的，则关闭它
+            if (window.aiAssistant && typeof window.aiAssistant.closeChatIfOpen === 'function') {
+                window.aiAssistant.closeChatIfOpen();
+            }
+
             if (this.currentMode === 'addMarker') {
                 this.addMarker(e.latlng);
             } else {

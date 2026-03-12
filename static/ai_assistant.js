@@ -517,6 +517,14 @@ Description: ${prompt}`;
         }
     }
 
+    // Method to close the chat window if it is currently open.
+    // This is useful for external calls, e.g., when clicking the map.
+    closeChatIfOpen() {
+        if (this.isOpen) {
+            this.toggleChat();
+        }
+    }
+
     positionWindow() {
         const btnRect = this.toggleBtn.getBoundingClientRect();
         const winWidth = 380; // Approximate width or get actual if rendered
@@ -580,9 +588,13 @@ Description: ${prompt}`;
         const contentDiv = document.createElement('div');
         contentDiv.className = 'message-content';
 
-        // Simple markdown parsing can be added here if needed
-        // For now, just handle line breaks
-        contentDiv.innerText = msg.content;
+        if (msg.role === 'assistant' || msg.role === 'system') {
+            // Use formatMessageContent to render markdown
+            contentDiv.innerHTML = this.formatMessageContent(msg.content);
+        } else {
+            // For user messages, just display plain text to avoid formatting user input
+            contentDiv.innerText = msg.content;
+        }
 
         msgDiv.appendChild(contentDiv);
         this.messagesContainer.appendChild(msgDiv);
@@ -984,22 +996,48 @@ This tool returns up to 3 search results. You should use the results to propose 
     }
 
     formatMessageContent(text) {
-        // Basic formatting: newlines to <br>, code blocks to <pre>
-        let formatted = text
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;');
+        // A more robust markdown formatter that respects code blocks.
 
-        // Code blocks
-        formatted = formatted.replace(/```json([\s\S]*?)```/g, '<pre><code class="language-json">$1</code></pre>');
-        formatted = formatted.replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
+        // 1. Temporarily replace code blocks with placeholders.
+        const placeholders = [];
+        let i = 0;
+        // First, escape HTML to prevent XSS from raw text.
+        let textWithPlaceholders = text.replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/```(json)?([\s\S]*?)```|`([^`]+)`/g, (match) => {
+                const placeholder = `__CODE_PLACEHOLDER_${i++}__`;
+                placeholders.push(match);
+                return placeholder;
+            });
 
-        // Inline code
-        formatted = formatted.replace(/`([^`]+)`/g, '<code>$1</code>');
+        // 2. Apply markdown formatting to the rest of the text.
+        let formattedText = textWithPlaceholders
+            // Headings (from ### down to # to avoid incorrect matching)
+            .replace(/^### (.*$)/gim, '<h4>$1</h4>')
+            .replace(/^## (.*$)/gim, '<h3>$1</h3>')
+            .replace(/^# (.*$)/gim, '<h2>$1</h2>')
+            // Bold
+            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
 
-        // Line breaks
-        formatted = formatted.replace(/\n/g, '<br>');
+        // 3. Restore the code blocks, formatting them into <pre> and <code>.
+        let finalHtml = formattedText;
+        for (let j = 0; j < placeholders.length; j++) {
+            const placeholder = `__CODE_PLACEHOLDER_${j}__`;
+            const codeBlock = placeholders[j]; // This code block still has its ``` markers
 
-        return formatted;
+            let formattedCodeBlock;
+            // The content of the code block is already HTML-escaped because we did that first.
+            if (codeBlock.startsWith('```json')) {
+                formattedCodeBlock = '<pre><code class="language-json">' + codeBlock.slice(7, -3).trim() + '</code></pre>';
+            } else if (codeBlock.startsWith('```')) {
+                formattedCodeBlock = '<pre><code>' + codeBlock.slice(3, -3).trim() + '</code></pre>';
+            } else { // Inline code `...`
+                formattedCodeBlock = '<code>' + codeBlock.slice(1, -1) + '</code>';
+            }
+            finalHtml = finalHtml.replace(placeholder, formattedCodeBlock);
+        }
+
+        // 4. Finally, handle newlines for all non-block content.
+        return finalHtml.replace(/\n/g, '<br>');
     }
 
     stripJsonComments(jsonStr) {
