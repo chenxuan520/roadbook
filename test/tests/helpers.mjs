@@ -15,6 +15,46 @@ function looksLikeMapTile(url) {
 }
 
 export async function prepareApp(page) {
+  // 0) 避免 geolocation 弹窗/超时影响测试
+  await page.addInitScript(() => {
+    try {
+      const geolocation = {
+        getCurrentPosition: (success, error) => {
+          // 直接走失败分支，让应用使用默认位置（北京）
+          if (typeof error === 'function') {
+            error({ code: 1, message: 'E2E: geolocation disabled' });
+          }
+        },
+        watchPosition: () => 0,
+        clearWatch: () => {}
+      };
+
+      Object.defineProperty(navigator, 'geolocation', {
+        value: geolocation,
+        configurable: true
+      });
+    } catch {
+      // ignore
+    }
+  });
+
+  // 0.5) 让 clipboard 在测试环境可控（用于“复制到剪贴板”类功能）
+  await page.addInitScript(() => {
+    try {
+      if (!navigator.clipboard) {
+        Object.defineProperty(navigator, 'clipboard', {
+          value: {},
+          configurable: true
+        });
+      }
+      navigator.clipboard.writeText = async (text) => {
+        window.__clipboardText = String(text);
+      };
+    } catch {
+      // ignore
+    }
+  });
+
   // 1) mock 外部搜索（不依赖后端）
   await page.route(/https:\/\/nominatim\.openstreetmap\.org\/search\?.*/i, async (route) => {
     const body = JSON.stringify([
@@ -93,4 +133,3 @@ export async function confirmSwal(page) {
   await btn.waitFor({ state: 'visible', timeout: 10_000 });
   await btn.click();
 }
-

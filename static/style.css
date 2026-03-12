@@ -1373,13 +1373,38 @@ body.dark-mode .theme-toggle-btn:hover {
     .search-box,
     #mapSourceSelect,
     #clearCacheBtn,
-    .github-corner {
+    .github-corner,
+    .toolbar,
+    .online-mode-actions,
+    .map-controls {
+        display: none !important;
+    }
+
+    /* 隐藏移动端菜单切换按钮 */
+    #menuToggleBtn {
         display: none !important;
     }
 
     /* 移动端调整主题切换按钮位置 */
     .theme-toggle-container {
         right: 15px !important;
+    }
+
+    /* 让地图在移动端全屏，去除侧边栏 */
+    .sidebar {
+        display: none !important;
+    }
+
+    /* 调整右侧面板宽度为全宽（虽然它被隐藏了，但为了布局一致性） */
+    .right-panel {
+        width: 0 !important;
+        overflow: hidden;
+    }
+
+    /* 调整地图高度 */
+    #mapContainer {
+        height: 100% !important;
+        width: 100% !important;
     }
 }
 

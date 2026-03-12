@@ -857,7 +857,7 @@ This tool returns up to 3 search results. You should use the results to propose 
 
     async generateAIResponse() {
         if (this.isStreaming) return;
-        
+
         this.isStreaming = true;
         this.sendBtn.disabled = true;
 
@@ -1193,7 +1193,7 @@ This tool returns up to 3 search results. You should use the results to propose 
                             if (success) {
                                 this.appendActionStatus(containerElement, `✅ 已连接标记点`);
                                 const systemMsg = {
-                                    role: 'user', 
+                                    role: 'user',
                                     content: `Action Result: Connected markers ${startId} and ${endId}`
                                 };
                                 this.messages.push(systemMsg);
@@ -1389,7 +1389,7 @@ This tool returns up to 3 search results. You should use the results to propose 
                             }
 
                             this.appendActionStatus(containerElement, `🔍 正在搜索: ${query}...`);
-                            
+
                             // Execute search
                             this.app.aiSearchLocation(query).then(results => {
                                 let content = '';
@@ -1408,10 +1408,10 @@ This tool returns up to 3 search results. You should use the results to propose 
                                     content: content
                                 };
                                 this.messages.push(systemMsg);
-                                
+
                                 // Display status only (do NOT display the full JSON content)
                                 // this.appendMessageElement(systemMsg); // REMOVED to prevent showing raw JSON
-                                
+
                                 // Auto-trigger next AI response to act on search results
                                 this.generateAIResponse();
                             });

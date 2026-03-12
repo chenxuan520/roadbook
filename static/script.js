@@ -360,7 +360,7 @@ class RoadbookApp {
 
         const marker = L.marker([data.position[0], data.position[1]], {
             icon: icon,
-            draggable: true,
+            draggable: !this.isMobileDevice(),
             title: data.title
         }).addTo(this.map);
 
@@ -382,7 +382,12 @@ class RoadbookApp {
         // 添加事件监听
         marker.on('click', (e) => {
             L.DomEvent.stopPropagation(e);
-            this.showMarkerDetail(markerData);
+            if (this.isMobileDevice()) {
+                const popupContent = this.generateMarkerPopupContent(markerData);
+                marker.bindPopup(popupContent).openPopup();
+            } else {
+                this.showMarkerDetail(markerData);
+            }
         });
 
         marker.on('mouseover', (e) => {
@@ -522,7 +527,27 @@ class RoadbookApp {
         const self = this;
         polyline.on('click', function(e) {
             L.DomEvent.stopPropagation(e);
-            self.showConnectionDetail(connection);
+            if (self.isMobileDevice()) {
+                const startMarker = self.markers.find(m => m.id === connection.startId);
+                const endMarker = self.markers.find(m => m.id === connection.endId);
+                const popupContent = self.generateConnectionPopupContent(connection, startMarker, endMarker);
+                polyline.bindPopup(popupContent).openPopup();
+            } else {
+                self.showConnectionDetail(connection);
+            }
+        });
+
+        // 绑定图标点击事件
+        iconMarker.on('click', function(e) {
+            L.DomEvent.stopPropagation(e);
+            if (self.isMobileDevice()) {
+                const startMarker = self.markers.find(m => m.id === connection.startId);
+                const endMarker = self.markers.find(m => m.id === connection.endId);
+                const popupContent = self.generateConnectionPopupContent(connection, startMarker, endMarker);
+                polyline.bindPopup(popupContent).openPopup();
+            } else {
+                self.showConnectionDetail(connection);
+            }
         });
 
         polyline.on('mouseover', function(e) {
@@ -1060,6 +1085,7 @@ class RoadbookApp {
 
         // 添加地图点击事件
         this.map.on('click', (e) => {
+            if (this.isMobileDevice()) return; // 移动端禁止点击地图操作
             if (this.currentMode === 'addMarker') {
                 this.addMarker(e.latlng);
             } else {
@@ -1893,6 +1919,15 @@ class RoadbookApp {
             return; // 非移动设备不执行移动端适配
         }
 
+        // 修改标题为只读模式
+        const titleElement = document.querySelector('header h1');
+        if (titleElement) {
+            titleElement.textContent = `${titleElement.textContent} (只读模式)`;
+        }
+
+        // 显示进入提示
+        this.showSwalAlert('只读模式', '当前为移动端只读模式，如需编辑请使用电脑访问。', 'info');
+
         // 初始化移动端菜单功能
         this.initMobileMenu();
 
@@ -2073,7 +2108,7 @@ class RoadbookApp {
 
         const marker = L.marker([lat, lng], {
             icon: icon,
-            draggable: true,
+            draggable: !this.isMobileDevice(),
             title: markerTitle
         }).addTo(this.map);
 
@@ -2133,7 +2168,12 @@ class RoadbookApp {
         // 添加点击事件显示详情
         marker.on('click', (e) => {
             L.DomEvent.stopPropagation(e);
-            this.showMarkerDetail(markerData);
+            if (this.isMobileDevice()) {
+                const popupContent = this.generateMarkerPopupContent(markerData);
+                marker.bindPopup(popupContent).openPopup();
+            } else {
+                this.showMarkerDetail(markerData);
+            }
         });
 
         // 添加悬浮事件显示标注信息
@@ -2281,7 +2321,7 @@ class RoadbookApp {
         if (!marker || !dateTime) return false;
 
         let changed = false;
-        
+
         // 规范化输入为数组
         const newTimes = Array.isArray(dateTime) ? dateTime : [dateTime];
         if (newTimes.length === 0) return false;
@@ -2299,14 +2339,14 @@ class RoadbookApp {
         // 添加新时间点（去重且同一天只能有一个时间点）
         newTimes.forEach(time => {
             if (!time) return;
-            
+
             // 检查该时间点是否已存在（完全相同）
             if (marker.dateTimes.includes(time)) return;
-            
+
             // 检查该日期是否已存在时间点
             const dateKey = this.getDateKey(time);
             const hasDate = marker.dateTimes.some(existingTime => this.getDateKey(existingTime) === dateKey);
-            
+
             // 只有当该日期没有时间点时才添加（保留最早添加的那个，或者手动操作时保留旧的）
             // 这里的逻辑是：如果日期已存在，则忽略新时间点，这符合手动操作的习惯（修改连接线时间不应覆盖该点已有的时间规划，除非用户明确去修改点的时间）
             // 同时对 AI 也是一种保护，防止在同一天生成冲突的时间点
@@ -2321,7 +2361,7 @@ class RoadbookApp {
         if (changed) {
             // 排序时间点
             marker.dateTimes.sort();
-            
+
             // 如果 legacy dateTime 字段为空，或者它是 dateTimes 中的一个，更新它为第一个时间点
             // 这里我们保持 dateTime 字段与 dateTimes[0] 同步，或者是保持原样？
             // 通常最好保持 dateTime 字段有值，以兼容旧代码
@@ -2329,7 +2369,7 @@ class RoadbookApp {
                 marker.dateTime = marker.dateTimes[0];
             }
         }
-        
+
         return changed;
     }
 
@@ -2353,14 +2393,14 @@ class RoadbookApp {
         // 如果提供了时间，自动添加到起始点和终点的 dateTimes 数组中
         if (dateTime) {
              let changed = false;
-             
+
              if (this.ensureMarkerDateTime(startMarker, dateTime)) {
                  changed = true;
              }
              if (this.ensureMarkerDateTime(endMarker, dateTime)) {
                  changed = true;
              }
-             
+
              if (changed) {
                  // 触发更新
                  this.updateMarkerList();
@@ -2755,7 +2795,14 @@ class RoadbookApp {
         const self = this;
         polyline.on('click', function(e) {
             L.DomEvent.stopPropagation(e);
-            self.showConnectionDetail(connection);
+            if (self.isMobileDevice()) {
+                const startMarker = self.markers.find(m => m.id === connection.startId);
+                const endMarker = self.markers.find(m => m.id === connection.endId);
+                const popupContent = self.generateConnectionPopupContent(connection, startMarker, endMarker);
+                polyline.bindPopup(popupContent).openPopup();
+            } else {
+                self.showConnectionDetail(connection);
+            }
         });
         polyline.on('mouseover', function(e) {
             self.showConnectionTooltip(connection, e.latlng, e);
@@ -2767,7 +2814,14 @@ class RoadbookApp {
         // 绑定图标点击事件
         iconMarker.on('click', function(e) {
             L.DomEvent.stopPropagation(e);
-            self.showConnectionDetail(connection);
+            if (self.isMobileDevice()) {
+                const startMarker = self.markers.find(m => m.id === connection.startId);
+                const endMarker = self.markers.find(m => m.id === connection.endId);
+                const popupContent = self.generateConnectionPopupContent(connection, startMarker, endMarker);
+                polyline.bindPopup(popupContent).openPopup();
+            } else {
+                self.showConnectionDetail(connection);
+            }
         });
         iconMarker.on('mouseover', function(e) {
             self.showConnectionTooltip(connection, e.latlng, e);
@@ -2886,6 +2940,81 @@ class RoadbookApp {
         // 注意：这里只处理简单的链接，不处理图片或其他复杂的Markdown语法
         const linkRegex = /\[([^\]]+?)\]\((https?:\/\/[^\s$.?#].[^\s]*)\)/g;
         return text.replace(linkRegex, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+    }
+
+    // 生成标记点弹窗内容 (只读模式)
+    generateMarkerPopupContent(markerData) {
+        let content = '<div class="popup-content">';
+        content += '<h3>' + markerData.title + '</h3>';
+
+        // 格式化时间显示
+        if (markerData.dateTimes && markerData.dateTimes.length > 0) {
+            const formattedTimes = markerData.dateTimes.map(dt => this.formatTime(dt));
+            content += '<p><strong>时间:</strong> ' + formattedTimes.join(', ') + '</p>';
+        } else if (markerData.dateTime) {
+            content += '<p><strong>时间:</strong> ' + this.formatTime(markerData.dateTime) + '</p>';
+        }
+
+        if (markerData.labels && markerData.labels.length > 0) {
+            content += '<p><strong>标注:</strong> ' + this.convertMarkdownLinksToHtml(markerData.labels.join('; ')) + '</p>';
+        }
+
+        content += '<p><strong>坐标:</strong> ' + markerData.position[1].toFixed(6) + ', ' + markerData.position[0].toFixed(6) + '</p>';
+        content += '</div>';
+
+        return content;
+    }
+
+    // 生成连接线弹窗内容 (只读模式)
+    generateConnectionPopupContent(connData, startMarker, endMarker) {
+        let content = '<div class="popup-content">';
+        content += '<h3>' + startMarker.title + ' → ' + endMarker.title + '</h3>';
+        content += '<p><strong>交通方式:</strong> ' + this.getTransportIcon(connData.transportType) + ' ' + this.getTransportTypeName(connData.transportType) + '</p>';
+
+        // 动态计算并显示距离
+        if (startMarker.position && endMarker.position) {
+            const distance = this.calculateLineDistance(startMarker.position, endMarker.position);
+            let distanceStr;
+            if (distance > 1000) {
+                distanceStr = (distance / 1000).toFixed(2) + ' km';
+            } else {
+                distanceStr = Math.round(distance) + ' m';
+            }
+            content += '<p><strong>距离:</strong> ' + distanceStr + '</p>';
+        }
+
+        if (connData.duration > 0) {
+            content += '<p><strong>耗时:</strong> ' + connData.duration + ' 小时</p>';
+        }
+
+        if (connData.dateTime) {
+            content += '<p><strong>时间:</strong> ' + this.formatTime(connData.dateTime) + '</p>';
+        }
+
+        if (connData.label) {
+            content += '<p><strong>标注:</strong> ' + this.convertMarkdownLinksToHtml(connData.label) + '</p>';
+        }
+
+        // 添加导航链接
+        const startLat = startMarker.position[0];
+        const startLng = startMarker.position[1];
+        const endLat = endMarker.position[0];
+        const endLng = endMarker.position[1];
+        const startTitle = startMarker.title || '起点';
+        const endTitle = endMarker.title || '终点';
+
+        content += '<div class="navigation-links" style="margin-top: 8px; font-size: 0.9rem;">';
+        content += '<p><strong>导航:</strong> ';
+        content += '<a href="http://api.map.baidu.com/direction?origin=latlng:' + startLat + ',' + startLng + '|name:' + encodeURIComponent(startTitle) + '&destination=latlng:' + endLat + ',' + endLng + '|name:' + encodeURIComponent(endTitle) + '&mode=driving&region=中国&output=html&coord_type=gcj02&src=webapp.demo" target="_blank" style="margin: 0 5px; text-decoration: underline;">百度</a>';
+        content += '<a href="https://uri.amap.com/navigation?from=' + startLng + ',' + startLat + ',' + encodeURIComponent(startTitle) + '&to=' + endLng + ',' + endLat + ',' + encodeURIComponent(endTitle) + '&mode=car&policy=1&coordinate=gaode" target="_blank" style="margin: 0 5px; text-decoration: underline;">高德</a>';
+        content += '<a href="https://apis.map.qq.com/uri/v1/routeplan?type=drive&from=' + encodeURIComponent(startTitle) + '&fromcoord=' + startLat + ',' + startLng + '&to=' + encodeURIComponent(endTitle) + '&tocoord=' + endLat + ',' + endLng + '&referer=myapp" target="_blank" style="margin: 0 5px; text-decoration: underline;">腾讯</a>';
+        content += '<a href="https://www.google.com/maps/dir/?api=1&origin=' + startLat + ',' + startLng + '&destination=' + endLat + ',' + endLng + '" target="_blank" style="margin: 0 5px; text-decoration: underline;">Google</a>';
+        content += '</p>';
+        content += '</div>';
+
+        content += '</div>';
+
+        return content;
     }
 
     // 处理日期备注输入框的粘贴事件，自动将链接转换为Markdown格式
@@ -4318,11 +4447,17 @@ class RoadbookApp {
         this.map.on('click', this.exitFilterModeHandler, this);
 
         // ESC键退出筛选模式
-        document.addEventListener('keydown', this.exitFilterModeKeyHandler, true);
+        if (!this.boundExitFilterModeKeyHandler) {
+            this.boundExitFilterModeKeyHandler = this.exitFilterModeKeyHandler.bind(this);
+        }
+        document.addEventListener('keydown', this.boundExitFilterModeKeyHandler, true);
 
         // 点击任意按钮退出筛选模式
+        if (!this.boundExitFilterModeClickHandler) {
+            this.boundExitFilterModeClickHandler = this.exitFilterModeClickHandler.bind(this);
+        }
         document.querySelectorAll('.btn').forEach(btn => {
-            btn.addEventListener('click', this.exitFilterModeClickHandler, true);
+            btn.addEventListener('click', this.boundExitFilterModeClickHandler, true);
         });
     }
 
@@ -4390,7 +4525,13 @@ class RoadbookApp {
         }
     }
 
-    exitFilterModeClickHandler(_e) {
+    exitFilterModeClickHandler(e) {
+        // 筛选模式下，日期详情面板内的按钮（如添加消费、扩大编辑等）不应该触发“退出筛选模式”
+        if (e && e.target && typeof e.target.closest === 'function') {
+            if (e.target.closest('#dateDetailPanel') || e.target.closest('#dateNotesSticky') || e.target.closest('#dateRangePicker') || e.target.closest('#expandModal')) {
+                return;
+            }
+        }
         this.exitFilterMode(); // 按钮点击退出筛选模式时自动调整视图
     }
 
@@ -4448,9 +4589,9 @@ class RoadbookApp {
 
         // 移除事件监听
         this.map.off('click', this.exitFilterModeHandler, this);
-        document.removeEventListener('keydown', this.exitFilterModeKeyHandler, true);
+        document.removeEventListener('keydown', this.boundExitFilterModeKeyHandler || this.exitFilterModeKeyHandler, true);
         document.querySelectorAll('.btn').forEach(btn => {
-            btn.removeEventListener('click', this.exitFilterModeClickHandler, true);
+            btn.removeEventListener('click', this.boundExitFilterModeClickHandler || this.exitFilterModeClickHandler, true);
         });
 
         // 隐藏日期备注便签（自动关闭并保存）
@@ -4966,7 +5107,7 @@ class RoadbookApp {
     }
 
     // 核心搜索逻辑，返回Promise
-    fetchSearchResults(query) {
+    async fetchSearchResults(query) {
         // 使用当前选择的搜索方法
         let searchConfig;
 
@@ -5077,24 +5218,20 @@ class RoadbookApp {
             );out center;`;
 
             url = `${searchConfig.searchUrl}?data=${encodeURIComponent(overpassQuery)}`;
-            return fetch(url)
-                .then(async response => {
-                    if (!response.ok) {
-                        try {
-                            const errData = await response.json();
-                            throw new Error(`Overpass API Error: ${response.status} ${errData.message || response.statusText}`);
-                        } catch {
-                            throw new Error(`Overpass API Error: ${response.status} ${response.statusText}`);
-                        }
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    if (data && data.elements && data.elements.length > 0) {
-                        return this.convertOverpassToSearchResults(data.elements);
-                    }
-                    return [];
-                });
+            const response = await fetch(url);
+            if (!response.ok) {
+                try {
+                    const errData = await response.json();
+                    throw new Error(`Overpass API Error: ${response.status} ${errData.message || response.statusText}`);
+                } catch {
+                    throw new Error(`Overpass API Error: ${response.status} ${response.statusText}`);
+                }
+            }
+            const data = await response.json();
+            if (data && data.elements && data.elements.length > 0) {
+                return this.convertOverpassToSearchResults(data.elements);
+            }
+            return [];
         } else {
             // 原有的Nominatim/Photon/Backend search logic
             const params = new URLSearchParams({
@@ -5112,18 +5249,16 @@ class RoadbookApp {
             }
 
             url = `${searchConfig.searchUrl}?${params.toString()}`;
-            return fetch(url, { headers })
-                .then(async response => {
-                    if (!response.ok) {
-                        try {
-                            const errData = await response.json();
-                            throw new Error(`${searchConfig.name || 'Search'} API Error: ${response.status} ${errData.message || errData.error || response.statusText}`);
-                        } catch {
-                            throw new Error(`${searchConfig.name || 'Search'} API Error: ${response.status} ${response.statusText}`);
-                        }
-                    }
-                    return response.json();
-                });
+            const response_1 = await fetch(url, {headers});
+            if (!response_1.ok) {
+                try {
+                    const errData_1 = await response_1.json();
+                    throw new Error(`${searchConfig.name || 'Search'} API Error: ${response_1.status} ${errData_1.message || errData_1.error || response_1.statusText}`);
+                } catch {
+                    throw new Error(`${searchConfig.name || 'Search'} API Error: ${response_1.status} ${response_1.statusText}`);
+                }
+            }
+            return await response_1.json();
         }
     }
 
@@ -5596,7 +5731,7 @@ class RoadbookApp {
 
             const marker = L.marker([markerData.position[0], markerData.position[1]], {
                 icon: icon,
-                draggable: true,
+                draggable: !this.isMobileDevice(),
                 title: markerData.title
             }).addTo(this.map);
 
@@ -5618,7 +5753,12 @@ class RoadbookApp {
             // 添加事件监听
             marker.on('click', (e) => {
                 L.DomEvent.stopPropagation(e);
-                this.showMarkerDetail(markerObj);
+                if (this.isMobileDevice()) {
+                    const popupContent = this.generateMarkerPopupContent(markerObj);
+                    marker.bindPopup(popupContent).openPopup();
+                } else {
+                    this.showMarkerDetail(markerObj);
+                }
             });
 
             marker.on('mouseover', (e) => {
@@ -5754,11 +5894,18 @@ class RoadbookApp {
             };
 
             // 添加连接线事件
-            const self = this;
-            polyline.on('click', function(e) {
-                L.DomEvent.stopPropagation(e);
+        const self = this;
+        polyline.on('click', function(e) {
+            L.DomEvent.stopPropagation(e);
+            if (self.isMobileDevice()) {
+                const startMarker = self.markers.find(m => m.id === connection.startId);
+                const endMarker = self.markers.find(m => m.id === connection.endId);
+                const popupContent = self.generateConnectionPopupContent(connection, startMarker, endMarker);
+                polyline.bindPopup(popupContent).openPopup();
+            } else {
                 self.showConnectionDetail(connection);
-            });
+            }
+        });
 
             polyline.on('mouseover', function(e) {
                 self.showConnectionTooltip(connection, e.latlng, e);
@@ -5771,7 +5918,15 @@ class RoadbookApp {
             // 绑定图标点击事件
             iconMarker.on('click', function(e) {
                 L.DomEvent.stopPropagation(e);
-                self.showConnectionDetail(connection);
+                if (self.isMobileDevice()) {
+                    const startMarker = self.markers.find(m => m.id === connection.startId);
+                    const endMarker = self.markers.find(m => m.id === connection.endId);
+                    const popupContent = self.generateConnectionPopupContent(connection, startMarker, endMarker);
+                    // Use polyline's popup but trigger from icon marker
+                    polyline.bindPopup(popupContent).openPopup();
+                } else {
+                    self.showConnectionDetail(connection);
+                }
             });
             iconMarker.on('mouseover', function(e) {
                 self.showConnectionTooltip(connection, e.latlng, e);
@@ -6662,7 +6817,7 @@ class RoadbookApp {
         // 保存耗时信息
         const durationInput = document.getElementById('connectionDuration');
         if (durationInput && durationInput.value !== '') {
-            this.currentConnection.duration = parseInt(durationInput.value) || 0;
+            this.currentConnection.duration = parseFloat(durationInput.value) || 0;
         }
 
         // 检查起始点和终点是否被更改
