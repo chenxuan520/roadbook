@@ -1,0 +1,16 @@
+{
+  "name": "roadbook-test",
+  "private": true,
+  "type": "module",
+  "devDependencies": {
+    "@playwright/test": "^1.58.2",
+    "playwright": "^1.58.2"
+  },
+  "scripts": {
+    "setup:local": "PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm install",
+    "setup:ci": "PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm ci && playwright install --with-deps chromium",
+    "test": "playwright test",
+    "test:local": "USE_SYSTEM_CHROME=1 playwright test",
+    "test:ci": "playwright test"
+  }
+}

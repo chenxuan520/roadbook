@@ -85,6 +85,15 @@ RoadbookMaker 是一个基于网页的地图标记与行程规划工具：
 
 该脚本依赖：`openssl`、`sha256sum`、`jq`、`curl`（见 `backend/scripts/backend_test.sh:47`、`backend/scripts/backend_test.sh:102`、`backend/scripts/backend_test.sh:115`）。
 
+### 前端端到端测试（Playwright）
+
+前端 E2E 测试位于 `test/`，通过一个轻量静态服务器加载 `static/index.html` 做 UI 交互验证（测试用例会 mock 搜索等外部请求，避免依赖后端）。
+
+- 本地运行（不下载浏览器内核，复用系统 Chrome）：在仓库根目录执行 `cd test && npm run setup:local && npm run test:local`
+- CI 运行（runner 上安装 Chromium 后 headless 跑）：`cd test && npm run setup:ci && npm run test:ci`（见 `/.github/workflows/ci_frontend.yml:1`）
+
+更多说明见 `test/README.md`。
+
 ## 5. 安全与数据保护
 
 ### 配置与密钥
@@ -136,4 +145,3 @@ Gin 内置了一个“允许来源列表 + 可选 null origin”逻辑：
 - **功能**：实现了 Go 后端的全部核心功能（JWT 认证、计划 CRUD、搜索代理、KV 数据存储）。
 - **部署**：详情见 `cloudflare/README.md`。
 - **配置**：前端通过双击标题配置 BaseURL 即可无缝切换到 Worker 后端。
-

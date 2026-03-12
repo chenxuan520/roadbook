@@ -1,12 +1,12 @@
-name: CI Checks
+name: CI Backend
 
 on:
   push:
     branches: ['**']
 
 jobs:
-  frontend_lint:
-    name: Frontend Lint
+  backend_unit_test:
+    name: Backend Unit Test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -14,15 +14,15 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
+      - name: Set up Go
+        uses: actions/setup-go@v5
         with:
-          node-version: '20'
+          go-version: '1.22'
 
-      - name: Run frontend syntax check
+      - name: Run unit tests
         run: |
-          node -c static/script.js
-          node -c static/html_export.js
+          cd backend
+          go test ./...
 
   backend_build:
     name: Backend Build
@@ -67,3 +67,4 @@ jobs:
 
       - name: Run backend integration tests
         run: ./backend/scripts/backend_test.sh
+

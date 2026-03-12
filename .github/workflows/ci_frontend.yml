@@ -1,0 +1,47 @@
+name: CI Frontend
+
+on:
+  push:
+    branches: ['**']
+
+jobs:
+  frontend_lint:
+    name: Frontend Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Run frontend syntax check
+        run: |
+          node -c static/script.js
+          node -c static/html_export.js
+
+  frontend_e2e:
+    name: Frontend E2E (Playwright)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install E2E deps and browsers
+        working-directory: test
+        run: npm run setup:ci
+
+      - name: Run E2E tests
+        working-directory: test
+        run: npm run test:ci
