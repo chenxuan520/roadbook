@@ -2077,7 +2077,19 @@ class RoadbookApp {
             title: markerTitle
         }).addTo(this.map);
 
-        let newMarkerDateTime = dateTime;
+        let newMarkerDateTimes = [];
+        let newMarkerDateTime = null;
+
+        // Handle dateTime input (can be string, array, or null)
+        if (Array.isArray(dateTime) && dateTime.length > 0) {
+            newMarkerDateTimes = [...dateTime]; // Copy array
+            newMarkerDateTime = dateTime[0];
+        } else if (typeof dateTime === 'string') {
+            newMarkerDateTimes = [dateTime];
+            newMarkerDateTime = dateTime;
+        }
+
+        // If no valid time provided, generate default
         if (!newMarkerDateTime) {
             // 确定新标记点的时间 - 如果有上一个点则使用其时间，否则为当天00:00
             newMarkerDateTime = this.getCurrentLocalDateTime();
@@ -2098,6 +2110,11 @@ class RoadbookApp {
                 const today = new Date();
                 newMarkerDateTime = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')} 00:00:00`;
             }
+            // Sync array with default
+            newMarkerDateTimes = [newMarkerDateTime];
+        } else if (newMarkerDateTimes.length === 0) {
+             // If input was empty array, sync with the (potentially fallback) single time
+             newMarkerDateTimes = [newMarkerDateTime];
         }
 
         const markerData = {
@@ -2109,7 +2126,7 @@ class RoadbookApp {
             logo: null, // 添加logo属性，默认为空
             icon: iconConfig, // 保存图标信息
             createdAt: this.getCurrentLocalDateTime(),
-            dateTimes: [newMarkerDateTime], // 改为数组，支持多个时间点
+            dateTimes: newMarkerDateTimes, // 改为数组，支持多个时间点
             dateTime: newMarkerDateTime // 使用第一个时间点作为默认时间
         };
 
@@ -2259,7 +2276,70 @@ class RoadbookApp {
     }
 
     // AI Helper: Connect markers by ID
+    // 确保标记点包含指定的时间点（或时间数组）
+    ensureMarkerDateTime(marker, dateTime) {
+        if (!marker || !dateTime) return false;
+
+        let changed = false;
+        
+        // 规范化输入为数组
+        const newTimes = Array.isArray(dateTime) ? dateTime : [dateTime];
+        if (newTimes.length === 0) return false;
+
+        // 初始化 dateTimes 数组
+        if (!marker.dateTimes) {
+            marker.dateTimes = [];
+            // 如果存在旧的单个时间点，先迁移过来
+            if (marker.dateTime) {
+                marker.dateTimes.push(marker.dateTime);
+            }
+            changed = true;
+        }
+
+        // 添加新时间点（去重且同一天只能有一个时间点）
+        newTimes.forEach(time => {
+            if (!time) return;
+            
+            // 检查该时间点是否已存在（完全相同）
+            if (marker.dateTimes.includes(time)) return;
+            
+            // 检查该日期是否已存在时间点
+            const dateKey = this.getDateKey(time);
+            const hasDate = marker.dateTimes.some(existingTime => this.getDateKey(existingTime) === dateKey);
+            
+            // 只有当该日期没有时间点时才添加（保留最早添加的那个，或者手动操作时保留旧的）
+            // 这里的逻辑是：如果日期已存在，则忽略新时间点，这符合手动操作的习惯（修改连接线时间不应覆盖该点已有的时间规划，除非用户明确去修改点的时间）
+            // 同时对 AI 也是一种保护，防止在同一天生成冲突的时间点
+            if (!hasDate) {
+                marker.dateTimes.push(time);
+                changed = true;
+            } else {
+                console.log(`跳过添加时间点 ${time}，因为该日期 (${dateKey}) 已存在时间安排`);
+            }
+        });
+
+        if (changed) {
+            // 排序时间点
+            marker.dateTimes.sort();
+            
+            // 如果 legacy dateTime 字段为空，或者它是 dateTimes 中的一个，更新它为第一个时间点
+            // 这里我们保持 dateTime 字段与 dateTimes[0] 同步，或者是保持原样？
+            // 通常最好保持 dateTime 字段有值，以兼容旧代码
+            if (!marker.dateTime || marker.dateTimes.length > 0) {
+                marker.dateTime = marker.dateTimes[0];
+            }
+        }
+        
+        return changed;
+    }
+
     aiConnectMarkers(startId, endId, transportType = 'car', dateTime = null) {
+        // 禁止自己连接自己
+        if (startId === endId) {
+            console.error('Invalid marker IDs for aiConnectMarkers: Start ID and End ID are the same.', startId);
+            return false;
+        }
+
         const startMarker = this.markers.find(m => m.id === startId);
         const endMarker = this.markers.find(m => m.id === endId);
 
@@ -2269,6 +2349,25 @@ class RoadbookApp {
         }
 
         this.createConnection(startMarker, endMarker, transportType, dateTime);
+
+        // 如果提供了时间，自动添加到起始点和终点的 dateTimes 数组中
+        if (dateTime) {
+             let changed = false;
+             
+             if (this.ensureMarkerDateTime(startMarker, dateTime)) {
+                 changed = true;
+             }
+             if (this.ensureMarkerDateTime(endMarker, dateTime)) {
+                 changed = true;
+             }
+             
+             if (changed) {
+                 // 触发更新
+                 this.updateMarkerList();
+                 this.saveToLocalStorage();
+             }
+        }
+
         return true;
     }
 
@@ -2560,6 +2659,12 @@ class RoadbookApp {
     createConnection(startMarker, endMarker, _transportType, dateTime = null) { // transportType is now ignored, but kept for compatibility
         if (!startMarker || !endMarker) {
             console.error('创建连接失败：起始点或终点无效。');
+            return;
+        }
+
+        // 禁止自己连接自己
+        if (startMarker.id === endMarker.id) {
+            console.error('创建连接失败：起始点和终点不能相同。');
             return;
         }
 
@@ -6576,26 +6681,11 @@ class RoadbookApp {
 
         // --- 自动同步日期到标记点 ---
         if (this.currentConnection.dateTime) {
-            const dateOnly = this.currentConnection.dateTime.split(' ')[0]; // YYYY-MM-DD
-
             const startMarker = this.markers.find(m => m.id === this.currentConnection.startId);
             const endMarker = this.markers.find(m => m.id === this.currentConnection.endId);
 
             [startMarker, endMarker].forEach(marker => {
-                if (marker) {
-                    if (!marker.dateTimes) marker.dateTimes = [];
-                    // 兼容旧数据
-                    if (marker.dateTime && !marker.dateTimes.includes(marker.dateTime)) {
-                        marker.dateTimes.push(marker.dateTime);
-                    }
-
-                    const hasDate = marker.dateTimes.some(dt => dt.startsWith(dateOnly));
-                    if (!hasDate) {
-                        marker.dateTimes.push(this.currentConnection.dateTime);
-                        marker.dateTimes.sort();
-                        console.log(`已自动为标记点 ${marker.title} 添加日期: ${dateOnly}`);
-                    }
-                }
+                this.ensureMarkerDateTime(marker, this.currentConnection.dateTime);
             });
         }
 

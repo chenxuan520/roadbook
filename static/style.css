@@ -3083,7 +3083,7 @@ body.dark-mode .leaflet-tile {
 .ai-toggle-btn {
     width: 44px;
     height: 44px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #7cb342 0%, #33691e 100%);
     border-radius: 50%;
     cursor: grab;
     display: flex;
@@ -3091,7 +3091,7 @@ body.dark-mode .leaflet-tile {
     justify-content: center;
     font-size: 22px;
     color: white;
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.5);
+    box-shadow: 0 4px 12px rgba(51, 105, 30, 0.5);
     transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s;
     position: relative;
     user-select: none;
@@ -3131,7 +3131,7 @@ body.dark-mode .leaflet-tile {
 }
 
 .ai-header {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: var(--bg-header);
     color: white;
     padding: 16px 20px;
     font-weight: 600;

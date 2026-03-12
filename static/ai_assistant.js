@@ -51,6 +51,22 @@ class RoadbookAIAssistant {
             return true; // Command executed successfully
         });
 
+        this.registerCommand('generate', '根据提示词生成行程图', async (args) => {
+            if (!args || args.length === 0) {
+                this.appendMessageElement({ role: 'system', content: '⚠️ 请输入提示词，例如：/generate 北京一日游' });
+                return true;
+            }
+
+            const prompt = args.join(' ');
+            // Construct a strong prompt to force map generation
+            const aiPrompt = `Please generate a detailed itinerary based on the following description. You MUST output JSON commands (add_marker, connect_markers) to visualize this on the map.
+Description: ${prompt}`;
+
+            // Send as a user message (which triggers the AI)
+            await this.sendMessage(aiPrompt);
+            return true;
+        });
+
         this.registerCommand('help', '显示可用命令', () => {
             let helpText = '### 可用命令\n\n';
             Object.entries(this.commands).forEach(([name, cmd]) => {
@@ -172,7 +188,7 @@ class RoadbookAIAssistant {
         // Floating Toggle Button (The "Ball")
         this.toggleBtn = document.createElement('div');
         this.toggleBtn.className = 'ai-toggle-btn';
-        this.toggleBtn.innerHTML = '🤖';
+        this.toggleBtn.innerHTML = '🦄';
         this.toggleBtn.title = 'AI 助手';
         this.toggleBtn.onclick = () => {
             // Prevent click when dragging ends
@@ -224,7 +240,23 @@ class RoadbookAIAssistant {
         header.querySelector('.ai-close-btn').onclick = () => this.toggleChat();
 
         // Make window draggable via header
-        this.setupWindowDraggable(header, this.chatWindow);
+        let iconStartLeft, iconStartTop;
+
+        this.setupWindowDraggable(header, this.chatWindow,
+            // onDragStart
+            () => {
+                const rect = this.container.getBoundingClientRect();
+                iconStartLeft = rect.left;
+                iconStartTop = rect.top;
+            },
+            // onDrag
+            (dx, dy) => {
+                this.container.style.left = `${iconStartLeft + dx}px`;
+                this.container.style.top = `${iconStartTop + dy}px`;
+                this.container.style.bottom = 'auto';
+                this.container.style.right = 'auto';
+            }
+        );
 
         // Messages Area
         this.messagesContainer = document.createElement('div');
@@ -315,12 +347,18 @@ class RoadbookAIAssistant {
         document.body.appendChild(this.container);
         document.body.appendChild(this.chatWindow);
 
-        // Set initial position under the help button
-        const helpBtn = document.getElementById('helpBtn');
-        if (helpBtn) {
-            const rect = helpBtn.getBoundingClientRect();
-            this.container.style.top = `${rect.bottom + 80}px`;
-            this.container.style.left = `${rect.left}px`;
+        // Set initial position to bottom-right of map container
+        const mapContainer = document.getElementById('mapContainer');
+        if (mapContainer) {
+            const rect = mapContainer.getBoundingClientRect();
+            // Place it at the bottom-right corner of the MAP container
+            // (avoiding the right panel)
+            const rightMargin = 10;
+            const bottomMargin = 25;
+            const buttonSize = 44;
+
+            this.container.style.left = `${rect.right - buttonSize - rightMargin}px`;
+            this.container.style.top = `${rect.bottom - buttonSize - bottomMargin}px`;
             this.container.style.right = 'auto';
             this.container.style.bottom = 'auto';
         }
@@ -394,7 +432,7 @@ class RoadbookAIAssistant {
         handle.addEventListener('mousedown', onMouseDown);
     }
 
-    setupWindowDraggable(handle, target) {
+    setupWindowDraggable(handle, target, onDragStart, onDrag, onDragEnd) {
         let isDragging = false;
         let startX, startY, initialLeft, initialTop;
 
@@ -412,6 +450,8 @@ class RoadbookAIAssistant {
             initialTop = rect.top;
 
             e.preventDefault();
+
+            if (onDragStart) onDragStart();
 
             document.addEventListener('mousemove', onMouseMove);
             document.addEventListener('mouseup', onMouseUp);
@@ -435,10 +475,18 @@ class RoadbookAIAssistant {
 
             target.style.left = `${newLeft}px`;
             target.style.top = `${newTop}px`;
+
+            if (onDrag) {
+                // Pass effective displacement
+                onDrag(newLeft - initialLeft, newTop - initialTop);
+            }
         };
 
         const onMouseUp = () => {
             isDragging = false;
+
+            if (onDragEnd) onDragEnd();
+
             document.removeEventListener('mousemove', onMouseMove);
             document.removeEventListener('mouseup', onMouseUp);
         };
@@ -588,7 +636,9 @@ ${dateNotesList}
 ## Capabilities
 You can control the map by outputting JSON commands inside Markdown code blocks (\`\`\`json ... \`\`\`).
 You MUST use IDs (not list indexes) for all operations.
-The 'dateTime' field should be in "YYYY-MM-DD HH:MM:SS" format.
+The 'dateTime' field should be in "YYYY-MM-DD HH:MM:SS" format. It can be a single string or an array of strings (e.g. ["2025-01-01 10:00:00", "2025-01-02 14:00:00"]) if the location is visited multiple times.
+IMPORTANT: Ensure that the generated itinerary covers ALL dates mentioned in the user's request.
+IMPORTANT: A marker can only have ONE time point per calendar day. If multiple visits to the same location occur on the same day, please use the earliest time or consolidate them.
 
 ### 1. Add a Marker
 You MUST generate a unique \`id\` (e.g., a large integer timestamp like ${Date.now()}) for the new marker.
@@ -605,6 +655,7 @@ You MUST generate a unique \`id\` (e.g., a large integer timestamp like ${Date.n
 
 ### 2. Connect Markers
 Use marker IDs. If you just added a marker, use the same ID you generated.
+IMPORTANT: The start_id and end_id MUST be different. Do not create a connection from a marker to itself.
 \`\`\`json
 {
   "action": "connect_markers",
@@ -761,8 +812,15 @@ Use this when you need precise coordinates or full details that aren't in the Sy
         }
     }
 
-    async sendMessage() {
-        const text = this.inputElement.value.trim();
+    async sendMessage(textOverride = null) {
+        let text = textOverride;
+        let isFromInput = false;
+
+        if (!text) {
+            text = this.inputElement.value.trim();
+            isFromInput = true;
+        }
+
         if (!text || this.isStreaming) return;
 
         // Check for commands
@@ -772,7 +830,7 @@ Use this when you need precise coordinates or full details that aren't in the Sy
             const args = parts.slice(1);
 
             if (this.commands[cmdName]) {
-                this.inputElement.value = '';
+                if (isFromInput) this.inputElement.value = '';
                 const result = await this.commands[cmdName].handler(args);
                 if (result) return; // Command handled fully
             }
@@ -782,7 +840,11 @@ Use this when you need precise coordinates or full details that aren't in the Sy
         const userMsg = { role: 'user', content: text };
         this.messages.push(userMsg);
         this.appendMessageElement(userMsg);
-        this.inputElement.value = '';
+
+        if (isFromInput) {
+            this.inputElement.value = '';
+        }
+
         this.isStreaming = true;
         this.sendBtn.disabled = true;
 
