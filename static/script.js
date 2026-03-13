@@ -1,4 +1,9 @@
 const apiBaseUrl = (() => {
+    // 优先使用构建时/运行时注入的全局配置
+    if (typeof window.API_BASE_URL !== 'undefined') {
+        return window.API_BASE_URL;
+    }
+
     const custom = localStorage.getItem('custom_api_base_url');
     if (custom) return custom;
     const hostname = window.location.hostname || '';
@@ -2557,6 +2562,78 @@ class RoadbookApp {
             return true;
         }
         return false;
+    }
+
+    // Check if date exists in itinerary (has markers or connections)
+    isDateInItinerary(date) {
+        if (!date) return false;
+
+        // Check if date already has notes
+        if (this.dateNotes && this.dateNotes[date]) {
+            return true;
+        }
+
+        // Check markers
+        for (const marker of this.markers) {
+            // Check single dateTime
+            if (marker.dateTime && String(marker.dateTime).startsWith(date)) {
+                return true;
+            }
+            // Check multiple dateTimes
+            if (marker.dateTimes && Array.isArray(marker.dateTimes)) {
+                if (marker.dateTimes.some(dt => dt && String(dt).startsWith(date))) {
+                    return true;
+                }
+            }
+        }
+
+        // Check connections
+        for (const conn of this.connections) {
+            if (conn.dateTime && String(conn.dateTime).startsWith(date)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    // AI Helper: Update date note
+    aiUpdateDateNote(date, note) {
+        if (!date || !note) {
+            console.error('Invalid date or note for aiUpdateDateNote');
+            return false;
+        }
+
+        // Check if date exists in itinerary
+        if (!this.isDateInItinerary(date)) {
+            console.warn(`Cannot update note for date ${date}: Date not found in itinerary.`);
+            return false;
+        }
+
+        if (!this.dateNotes) {
+            this.dateNotes = {};
+        }
+
+        let entry = this.dateNotes[date];
+
+        // 升级数据结构为对象，如果它还不是对象
+        if (typeof entry === 'string') {
+            this.dateNotes[date] = {
+                notes: note,
+                expenses: []
+            };
+        } else if (entry && typeof entry === 'object') {
+            entry.notes = note;
+        } else {
+            // 不存在，创建新对象
+            this.dateNotes[date] = {
+                notes: note,
+                expenses: []
+            };
+        }
+
+        this.saveToLocalStorage();
+        return true;
     }
 
     showIconModal() {

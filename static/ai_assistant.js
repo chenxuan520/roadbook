@@ -64,6 +64,7 @@ IMPORTANT RULES:
 2. Ensure every significant location mentioned or implied is added as a marker, and they are logically connected.
 3. Try to use "search_location" for accurate coordinates first. However, if search fails or returns no results, DO NOT ask the user. Instead, use your internal knowledge to provide the best possible estimated coordinates and proceed with generating the itinerary.
 4. Generate the entire plan first, then let the user make adjustments later.
+5. You can use 'update_date_note' to add a summary or description for each day in the itinerary. This helps the user understand the plan for each day.
 Description: ${prompt}`;
 
             // Send as a user message (which triggers the AI)
@@ -741,6 +742,16 @@ This tool returns up to 3 search results. You should use the results to propose 
 {
   "action": "search_location",
   "query": "Tiananmen Square"
+}
+\`\`\`
+
+### 9. Update Date Note
+Update the note for a specific date. This is useful for adding day summaries or specific reminders for a day.
+\`\`\`json
+{
+  "action": "update_date_note",
+  "date": "2025-01-01",
+  "note": "Day 1 Summary: Visited Tiananmen Square and Forbidden City."
 }
 \`\`\`
 
@@ -1452,6 +1463,40 @@ This tool returns up to 3 search results. You should use the results to propose 
                                 // Auto-trigger next AI response to act on search results
                                 this.generateAIResponse();
                             });
+                        }
+                    } else if (actionData.action === 'update_date_note') {
+                        if (this.app && this.app.aiUpdateDateNote) {
+                            const date = actionData.date;
+                            const note = actionData.note;
+
+                            if (!date || !note) {
+                                this.appendActionStatus(containerElement, `❌ 更新日期备注失败: 日期或内容为空`);
+                                continue;
+                            }
+
+                            if (this.app.isDateInItinerary && !this.app.isDateInItinerary(date)) {
+                                this.appendActionStatus(containerElement, `❌ 更新日期备注失败: 行程中不存在日期 ${date}，请先规划该日期的行程。`);
+                                const systemMsg = {
+                                    role: 'user',
+                                    content: `Action Failed: Cannot update note for date ${date} because it does not exist in the itinerary.`
+                                };
+                                this.messages.push(systemMsg);
+                                hasExecutedSyncAction = true; // Still notify AI of failure
+                                continue;
+                            }
+
+                            const success = this.app.aiUpdateDateNote(date, note);
+                            if (success) {
+                                this.appendActionStatus(containerElement, `✅ 已更新 ${date} 的备注`);
+                                const systemMsg = {
+                                    role: 'user',
+                                    content: `Action Result: Updated note for date ${date}`
+                                };
+                                this.messages.push(systemMsg);
+                                hasExecutedSyncAction = true;
+                            } else {
+                                this.appendActionStatus(containerElement, `❌ 更新日期备注失败`);
+                            }
                         }
                     }
                 }

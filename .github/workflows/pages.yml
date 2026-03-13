@@ -39,6 +39,9 @@ jobs:
           fetch-depth: 0
       - name: Update version string
         run: bash scripts/update_version.sh
+      - name: Inject Environment Variables
+        run: |
+          sed -i "1s|^|window.API_BASE_URL = 'https://roadmap.011203.xyz';\n|" static/script.js
       - name: Set up Pages
         uses: actions/configure-pages@v4
       - name: Upload artifact
