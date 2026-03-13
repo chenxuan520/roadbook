@@ -11,3 +11,4 @@ cloudflare/wrangler.log
 .wrangler/
 cloudflare/.wrangler/
 .DS_Store
+GEMINI.md

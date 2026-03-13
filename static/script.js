@@ -73,6 +73,7 @@ class RoadbookApp {
         this.hoverTimeout = null; // 聚焦按钮的悬浮计时器
         this.lastDateRange = null; // 上次使用的日期范围
         this.isDarkMode = false; // 主题模式状态
+        this.debugMode = false; // 调试模式状态
 
         this.isDraggingLine = false; // 是否正在拖拽连接线
         this.dragStartMarker = null; // 拖拽连接线的起始标记点
@@ -135,9 +136,9 @@ class RoadbookApp {
         if (!url) {
             // If the provider is a backend-proxied one, assume OK unless specified by backend
             if (['gaode', 'tiansearch', 'cnsearch'].includes(provider)) {
-                return { status: 'ok', latency: 0 };
+                return {status: 'ok', latency: 0};
             }
-            return { status: 'n/a' };
+            return {status: 'n/a'};
         }
 
         const startTime = performance.now();
@@ -145,13 +146,13 @@ class RoadbookApp {
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 3000);
 
-            await fetch(url, { method: 'HEAD', mode: 'no-cors', signal: controller.signal });
+            await fetch(url, {method: 'HEAD', mode: 'no-cors', signal: controller.signal});
 
             clearTimeout(timeoutId);
             const latency = this.performanceToMilliseconds(performance.now() - startTime);
-            return { status: 'ok', latency };
+            return {status: 'ok', latency};
         } catch (error) {
-            return { status: 'error' };
+            return {status: 'error'};
         }
     }
 
@@ -231,7 +232,7 @@ class RoadbookApp {
             // For frontend-only providers (nominatim, overpass, mapsearch, photon)
             // and any other provider not explicitly handled as a backend provider
             // if (!option.disabled) { // Condition no longer needed if not disabling
-                option.text = `⏱️ ${originalText}`;
+            option.text = `⏱️ ${originalText}`;
             // }
 
             const result = await this.testSearchProviderLatency(providerId);
@@ -324,8 +325,8 @@ class RoadbookApp {
     isMobileDevice() {
         // 检测多种移动设备特征
         return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
-               (navigator.maxTouchPoints && navigator.maxTouchPoints > 2) || // 检测触摸屏
-               (window.innerWidth <= 768); // 小屏幕设备也视为移动设备
+            (navigator.maxTouchPoints && navigator.maxTouchPoints > 2) || // 检测触摸屏
+            (window.innerWidth <= 768); // 小屏幕设备也视为移动设备
     }
 
     // 撤销操作
@@ -538,7 +539,7 @@ class RoadbookApp {
 
         // 添加连接线事件
         const self = this;
-        polyline.on('click', function(e) {
+        polyline.on('click', function (e) {
             L.DomEvent.stopPropagation(e);
             if (self.isMobileDevice()) {
                 const startMarker = self.markers.find(m => m.id === connection.startId);
@@ -551,7 +552,7 @@ class RoadbookApp {
         });
 
         // 绑定图标点击事件
-        iconMarker.on('click', function(e) {
+        iconMarker.on('click', function (e) {
             L.DomEvent.stopPropagation(e);
             if (self.isMobileDevice()) {
                 const startMarker = self.markers.find(m => m.id === connection.startId);
@@ -563,11 +564,11 @@ class RoadbookApp {
             }
         });
 
-        polyline.on('mouseover', function(e) {
+        polyline.on('mouseover', function (e) {
             self.showConnectionTooltip(connection, e.latlng);
         });
 
-        polyline.on('mouseout', function() {
+        polyline.on('mouseout', function () {
             self.hideConnectionTooltip();
         });
 
@@ -600,6 +601,9 @@ class RoadbookApp {
     }
 
     init() {
+        const urlParams = new URLSearchParams(window.location.search);
+        this.debugMode = urlParams.get('debug') === 'true';
+
         // 检测是否为移动设备
         // if (this.isMobileDevice()) {
         //     this.showSwalAlert('设备提示', '当前界面不支持手机端编辑功能，请使用电脑访问以获得完整体验。导出的路书可在手机端正常查看。', 'info');
@@ -624,11 +628,13 @@ class RoadbookApp {
         }
 
         // 检查URL中是否有分享ID参数
-        const urlParams = new URLSearchParams(window.location.search);
         const shareID = urlParams.get('shareID');
 
         // 首先进行正常的地图初始化（无论是否有分享ID）
         this.initMap();
+        if (this.debugMode) {
+            this.initDebugFeatures();
+        }
         this.bindEvents();
         this.bindExpandModalEvents();
         this.addSearchProviderComments();
@@ -722,7 +728,7 @@ class RoadbookApp {
                 // 清除超时定时器
                 clearTimeout(timeoutId);
 
-                const { latitude, longitude } = position.coords;
+                const {latitude, longitude} = position.coords;
                 console.log(`获取到用户位置: 纬度=${latitude}, 经度=${longitude}`);
 
                 // 移除加载提示
@@ -806,8 +812,8 @@ class RoadbookApp {
             const data = JSON.parse(savedData);
             // 检查是否有实际的标记点或连接线数据
             return (data.markers && data.markers.length > 0) ||
-                   (data.connections && data.connections.length > 0) ||
-                   (data.labels && data.labels.length > 0);
+                (data.connections && data.connections.length > 0) ||
+                (data.labels && data.labels.length > 0);
         } catch (error) {
             console.error('检查本地缓存失败:', error);
             return false;
@@ -985,14 +991,14 @@ class RoadbookApp {
                 searchable: true,
                 name: 'ESRI影像图',
                 searchUrl: apiBaseUrl + '/api/tianmap/search',
-                params: { format: 'json', limit: 10 },
+                params: {format: 'json', limit: 10},
                 parser: 'nominatim'
             },
             esri_street: {
                 searchable: true,
                 name: 'ESRI街道图',
                 searchUrl: apiBaseUrl + '/api/tianmap/search',
-                params: { format: 'json', limit: 10 },
+                params: {format: 'json', limit: 10},
                 parser: 'nominatim'
             },
             gaode: {
@@ -1009,7 +1015,7 @@ class RoadbookApp {
                 searchable: true,
                 name: '高德卫星图',
                 searchUrl: apiBaseUrl + '/api/tianmap/search',
-                params: { format: 'json', limit: 10 },
+                params: {format: 'json', limit: 10},
                 parser: 'nominatim'
             },
             google: {
@@ -1025,14 +1031,14 @@ class RoadbookApp {
                 searchable: true,
                 name: 'Google卫星图',
                 searchUrl: apiBaseUrl + '/api/tianmap/search',
-                params: { format: 'json', limit: 10 },
+                params: {format: 'json', limit: 10},
                 parser: 'nominatim'
             },
             tencent: {
                 searchable: true,
                 name: '腾讯地图',
                 searchUrl: apiBaseUrl + '/api/tianmap/search',
-                params: { format: 'json', limit: 10 },
+                params: {format: 'json', limit: 10},
                 parser: 'nominatim'
             }
         };
@@ -1477,7 +1483,7 @@ class RoadbookApp {
             // Add a one-time mousedown listener to run the latency test
             searchMethodSelect.addEventListener('mousedown', () => {
                 this.updateProviderIcons();
-            }, { once: true });
+            }, {once: true});
         }
 
         // 点击页面其他地方隐藏搜索结果
@@ -1708,68 +1714,68 @@ class RoadbookApp {
             // 添加悬浮事件
             fitViewBtn.addEventListener('mouseover', () => {
                 clearTimeout(this.hoverTimeout); // 清除可能存在的计时器
-                    this.hoverTimeout = setTimeout(() => {
-                        const picker = document.getElementById('dateRangePicker');
-                        // 如果已经打开则不执行任何操作
-                        if (picker.style.display === 'flex') return;
+                this.hoverTimeout = setTimeout(() => {
+                    const picker = document.getElementById('dateRangePicker');
+                    // 如果已经打开则不执行任何操作
+                    if (picker.style.display === 'flex') return;
 
-                        const startDateInput = document.getElementById('startDate');
-                        const endDateInput = document.getElementById('endDate');
+                    const startDateInput = document.getElementById('startDate');
+                    const endDateInput = document.getElementById('endDate');
 
-                        if (this.lastDateRange && this.lastDateRange.start && this.lastDateRange.end) {
-                            // 如果有保存的日期范围，则使用它
-                            startDateInput.value = this.lastDateRange.start;
-                            endDateInput.value = this.lastDateRange.end;
-                        } else {
-                            // 默认逻辑：从所有点的最早日期到所有点的最晚日期；如果没有点则回退为最近一个月
-                            let earliest = null;
-                            let latest = null;
-                            const updateRange = (dt) => {
-                                if (!dt) return;
-                                const d = new Date(dt);
-                                if (isNaN(d.getTime())) return;
-                                if (!earliest || d < earliest) earliest = d;
-                                if (!latest || d > latest) latest = d;
-                            };
+                    if (this.lastDateRange && this.lastDateRange.start && this.lastDateRange.end) {
+                        // 如果有保存的日期范围，则使用它
+                        startDateInput.value = this.lastDateRange.start;
+                        endDateInput.value = this.lastDateRange.end;
+                    } else {
+                        // 默认逻辑：从所有点的最早日期到所有点的最晚日期；如果没有点则回退为最近一个月
+                        let earliest = null;
+                        let latest = null;
+                        const updateRange = (dt) => {
+                            if (!dt) return;
+                            const d = new Date(dt);
+                            if (isNaN(d.getTime())) return;
+                            if (!earliest || d < earliest) earliest = d;
+                            if (!latest || d > latest) latest = d;
+                        };
 
-                            // 遍历标记点的时间
-                            this.markers.forEach(m => {
-                                if (Array.isArray(m.dateTimes) && m.dateTimes.length > 0) {
-                                    m.dateTimes.forEach(updateRange);
-                                } else {
-                                    updateRange(m.dateTime);
-                                }
-                            });
-
-                            // 遍历连接线的时间
-                            this.connections.forEach(c => updateRange(c.dateTime));
-
-                            if (earliest && latest) {
-                                const toDateStr = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-                                if (startDateInput) startDateInput.value = toDateStr(earliest);
-                                if (endDateInput) endDateInput.value = toDateStr(latest);
+                        // 遍历标记点的时间
+                        this.markers.forEach(m => {
+                            if (Array.isArray(m.dateTimes) && m.dateTimes.length > 0) {
+                                m.dateTimes.forEach(updateRange);
                             } else {
-                                // 没有任何点：回退为最近一个月
-                                const endDate = new Date();
-                                const startDate = new Date();
-                                startDate.setMonth(startDate.getMonth() - 1);
+                                updateRange(m.dateTime);
+                            }
+                        });
 
-                                if (startDateInput && typeof startDateInput.valueAsDate !== 'undefined') {
-                                    startDateInput.valueAsDate = startDate;
-                                } else if (startDateInput) {
-                                    startDateInput.value = startDate.toISOString().split('T')[0];
-                                }
+                        // 遍历连接线的时间
+                        this.connections.forEach(c => updateRange(c.dateTime));
 
-                                if (endDateInput && typeof endDateInput.valueAsDate !== 'undefined') {
-                                    endDateInput.valueAsDate = endDate;
-                                } else if (endDateInput) {
-                                    endDateInput.value = endDate.toISOString().split('T')[0];
-                                }
+                        if (earliest && latest) {
+                            const toDateStr = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                            if (startDateInput) startDateInput.value = toDateStr(earliest);
+                            if (endDateInput) endDateInput.value = toDateStr(latest);
+                        } else {
+                            // 没有任何点：回退为最近一个月
+                            const endDate = new Date();
+                            const startDate = new Date();
+                            startDate.setMonth(startDate.getMonth() - 1);
+
+                            if (startDateInput && typeof startDateInput.valueAsDate !== 'undefined') {
+                                startDateInput.valueAsDate = startDate;
+                            } else if (startDateInput) {
+                                startDateInput.value = startDate.toISOString().split('T')[0];
+                            }
+
+                            if (endDateInput && typeof endDateInput.valueAsDate !== 'undefined') {
+                                endDateInput.valueAsDate = endDate;
+                            } else if (endDateInput) {
+                                endDateInput.value = endDate.toISOString().split('T')[0];
                             }
                         }
+                    }
 
-                        picker.style.display = 'flex';
-                    }, 1000); // 1秒后显示
+                    picker.style.display = 'flex';
+                }, 1000); // 1秒后显示
             });
 
             fitViewBtn.addEventListener('mouseout', () => {
@@ -1792,37 +1798,37 @@ class RoadbookApp {
             }
             // 检查是否按下A键添加标记点
             else if (!e.ctrlKey && !e.metaKey && e.key.toLowerCase() === 'a' &&
-                     !['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
+                !['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
                 e.preventDefault();
                 this.setMode('addMarker'); // 进入添加标记点模式
             }
             // 检查是否按下C键连接标记点
             else if (!e.ctrlKey && !e.metaKey && e.key.toLowerCase() === 'c' &&
-                     !['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
+                !['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
                 e.preventDefault();
                 this.showConnectModal(); // 打开连接标记点界面
             }
             // 检查是否按下H键或?键显示帮助
             else if (!e.ctrlKey && !e.metaKey && (e.key.toLowerCase() === 'h' || e.key === '?') &&
-                     !['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
+                !['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
                 e.preventDefault();
                 this.showHelpModal(); // 显示帮助弹窗
             }
             // 检查是否按下D键、Backspace键或Delete键删除选中的标记点或连接线
             else if (!e.ctrlKey && !e.metaKey && (e.key.toLowerCase() === 'd' || e.key === 'Backspace' || e.key === 'Delete') &&
-                     !['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
+                !['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
                 e.preventDefault();
                 this.deleteCurrentElement(); // 删除当前选中的元素
             }
             // 检查是否按下F键自动调整视窗
             else if (!e.ctrlKey && !e.metaKey && e.key.toLowerCase() === 'f' &&
-                     !['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
+                !['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
                 e.preventDefault();
                 this.handleFitViewClick(); // 执行视窗调整（与右上角按钮相同的功能）
             }
             // 检查是否按下/键聚焦到搜索框
             else if (!e.ctrlKey && !e.metaKey && e.key === '/' &&
-                     !['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
+                !['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
                 e.preventDefault();
                 const searchInput = document.getElementById('searchInput');
                 if (searchInput && !searchInput.disabled) {
@@ -2001,6 +2007,114 @@ class RoadbookApp {
         });
     }
 
+    initDebugFeatures() {
+        // 创建一个自定义的Leaflet控件
+        const DebugControl = L.Control.extend({
+            options: {
+                position: 'topleft'
+            },
+
+            onAdd: () => {
+                const container = L.DomUtil.create('div', 'leaflet-bar leaflet-control map-control-btn debug-btn');
+                container.innerHTML = '🐞';
+                container.title = '显示调试信息';
+
+                container.onclick = (e) => {
+                    e.stopPropagation(); // 防止地图捕获点击事件
+                    this.showDebugInfo();
+                };
+
+                // 防止双击时缩放地图
+                L.DomEvent.disableClickPropagation(container);
+                L.DomEvent.on(container, 'dblclick', L.DomEvent.stop);
+
+
+                return container;
+            }
+        });
+
+        this.map.addControl(new DebugControl());
+    }
+    showDebugInfo() {
+        // 移除已存在的调试窗口
+        const existingModal = document.getElementById('debugInfoModal');
+        if (existingModal) {
+            document.body.removeChild(existingModal);
+            return; // 如果已存在，则点击按钮的行为是关闭它
+        }
+
+        // 创建遮罩和模态窗口
+        const modal = document.createElement('div');
+        modal.id = 'debugInfoModal';
+
+        const modalContent = document.createElement('div');
+        modalContent.className = 'debug-modal-content';
+
+        const closeButton = document.createElement('button');
+        closeButton.innerText = '✖';
+        closeButton.className = 'debug-modal-close';
+        closeButton.onclick = () => {
+            document.body.removeChild(modal);
+        };
+
+        const pre = document.createElement('pre');
+
+        // 收集数据
+        const debugData = {
+            localStorage: {},
+            appState: {
+                markers: this.markers.map(m => ({ // 移除 Leaflet 实例
+                    id: m.id,
+                    position: m.position,
+                    title: m.title,
+                    labels: m.labels,
+                    logo: m.logo,
+                    icon: m.icon,
+                    createdAt: m.createdAt,
+                    dateTimes: m.dateTimes
+                })),
+                connections: this.connections.map(c => ({ // 移除 Leaflet 实例
+                    id: c.id,
+                    startId: c.startId,
+                    endId: c.endId,
+                    transportType: c.transportType,
+                    dateTime: c.dateTime,
+                    label: c.label,
+                    logo: c.logo,
+                    duration: c.duration
+                })),
+                dateNotes: this.dateNotes,
+                history: this.history,
+                map: {
+                    center: this.map.getCenter(),
+                    zoom: this.map.getZoom()
+                }
+            }
+        };
+
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            try {
+                debugData.localStorage[key] = JSON.parse(localStorage.getItem(key));
+            } catch (e) {
+                debugData.localStorage[key] = localStorage.getItem(key);
+            }
+        }
+
+        pre.textContent = JSON.stringify(debugData, null, 2);
+
+        modalContent.appendChild(closeButton);
+        modalContent.appendChild(pre);
+        modal.appendChild(modalContent);
+        document.body.appendChild(modal);
+
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                document.body.removeChild(modal);
+            }
+        });
+    }
+
     // 初始化移动端菜单
     initMobileMenu() {
         const menuToggleBtn = document.getElementById('menuToggleBtn');
@@ -2121,23 +2235,23 @@ class RoadbookApp {
         const lowerCaseName = name.toLowerCase();
         // 交通类
         if (['机场', 'airport', '站', 'station', 'bus', '地铁', 'subway', 'train', 'bus', '车站'].some(kw => lowerCaseName.includes(kw))) {
-            return { type: 'emoji', icon: '🚉', color: '#607D8B' };
+            return {type: 'emoji', icon: '🚉', color: '#607D8B'};
         }
         // 住宿类
         if (['酒店', 'hotel', '民宿', 'hostel'].some(kw => lowerCaseName.includes(kw))) {
-            return { type: 'emoji', icon: '🏨', color: '#2196F3' };
+            return {type: 'emoji', icon: '🏨', color: '#2196F3'};
         }
         // 餐饮类
         if (['餐厅', 'restaurant', '饭', 'eat', 'food', '美食'].some(kw => lowerCaseName.includes(kw))) {
-            return { type: 'emoji', icon: '🍽️', color: '#4CAF50' };
+            return {type: 'emoji', icon: '🍽️', color: '#4CAF50'};
         }
         // 景点类
         if (['景点', 'park', '山', '海', 'lake', 'view', 'garden', '公园', 'museum', '博物馆'].some(kw => lowerCaseName.includes(kw))) {
-            return { type: 'emoji', icon: '🏞️', color: '#FF9800' };
+            return {type: 'emoji', icon: '🏞️', color: '#FF9800'};
         }
         // 购物类
         if (['购物', 'shopping', 'mall', 'store', 'market'].some(kw => lowerCaseName.includes(kw))) {
-            return { type: 'emoji', icon: '🛍️', color: '#9C27B0' };
+            return {type: 'emoji', icon: '🛍️', color: '#9C27B0'};
         }
         // 默认返回数字图标配置
         return {
@@ -2212,8 +2326,8 @@ class RoadbookApp {
             // Sync array with default
             newMarkerDateTimes = [newMarkerDateTime];
         } else if (newMarkerDateTimes.length === 0) {
-             // If input was empty array, sync with the (potentially fallback) single time
-             newMarkerDateTimes = [newMarkerDateTime];
+            // If input was empty array, sync with the (potentially fallback) single time
+            newMarkerDateTimes = [newMarkerDateTime];
         }
 
         const markerData = {
@@ -2466,20 +2580,20 @@ class RoadbookApp {
 
         // 如果提供了时间，自动添加到起始点和终点的 dateTimes 数组中
         if (dateTime) {
-             let changed = false;
+            let changed = false;
 
-             if (this.ensureMarkerDateTime(startMarker, dateTime)) {
-                 changed = true;
-             }
-             if (this.ensureMarkerDateTime(endMarker, dateTime)) {
-                 changed = true;
-             }
+            if (this.ensureMarkerDateTime(startMarker, dateTime)) {
+                changed = true;
+            }
+            if (this.ensureMarkerDateTime(endMarker, dateTime)) {
+                changed = true;
+            }
 
-             if (changed) {
-                 // 触发更新
-                 this.updateMarkerList();
-                 this.saveToLocalStorage();
-             }
+            if (changed) {
+                // 触发更新
+                this.updateMarkerList();
+                this.saveToLocalStorage();
+            }
         }
 
         return true;
@@ -2513,9 +2627,9 @@ class RoadbookApp {
             const newIconConfig = this.getIconForName(title);
             // Only update icon if type changed or it's default
             if (marker.icon.type === 'default' || newIconConfig.type !== marker.icon.type) {
-                 marker.icon = newIconConfig;
-                 const newIcon = this.createMarkerIcon(newIconConfig, this.markers.indexOf(marker) + 1);
-                 marker.marker.setIcon(newIcon);
+                marker.icon = newIconConfig;
+                const newIcon = this.createMarkerIcon(newIconConfig, this.markers.indexOf(marker) + 1);
+                marker.marker.setIcon(newIcon);
             }
             updated = true;
         }
@@ -2583,13 +2697,13 @@ class RoadbookApp {
         }
 
         if (!isNaN(parsedLat) && !isNaN(parsedLng) && typeof parsedLat === 'number' && typeof parsedLng === 'number') {
-             marker.position = [parsedLat, parsedLng];
-             marker.marker.setLatLng([parsedLat, parsedLng]);
+            marker.position = [parsedLat, parsedLng];
+            marker.marker.setLatLng([parsedLat, parsedLng]);
 
-             // Record history? (Maybe skip for AI bulk ops to avoid clutter, or keep for undo)
-             // For now, let's keep it simple and just update
+            // Record history? (Maybe skip for AI bulk ops to avoid clutter, or keep for undo)
+            // For now, let's keep it simple and just update
 
-             updated = true;
+            updated = true;
         }
 
         if (updated) {
@@ -2631,10 +2745,10 @@ class RoadbookApp {
             // createConnection sets color on creation.
             // Let's update style manually here
             const newColor = this.getTransportColor(transportType);
-            connection.polyline.setStyle({ color: newColor });
+            connection.polyline.setStyle({color: newColor});
 
             if (connection.endCircle) {
-                connection.endCircle.setStyle({ fillColor: newColor });
+                connection.endCircle.setStyle({fillColor: newColor});
             }
 
             // Icon marker update
@@ -3020,7 +3134,7 @@ class RoadbookApp {
         };
 
         const self = this;
-        polyline.on('click', function(e) {
+        polyline.on('click', function (e) {
             L.DomEvent.stopPropagation(e);
             if (self.isMobileDevice()) {
                 const startMarker = self.markers.find(m => m.id === connection.startId);
@@ -3031,15 +3145,15 @@ class RoadbookApp {
                 self.showConnectionDetail(connection);
             }
         });
-        polyline.on('mouseover', function(e) {
+        polyline.on('mouseover', function (e) {
             self.showConnectionTooltip(connection, e.latlng, e);
         });
-        polyline.on('mouseout', function() {
+        polyline.on('mouseout', function () {
             self.hideConnectionTooltip();
         });
 
         // 绑定图标点击事件
-        iconMarker.on('click', function(e) {
+        iconMarker.on('click', function (e) {
             L.DomEvent.stopPropagation(e);
             if (self.isMobileDevice()) {
                 const startMarker = self.markers.find(m => m.id === connection.startId);
@@ -3050,10 +3164,10 @@ class RoadbookApp {
                 self.showConnectionDetail(connection);
             }
         });
-        iconMarker.on('mouseover', function(e) {
+        iconMarker.on('mouseover', function (e) {
             self.showConnectionTooltip(connection, e.latlng, e);
         });
-        iconMarker.on('mouseout', function() {
+        iconMarker.on('mouseout', function () {
             self.hideConnectionTooltip();
         });
 
@@ -3274,7 +3388,7 @@ class RoadbookApp {
         textarea.selectionStart = textarea.selectionEnd = start + processedText.length;
 
         // 触发input事件，确保Vue/React等框架或依赖input事件的逻辑能响应变化
-        textarea.dispatchEvent(new Event('input', { bubbles: true }));
+        textarea.dispatchEvent(new Event('input', {bubbles: true}));
     }
 
     // 处理标记点标签输入框的粘贴事件，自动将链接转换为Markdown格式
@@ -3306,7 +3420,7 @@ class RoadbookApp {
         textarea.selectionStart = textarea.selectionEnd = start + processedText.length;
 
         // 触发input事件，确保Vue/React等框架或依赖input事件的逻辑能响应变化
-        textarea.dispatchEvent(new Event('input', { bubbles: true }));
+        textarea.dispatchEvent(new Event('input', {bubbles: true}));
     }
 
     // 更新备注区下方的链接预览
@@ -3362,7 +3476,7 @@ class RoadbookApp {
         textarea.selectionStart = textarea.selectionEnd = start + processedText.length;
 
         // 触发input事件，确保Vue/React等框架或依赖input事件的逻辑能响应变化
-        textarea.dispatchEvent(new Event('input', { bubbles: true }));
+        textarea.dispatchEvent(new Event('input', {bubbles: true}));
     }
 
     // 转义HTML特殊字符，防止XSS攻击
@@ -3521,15 +3635,15 @@ class RoadbookApp {
     // 计算两点之间的直线距离（米）
     calculateLineDistance(latlng1, latlng2) {
         const R = 6371e3; // 地球半径（米）
-        const φ1 = latlng1[0] * Math.PI/180;
-        const φ2 = latlng2[0] * Math.PI/180;
-        const Δφ = (latlng2[0]-latlng1[0]) * Math.PI/180;
-        const Δλ = (latlng2[1]-latlng1[1]) * Math.PI/180;
+        const φ1 = latlng1[0] * Math.PI / 180;
+        const φ2 = latlng2[0] * Math.PI / 180;
+        const Δφ = (latlng2[0] - latlng1[0]) * Math.PI / 180;
+        const Δλ = (latlng2[1] - latlng1[1]) * Math.PI / 180;
 
-        const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
-                Math.cos(φ1) * Math.cos(φ2) *
-                Math.sin(Δλ/2) * Math.sin(Δλ/2);
-        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+            Math.cos(φ1) * Math.cos(φ2) *
+            Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
         return R * c; // 距离以米为单位
     }
@@ -3590,10 +3704,10 @@ class RoadbookApp {
             tooltipContent += `<div>时间: ${this.formatTime(markerData.dateTime)}</div>`;
         }
 
-                if (markerData.labels && markerData.labels.length > 0) {
-                    const labelsHtml = this.convertMarkdownLinksToHtml(markerData.labels.join('; '));
-                    tooltipContent += '<div>标注: ' + labelsHtml + '</div>';
-                }
+        if (markerData.labels && markerData.labels.length > 0) {
+            const labelsHtml = this.convertMarkdownLinksToHtml(markerData.labels.join('; '));
+            tooltipContent += '<div>标注: ' + labelsHtml + '</div>';
+        }
 
         tooltipContent += `</div>`;
 
@@ -4128,7 +4242,7 @@ class RoadbookApp {
                 try {
                     const date = new Date(connectionData.dateTime);
                     travelDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-                } catch (e) { /* 忽略错误，使用默认日期 */ }
+                } catch (e) { /* 忽略错误，使用默认日期 */}
             }
 
             const ctripLink = `https://trains.ctrip.com/webapp/train/list?ticketType=0&dStation=${encodeURIComponent(startStation)}&aStation=${encodeURIComponent(endStation)}&dDate=${travelDate}&rDate=&trainsType=gaotie-dongche`;
@@ -4168,7 +4282,7 @@ class RoadbookApp {
                 try {
                     const date = new Date(connectionData.dateTime);
                     travelDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-                } catch (e) { /* 忽略错误，使用默认日期 */ }
+                } catch (e) { /* 忽略错误，使用默认日期 */}
             }
 
             const ctripLink = `https://flights.ctrip.com/online/list/oneway-${startAirportCode}-${endAirportCode}?depdate=${travelDate}`;
@@ -4221,7 +4335,7 @@ class RoadbookApp {
         }).addTo(this.map);
 
         marker.labels.push(labelMarker);
-        this.labels.push({ marker: marker, label: labelMarker, content: content });
+        this.labels.push({marker: marker, label: labelMarker, content: content});
 
         document.getElementById('labelContent').value = '';
         this.closeModals();
@@ -4345,7 +4459,7 @@ class RoadbookApp {
                 const dayCost = expenses.reduce((sum, item) => sum + (parseFloat(item.cost) || 0), 0);
                 if (dayCost > 0) {
                     totalCost += dayCost;
-                    dailyExpenses.push({ date, cost: dayCost });
+                    dailyExpenses.push({date, cost: dayCost});
                 }
             }
         });
@@ -4705,18 +4819,18 @@ class RoadbookApp {
             const notes = this.getDateNotes(date);
             contentElement.innerHTML = this.convertMarkdownLinksToHtml(notes || '暂无备注');
 
-                                // 添加事件监听器，防止链接点击退出聚焦模式
-                                contentElement.addEventListener('click', (e) => {
-                                    // 检查点击的元素是否是链接 (<a> 标签)
-                                    if (e.target.tagName === 'A' && e.target.closest('#dateNotesContent')) {
-                                        e.stopPropagation(); // 停止事件传播
-                                    }
-                                });
+            // 添加事件监听器，防止链接点击退出聚焦模式
+            contentElement.addEventListener('click', (e) => {
+                // 检查点击的元素是否是链接 (<a> 标签)
+                if (e.target.tagName === 'A' && e.target.closest('#dateNotesContent')) {
+                    e.stopPropagation(); // 停止事件传播
+                }
+            });
             // 显示便签
             sticky.style.display = 'flex';
 
             // 阻止滚动事件冒泡到地图，防止在备注内容区域滚动时影响地图
-            contentElement.addEventListener('wheel', function(e) {
+            contentElement.addEventListener('wheel', function (e) {
                 const scrollTop = this.scrollTop;
                 const scrollHeight = this.scrollHeight;
                 const clientHeight = this.clientHeight;
@@ -4901,11 +5015,11 @@ class RoadbookApp {
         filteredConnections.forEach(conn => bounds.extend(conn.polyline.getLatLngs()));
 
         if (bounds.isValid()) {
-            this.map.fitBounds(bounds, { padding: [50, 50], maxZoom: 16, animate: true });
+            this.map.fitBounds(bounds, {padding: [50, 50], maxZoom: 16, animate: true});
         }
 
         // 保存本次使用的日期范围
-        this.lastDateRange = { start: startDateStr, end: endDateStr };
+        this.lastDateRange = {start: startDateStr, end: endDateStr};
         this.saveToLocalStorage();
     }
 
@@ -5237,9 +5351,9 @@ class RoadbookApp {
                 if (Array.isArray(data) && data.length > 0) {
                     // Check if it's Photon GeoJSON features or standard list
                     if (data[0].geometry && data[0].properties) {
-                         this.showPhotonSearchResults(data);
+                        this.showPhotonSearchResults(data);
                     } else {
-                         this.showSearchResults(data);
+                        this.showSearchResults(data);
                     }
                 } else if (data && data.features && data.features.length > 0) {
                     // Photon raw response
@@ -5278,14 +5392,14 @@ class RoadbookApp {
                         } else if (statusCode === 404) {
                             errorMessage = '搜索失败：服务或资源未找到。';
                         } else if (error.message.includes('API Error')) {
-                             const apiErrorMessage = error.message.replace(/Search API Error: |Overpass API Error: /, '');
-                             errorMessage = `搜索失败：${apiErrorMessage}`;
+                            const apiErrorMessage = error.message.replace(/Search API Error: |Overpass API Error: /, '');
+                            errorMessage = `搜索失败：${apiErrorMessage}`;
                         } else if (error.message.includes('timeout') || error.name === 'AbortError') {
-                             errorMessage = '搜索请求超时，请稍后再试。';
+                            errorMessage = '搜索请求超时，请稍后再试。';
                         } else if (error.message === 'Search config error') {
-                             errorMessage = '搜索方式配置错误';
+                            errorMessage = '搜索方式配置错误';
                         } else if (error.message === 'Search not supported') {
-                             errorMessage = '当前地图不支持搜索';
+                            errorMessage = '当前地图不支持搜索';
                         }
 
                         resultsList.innerHTML = `<li style="padding: 12px 15px; color: #999; cursor: default;">${errorMessage}</li>`;
@@ -5320,8 +5434,8 @@ class RoadbookApp {
                     }));
                 }
             } else if (results && results.features) {
-                 // Photon raw response
-                 formattedResults = results.features.slice(0, 3).map(f => ({
+                // Photon raw response
+                formattedResults = results.features.slice(0, 3).map(f => ({
                     name: f.properties.name || f.properties.street || 'Unknown',
                     lat: f.geometry.coordinates[1],
                     lng: f.geometry.coordinates[0],
@@ -5758,7 +5872,7 @@ class RoadbookApp {
         };
 
         const json = JSON.stringify(data, null, 2);
-        const blob = new Blob([json], { type: 'application/json' });
+        const blob = new Blob([json], {type: 'application/json'});
         const url = URL.createObjectURL(blob);
 
         const a = document.createElement('a');
@@ -5956,7 +6070,7 @@ class RoadbookApp {
             // console.log(`加载标记点: ID=${markerData.id}, 位置=${markerData.position}, 标题=${markerData.title}`);
 
             // 使用导入的图标信息或默认图标
-            const iconConfig = markerData.icon || { type: 'default', icon: '📍', color: '#667eea' };
+            const iconConfig = markerData.icon || {type: 'default', icon: '📍', color: '#667eea'};
             const icon = this.createMarkerIcon(iconConfig, this.markers.length + 1);
 
             const marker = L.marker([markerData.position[0], markerData.position[1]], {
@@ -5972,7 +6086,7 @@ class RoadbookApp {
                 title: markerData.title,
                 labels: markerData.labels || [], // 导入labels数组
                 logo: markerData.logo || null, // 导入logo属性
-                icon: markerData.icon || { type: 'default', icon: '📍', color: '#667eea' }, // 导入图标信息
+                icon: markerData.icon || {type: 'default', icon: '📍', color: '#667eea'}, // 导入图标信息
                 createdAt: markerData.createdAt,
                 dateTimes: markerData.dateTimes || [markerData.dateTime], // 导入多个时间点
                 dateTime: markerData.dateTimes ? markerData.dateTimes[0] : markerData.dateTime // 兼容旧版本
@@ -6124,29 +6238,29 @@ class RoadbookApp {
             };
 
             // 添加连接线事件
-        const self = this;
-        polyline.on('click', function(e) {
-            L.DomEvent.stopPropagation(e);
-            if (self.isMobileDevice()) {
-                const startMarker = self.markers.find(m => m.id === connection.startId);
-                const endMarker = self.markers.find(m => m.id === connection.endId);
-                const popupContent = self.generateConnectionPopupContent(connection, startMarker, endMarker);
-                polyline.bindPopup(popupContent).openPopup();
-            } else {
-                self.showConnectionDetail(connection);
-            }
-        });
+            const self = this;
+            polyline.on('click', function (e) {
+                L.DomEvent.stopPropagation(e);
+                if (self.isMobileDevice()) {
+                    const startMarker = self.markers.find(m => m.id === connection.startId);
+                    const endMarker = self.markers.find(m => m.id === connection.endId);
+                    const popupContent = self.generateConnectionPopupContent(connection, startMarker, endMarker);
+                    polyline.bindPopup(popupContent).openPopup();
+                } else {
+                    self.showConnectionDetail(connection);
+                }
+            });
 
-            polyline.on('mouseover', function(e) {
+            polyline.on('mouseover', function (e) {
                 self.showConnectionTooltip(connection, e.latlng, e);
             });
 
-            polyline.on('mouseout', function() {
+            polyline.on('mouseout', function () {
                 self.hideConnectionTooltip();
             });
 
             // 绑定图标点击事件
-            iconMarker.on('click', function(e) {
+            iconMarker.on('click', function (e) {
                 L.DomEvent.stopPropagation(e);
                 if (self.isMobileDevice()) {
                     const startMarker = self.markers.find(m => m.id === connection.startId);
@@ -6158,10 +6272,10 @@ class RoadbookApp {
                     self.showConnectionDetail(connection);
                 }
             });
-            iconMarker.on('mouseover', function(e) {
+            iconMarker.on('mouseover', function (e) {
                 self.showConnectionTooltip(connection, e.latlng, e);
             });
-            iconMarker.on('mouseout', function() {
+            iconMarker.on('mouseout', function () {
                 self.hideConnectionTooltip();
             });
 
@@ -6240,7 +6354,7 @@ class RoadbookApp {
         }).addTo(this.map);
 
         marker.labels.push(labelMarker);
-        this.labels.push({ marker: marker, label: labelMarker, content: content });
+        this.labels.push({marker: marker, label: labelMarker, content: content});
     }
 
     // 自动调整地图视窗以包含所有元素
@@ -7394,7 +7508,7 @@ class RoadbookApp {
                 });
 
                 // Double click to edit
-                li.addEventListener('dblclick', function() {
+                li.addEventListener('dblclick', function () {
                     const displayDiv = this.querySelector('.expense-display');
                     const editDiv = this.querySelector('.expense-edit-form');
                     const deleteBtn = this.querySelector('.delete-expense-btn');
@@ -7618,7 +7732,7 @@ class RoadbookApp {
             });
         } else {
             // 如果SweetAlert2不可用，回退到普通confirm
-            return Promise.resolve({ isConfirmed: confirm(text) });
+            return Promise.resolve({isConfirmed: confirm(text)});
         }
     }
 

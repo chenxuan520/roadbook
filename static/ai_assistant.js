@@ -592,6 +592,10 @@ Description: ${prompt}`;
         const msgDiv = document.createElement('div');
         msgDiv.className = `ai-message ${msg.role}`;
 
+        if (msg.id) {
+            msgDiv.id = msg.id;
+        }
+
         const contentDiv = document.createElement('div');
         contentDiv.className = 'message-content';
 
@@ -892,6 +896,11 @@ When the user asks you to generate a full itinerary (e.g. via /generate), you MU
         this.isStreaming = true;
         this.sendBtn.disabled = true;
 
+        // Add thinking message
+        const thinkingMsgId = 'ai-thinking-message';
+        this.appendMessageElement({ role: 'system', content: '小助手正在思考中...', id: thinkingMsgId });
+
+
         // Prepare context with system prompt
         const systemMsg = { role: 'system', content: this.getSystemPrompt() };
 
@@ -944,6 +953,12 @@ When the user asks you to generate a full itinerary (e.g. via /generate), you MU
             // Handle streaming response
             const reader = response.body.getReader();
             const decoder = new TextDecoder();
+
+            // Remove thinking message once stream starts
+            const thinkingMsgEl = document.getElementById(thinkingMsgId);
+            if (thinkingMsgEl) {
+                thinkingMsgEl.remove();
+            }
 
             // Create placeholder for assistant message
             const assistantMsg = { role: 'assistant', content: '' };
@@ -1027,6 +1042,11 @@ When the user asks you to generate a full itinerary (e.g. via /generate), you MU
                 this.appendMessageElement({ role: 'system', content: '❌ 发送失败，请稍后重试' });
             }
         } finally {
+            // Ensure thinking message is removed
+            const thinkingMsgEl = document.getElementById(thinkingMsgId);
+            if (thinkingMsgEl) {
+                thinkingMsgEl.remove();
+            }
             this.isStreaming = false;
             this.sendBtn.disabled = false;
             this.scrollToBottom();
@@ -1229,6 +1249,26 @@ When the user asks you to generate a full itinerary (e.g. via /generate), you MU
                             hasExecutedSyncAction = true;
                             continue;
                         }
+
+                        // Check for duplicates before adding
+                        const lat = parseFloat(actionData.lat);
+                        const lng = parseFloat(actionData.lng);
+                        const existingMarker = this.app.markers.find(m =>
+                            m.position[0].toFixed(5) === lat.toFixed(5) &&
+                            m.position[1].toFixed(5) === lng.toFixed(5)
+                        );
+
+                        if (existingMarker) {
+                            this.appendActionStatus(containerElement, `ℹ️ 标记点 "${existingMarker.title}" 已存在 (ID: ${existingMarker.id})，已跳过重复添加。`);
+                            const systemMsg = {
+                                role: 'user',
+                                content: `Action Failed: add_marker - A marker with the same coordinates already exists with ID: ${existingMarker.id} and title: "${existingMarker.title}". Do not add it again.`
+                            };
+                            this.messages.push(systemMsg);
+                            hasExecutedSyncAction = true;
+                            continue;
+                        }
+
 
                         if (this.app.aiAddMarker) {
                             const marker = this.app.aiAddMarker(actionData.title, actionData.lat, actionData.lng, actionData.id, actionData.dateTime);
