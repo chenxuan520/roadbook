@@ -22,6 +22,11 @@ class RoadbookAIAssistant {
         this.messages = [];
         this.isStreaming = false;
 
+        // How many recent chat messages to include in each AI request.
+        // Tool/action results generated after the last assistant message are always included,
+        // even if that exceeds this limit.
+        this.HISTORY_LIMIT = 15;
+
         // Command System
         this.commands = {};
         this.suggestionsContainer = null;
@@ -885,8 +890,27 @@ Update the note for a specific date. This is useful for adding day summaries or 
 
         // Prepare context with system prompt
         const systemMsg = { role: 'system', content: this.getSystemPrompt() };
-        // Limit history to last 6 messages (to include the latest user message and some context)
-        const recentMessages = this.messages.slice(-6);
+
+        // Base recent history window
+        const baseRecent = this.messages.slice(-this.HISTORY_LIMIT);
+
+        // Ensure the latest tool/action results (generated after the last assistant message)
+        // are fully included so the model can react to failures/successes deterministically.
+        const isToolResultMessage = (m) => {
+            if (!m || m.role !== 'user' || typeof m.content !== 'string') return false;
+            return /^(Action Result:|Action Failed:|Current Map Details:|Search Results)/.test(m.content);
+        };
+
+        let toolMessages = [];
+        for (let i = this.messages.length - 1; i >= 0; i--) {
+            if (this.messages[i]?.role === 'assistant') {
+                toolMessages = this.messages.slice(i + 1).filter(isToolResultMessage);
+                break;
+            }
+        }
+
+        const extraToolMessages = toolMessages.filter(m => !baseRecent.includes(m));
+        const recentMessages = [...baseRecent, ...extraToolMessages];
         const context = [systemMsg, ...recentMessages];
 
         // AbortController for timeout management
@@ -1234,6 +1258,12 @@ Update the note for a specific date. This is useful for adding day summaries or 
                             if (startId === undefined || endId === undefined) {
                                 console.error('AI Connect Markers: Missing start or end ID', actionData);
                                 this.appendActionStatus(containerElement, `❌ 连接失败: 起点或终点未指定`);
+                                const systemMsg = {
+                                    role: 'user',
+                                    content: `Action Failed: Connect markers failed - missing start_id or end_id.`
+                                };
+                                this.messages.push(systemMsg);
+                                hasExecutedSyncAction = true;
                                 continue;
                             }
 
@@ -1267,6 +1297,12 @@ Update the note for a specific date. This is useful for adding day summaries or 
 
                             if (id === undefined) {
                                 this.appendActionStatus(containerElement, `❌ 删除失败: ID未指定`);
+                                const systemMsg = {
+                                    role: 'user',
+                                    content: `Action Failed: Remove marker failed - missing id.`
+                                };
+                                this.messages.push(systemMsg);
+                                hasExecutedSyncAction = true;
                                 continue;
                             }
 
@@ -1300,10 +1336,97 @@ Update the note for a specific date. This is useful for adding day summaries or 
 
                             if (id === undefined) {
                                 this.appendActionStatus(containerElement, `❌ 更新失败: ID未指定`);
+                                const systemMsg = {
+                                    role: 'user',
+                                    content: `Action Failed: Update marker failed - missing id.`
+                                };
+                                this.messages.push(systemMsg);
+                                hasExecutedSyncAction = true;
                                 continue;
                             }
 
-                            const success = this.app.aiUpdateMarker(id, actionData.title, actionData.lat, actionData.lng, actionData.dateTime);
+                            // Validate and normalize dateTime if provided. This prevents wiping existing marker dates
+                            // when the model outputs invalid strings (e.g. '206-05-01 00:00:00') or wrong types.
+                            let normalizedDateTime = undefined;
+                            if (Object.prototype.hasOwnProperty.call(actionData, 'dateTime')) {
+                                const normalizeRoadbookDateTime = (dt) => {
+                                    if (typeof dt !== 'string') return null;
+                                    const s = dt.trim();
+                                    if (!s) return null;
+
+                                    const dateOnly = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+                                    if (dateOnly) {
+                                        return `${dateOnly[1]}-${dateOnly[2]}-${dateOnly[3]} 00:00:00`;
+                                    }
+
+                                    const dateTimeFull = s.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})$/);
+                                    if (dateTimeFull) {
+                                        return `${dateTimeFull[1]}-${dateTimeFull[2]}-${dateTimeFull[3]} ${dateTimeFull[4]}:${dateTimeFull[5]}:${dateTimeFull[6]}`;
+                                    }
+
+                                    return null;
+                                };
+
+                                const raw = actionData.dateTime;
+                                if (raw === null || raw === undefined || raw === '') {
+                                    // Treat empty as invalid (we don't support clearing dates via AI actions for now)
+                                    this.appendActionStatus(containerElement, `❌ 更新失败: dateTime 为空，未执行时间更新`);
+                                    const systemMsg = {
+                                        role: 'user',
+                                        content: `Action Failed: Update marker failed - dateTime is empty.`
+                                    };
+                                    this.messages.push(systemMsg);
+                                    hasExecutedSyncAction = true;
+                                    continue;
+                                }
+
+                                if (Array.isArray(raw)) {
+                                    if (raw.length === 0) {
+                                        this.appendActionStatus(containerElement, `❌ 更新失败: dateTime 为空数组`);
+                                        const systemMsg = {
+                                            role: 'user',
+                                            content: `Action Failed: Update marker failed - dateTime is an empty array.`
+                                        };
+                                        this.messages.push(systemMsg);
+                                        hasExecutedSyncAction = true;
+                                        continue;
+                                    }
+                                    const normalized = raw.map(normalizeRoadbookDateTime);
+                                    const badIndex = normalized.findIndex(v => !v);
+                                    if (badIndex !== -1) {
+                                        this.appendActionStatus(containerElement, `❌ 更新失败: dateTime[${badIndex}] 格式错误`);
+                                        const systemMsg = {
+                                            role: 'user',
+                                            content: `Action Failed: Update marker failed - invalid dateTime at index ${badIndex}: ${JSON.stringify(raw[badIndex])}`
+                                        };
+                                        this.messages.push(systemMsg);
+                                        hasExecutedSyncAction = true;
+                                        continue;
+                                    }
+                                    normalizedDateTime = normalized;
+                                } else {
+                                    const normalized = normalizeRoadbookDateTime(raw);
+                                    if (!normalized) {
+                                        this.appendActionStatus(containerElement, `❌ 更新失败: dateTime 格式错误`);
+                                        const systemMsg = {
+                                            role: 'user',
+                                            content: `Action Failed: Update marker failed - invalid dateTime: ${JSON.stringify(raw)}`
+                                        };
+                                        this.messages.push(systemMsg);
+                                        hasExecutedSyncAction = true;
+                                        continue;
+                                    }
+                                    normalizedDateTime = normalized;
+                                }
+                            }
+
+                            const success = this.app.aiUpdateMarker(
+                                id,
+                                actionData.title,
+                                actionData.lat,
+                                actionData.lng,
+                                (normalizedDateTime !== undefined ? normalizedDateTime : actionData.dateTime)
+                            );
                             if (success) {
                                 this.appendActionStatus(containerElement, `✅ 已更新标记点`);
                                 const systemMsg = {
@@ -1333,6 +1456,12 @@ Update the note for a specific date. This is useful for adding day summaries or 
 
                             if (id === undefined) {
                                 this.appendActionStatus(containerElement, `❌ 删除失败: ID未指定`);
+                                const systemMsg = {
+                                    role: 'user',
+                                    content: `Action Failed: Remove connection failed - missing id.`
+                                };
+                                this.messages.push(systemMsg);
+                                hasExecutedSyncAction = true;
                                 continue;
                             }
 
@@ -1366,6 +1495,12 @@ Update the note for a specific date. This is useful for adding day summaries or 
 
                             if (id === undefined) {
                                 this.appendActionStatus(containerElement, `❌ 更新失败: ID未指定`);
+                                const systemMsg = {
+                                    role: 'user',
+                                    content: `Action Failed: Update connection failed - missing id.`
+                                };
+                                this.messages.push(systemMsg);
+                                hasExecutedSyncAction = true;
                                 continue;
                             }
 

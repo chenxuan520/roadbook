@@ -2510,10 +2510,55 @@ class RoadbookApp {
             updated = true;
         }
 
-        if (dateTime) {
-            marker.dateTime = dateTime;
-            marker.dateTimes = [dateTime];
-            updated = true;
+        // dateTime supports string or string[]
+        // IMPORTANT: Do NOT wipe existing times when input is invalid.
+        if (dateTime !== null && dateTime !== undefined) {
+            const normalizeRoadbookDateTime = (dt) => {
+                if (typeof dt !== 'string') return null;
+                const s = dt.trim();
+                if (!s) return null;
+
+                // YYYY-MM-DD -> YYYY-MM-DD 00:00:00
+                const dateOnly = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+                if (dateOnly) {
+                    return `${dateOnly[1]}-${dateOnly[2]}-${dateOnly[3]} 00:00:00`;
+                }
+
+                // YYYY-MM-DD HH:MM:SS or YYYY-MM-DDTHH:MM:SS
+                const dateTimeFull = s.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})$/);
+                if (dateTimeFull) {
+                    return `${dateTimeFull[1]}-${dateTimeFull[2]}-${dateTimeFull[3]} ${dateTimeFull[4]}:${dateTimeFull[5]}:${dateTimeFull[6]}`;
+                }
+
+                return null;
+            };
+
+            const buildDateTimes = (input) => {
+                const arr = Array.isArray(input) ? input : [input];
+                const normalized = arr.map(normalizeRoadbookDateTime).filter(Boolean);
+                if (normalized.length === 0) return null;
+
+                // One time point per day: keep the earliest time of that day.
+                const byDay = new Map();
+                for (const dt of normalized) {
+                    const dayKey = dt.slice(0, 10); // YYYY-MM-DD
+                    const existing = byDay.get(dayKey);
+                    if (!existing || dt < existing) {
+                        byDay.set(dayKey, dt);
+                    }
+                }
+
+                return Array.from(byDay.values()).sort();
+            };
+
+            const newDateTimes = buildDateTimes(dateTime);
+            if (newDateTimes) {
+                marker.dateTimes = newDateTimes;
+                marker.dateTime = newDateTimes[0];
+                updated = true;
+            } else {
+                console.warn('aiUpdateMarker: invalid dateTime, keeping existing marker dates:', dateTime);
+            }
         }
 
         // Convert to number if they are strings, handle potential whitespace
