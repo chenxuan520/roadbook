@@ -25,7 +25,7 @@ const DEFAULTS = {
   AI_KEY: "",
   AI_MODEL: "gpt-3.5-turbo",
   // Cloudflare AI defaults
-  CF_AI_MODEL: "@cf/qwen/qwen1.5-14b-chat-awq",
+  CF_AI_MODEL: "@cf/qwen/qwen3-30b-a3b-fp8",
   USE_CF_AI: "false",
 };
 
@@ -345,11 +345,15 @@ export default {
 
             if (useCfAi && env.AI) {
                  // Use Cloudflare Workers AI
-                 const response = await env.AI.run(cfAiModel, {
-                     messages: messages,
-                     stream: true
-                 });
-                 streamResponse = response;
+                 try {
+                     const response = await env.AI.run(cfAiModel, {
+                         messages: messages,
+                         stream: true
+                     });
+                     streamResponse = response;
+                 } catch (aiErr) {
+                     return json({ error: "Cloudflare AI Error", details: aiErr.message }, 500);
+                 }
             } else {
                  // Use OpenAI Compatible API
                  const openAIReq = {
@@ -386,7 +390,13 @@ export default {
             // We can iterate it.
 
             // To process without blocking the response, we use ctx.waitUntil
-            const reader = streamResponse.getReader ? streamResponse.getReader() : streamResponse;
+            let reader;
+            try {
+                reader = streamResponse.getReader ? streamResponse.getReader() : streamResponse;
+            } catch (readerErr) {
+                 return json({ error: "Stream Error", details: "Failed to get reader from stream: " + readerErr.message }, 500);
+            }
+            
             const decoder = new TextDecoder();
 
             let fullResponse = "";
@@ -435,7 +445,12 @@ export default {
                     }
                 } catch (e) {
                     console.error("Stream processing error", e);
-                    await writer.abort(e);
+                    // Try to write error to stream if still open, then close
+                    try {
+                        const errorMsg = new TextEncoder().encode(`\n\n[Error: ${e.message}]\n`);
+                        await writer.write(errorMsg);
+                        await writer.close();
+                    } catch (ignore) {}
                 }
             };
 
@@ -465,7 +480,7 @@ export default {
 
         } catch (e) {
             console.error(e);
-            return err("Internal Server Error", 500);
+            return json({ error: "Internal Server Error", details: e.message, stack: e.stack }, 500);
         }
     }
 
@@ -573,29 +588,158 @@ export default {
         });
     }
 
-    // Root (Fake Nginx)
+    // Root (Project Info Page)
     if (path === "/") {
         return new Response(`<!DOCTYPE html>
-<html>
+<html lang="zh-CN">
 <head>
-<title>Welcome to nginx!</title>
-<style>
-html { color-scheme: light dark; }
-body { width: 35em; margin: 0 auto;
-font-family: Tahoma, Verdana, Arial, sans-serif; }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Roadbook Backend (Cloudflare)</title>
+    <style>
+        :root {
+            --bg-color: #f4f4f5;
+            --card-bg: #ffffff;
+            --text-color: #18181b;
+            --border-color: #e4e4e7;
+            --primary-color: #2563eb;
+            --primary-hover: #1d4ed8;
+            --success-color: #10b981;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg-color: #18181b;
+                --card-bg: #27272a;
+                --text-color: #f4f4f5;
+                --border-color: #3f3f46;
+                --primary-color: #3b82f6;
+                --primary-hover: #60a5fa;
+            }
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .container {
+            background-color: var(--card-bg);
+            padding: 2rem;
+            border-radius: 1rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            max-width: 480px;
+            width: 100%;
+            border: 1px solid var(--border-color);
+            text-align: center;
+        }
+        h1 { margin: 0 0 1rem 0; font-size: 1.5rem; font-weight: 700; }
+        p { color: #71717a; margin-bottom: 2rem; font-size: 0.95rem; line-height: 1.6; }
+        @media (prefers-color-scheme: dark) { p { color: #a1a1aa; } }
+        
+        .api-box {
+            background: var(--bg-color);
+            padding: 1rem;
+            border-radius: 0.5rem;
+            border: 1px solid var(--border-color);
+            margin-bottom: 1.5rem;
+            text-align: left;
+        }
+        .label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: #71717a;
+            margin-bottom: 0.5rem;
+            display: block;
+        }
+        .url-display {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            word-break: break-all;
+            font-size: 0.9rem;
+            user-select: all;
+        }
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            padding: 0.75rem;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 1rem;
+        }
+        .btn:hover { background-color: var(--primary-hover); }
+        .btn:active { transform: translateY(1px); }
+        .btn.success { background-color: var(--success-color); }
+        
+        .footer {
+            margin-top: 2rem;
+            font-size: 0.8rem;
+            color: #71717a;
+        }
+        .footer a { color: var(--primary-color); text-decoration: none; }
+        .footer a:hover { text-decoration: underline; }
+    </style>
 </head>
 <body>
-<h1>Welcome to nginx!</h1>
-<p>If you see this page, the nginx web server is successfully installed and
-working. Further configuration is required.</p>
-<p>For online documentation and support please refer to
-<a href="http://nginx.org/">nginx.org</a>.<br/>
-Commercial support is available at
-<a href="http://nginx.com/">nginx.com</a>.</p>
-<p><em>Thank you for using nginx.</em></p>
+    <div class="container">
+        <h1>Roadbook Backend</h1>
+        <p>
+            这是 RoadbookMaker 的 Serverless 后端服务（Cloudflare Worker）。<br>
+            提供数据存储、AI 助手与地图搜索代理功能。
+        </p>
+        
+        <div class="api-box">
+            <span class="label">前端 API Base URL</span>
+            <div class="url-display" id="url">...</div>
+        </div>
+
+        <button class="btn" id="copyBtn">
+            复制 API 地址
+        </button>
+
+        <div class="footer">
+            Powered by <a href="https://workers.cloudflare.com/" target="_blank">Cloudflare Workers</a>
+            &bull;
+            <a href="https://github.com/chenxuan520/roadbook" target="_blank">GitHub</a>
+        </div>
+    </div>
+
+    <script>
+        const urlEl = document.getElementById('url');
+        const btn = document.getElementById('copyBtn');
+        const origin = window.location.origin;
+        
+        urlEl.textContent = origin;
+
+        btn.addEventListener('click', () => {
+            navigator.clipboard.writeText(origin).then(() => {
+                const originalText = btn.textContent;
+                btn.textContent = '已复制!';
+                btn.classList.add('success');
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.classList.remove('success');
+                }, 2000);
+            }).catch(err => {
+                console.error('Failed to copy:', err);
+                alert('复制失败，请手动复制 URL');
+            });
+        });
+    </script>
 </body>
-</html>`, { headers: { "Content-Type": "text/html" } });
+</html>`, { headers: { "Content-Type": "text/html; charset=utf-8" } });
     }
 
     return err("Not Found", 404);

@@ -3,6 +3,9 @@ name: CI Backend
 on:
   push:
     branches: ['**']
+    paths:
+      - 'backend/**'
+      - '.github/workflows/ci_backend.yml'
 
 jobs:
   backend_unit_test:

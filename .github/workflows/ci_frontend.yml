@@ -3,6 +3,10 @@ name: CI Frontend
 on:
   push:
     branches: ['**']
+    paths:
+      - 'static/**'
+      - 'test/**'
+      - '.github/workflows/ci_frontend.yml'
 
 jobs:
   frontend_lint:

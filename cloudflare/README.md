@@ -82,7 +82,7 @@ Worker 需要一个 KV 命名空间来存储用户计划数据和缓存。
 | `AI_BASE_URL` | `https://api.openai.com/v1` | **可选**。AI API 的 Base URL，可用于兼容 OpenAI 的服务（如 DeepSeek, OneAPI）。 |
 | `AI_MODEL` | `gpt-3.5-turbo` | **可选**。使用的模型名称。 |
 | `USE_CF_AI` | `false` | **可选**。设置为 `true` 使用 Cloudflare Workers AI（需绑定 AI 模块）。 |
-| `CF_AI_MODEL` | `@cf/qwen/qwen1.5-14b-chat-awq` | **可选**。Cloudflare Workers AI 模型名称。 |
+| `CF_AI_MODEL` | `@cf/qwen/qwen3-30b-a3b-fp8` | **可选**。Cloudflare Workers AI 模型名称。 |
 
 ### 🔐 用户管理
 
