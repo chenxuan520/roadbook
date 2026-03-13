@@ -1,17 +1,30 @@
 name = 'roadbook'
 main = "worker.js"
-compatibility_date = "2023-10-01"
+compatibility_date = "2024-04-01"
+
+# 启用 Workers 日志与跟踪
+[observability]
+enabled = true
+head_sampling_rate = 1
+
+# 绑定 Workers AI
+[ai]
+binding = "AI"
 
 # 绑定 KV 命名空间
-# 本地开发时，Wrangler 会自动模拟 KV，无需真实 ID
+# 请替换 id 和 preview_id 为你实际创建的 KV ID
 [[kv_namespaces]]
 binding = "ROADBOOK_KV"
 id = "c1e6c2e7951d48d59c6c3c4f8453aa12"
 preview_id = "c1e6c2e7951d48d59c6c3c4f8453aa12"
 
-# 环境变量配置 (可选，用于覆盖默认值)
+# 环境变量配置
 [vars]
 # JWT_SECRET = "changeme-to-a-secure-random-string-please"
+
+# 默认启用 Cloudflare AI
+USE_CF_AI = "true"
+CF_AI_MODEL = "@cf/qwen/qwen3-30b-a3b-fp8"
 
 # 用户配置 (二选一)
 # 方式1: 简单管理员配置
@@ -25,7 +38,7 @@ preview_id = "c1e6c2e7951d48d59c6c3c4f8453aa12"
 # GAODE_KEY = ""
 # GAODE_LOGIN_REQUIRED = "false"
 
-# AI 配置
+# 外部 AI 配置 (如果 USE_CF_AI = "false")
 # AI_ENABLED = "false"
 # AI_BASE_URL = "https://api.openai.com/v1"
 # AI_KEY = ""
