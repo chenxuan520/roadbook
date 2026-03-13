@@ -24,6 +24,9 @@ const DEFAULTS = {
   AI_BASE_URL: "https://api.openai.com/v1",
   AI_KEY: "",
   AI_MODEL: "gpt-3.5-turbo",
+  // Cloudflare AI defaults
+  CF_AI_MODEL: "@cf/qwen/qwen1.5-14b-chat-awq",
+  USE_CF_AI: "false",
 };
 
 // --- Global Cache (Warm Start) ---
@@ -47,9 +50,16 @@ export default {
     // AI Config
     const aiEnabledStr = env.AI_ENABLED || DEFAULTS.AI_ENABLED;
     const aiKey = env.AI_KEY || DEFAULTS.AI_KEY;
-    const aiEnabled = (aiEnabledStr === "true") && !!aiKey;
     const aiBaseUrl = (env.AI_BASE_URL || DEFAULTS.AI_BASE_URL).replace(/\/$/, ""); // Remove trailing slash
     const aiModel = env.AI_MODEL || DEFAULTS.AI_MODEL;
+
+    // Cloudflare AI Config
+    const useCfAiStr = env.USE_CF_AI || DEFAULTS.USE_CF_AI;
+    const useCfAi = (useCfAiStr === "true");
+    const cfAiModel = env.CF_AI_MODEL || DEFAULTS.CF_AI_MODEL;
+
+    // AI is enabled if (AI_ENABLED=true AND AI_KEY exists) OR (USE_CF_AI=true AND AI binding exists)
+    const aiEnabled = (aiEnabledStr === "true" && !!aiKey) || (useCfAi && !!env.AI);
 
     // Parse Users Config
     // If USERS_JSON is provided, use it.
@@ -278,7 +288,7 @@ export default {
         if (!(await requireAuth())) return err("Unauthorized", 401);
         return json({
             enabled: aiEnabled,
-            model: aiModel
+            model: useCfAi ? cfAiModel : aiModel
         });
     }
 
@@ -331,24 +341,37 @@ export default {
             if (!messages || !Array.isArray(messages)) return err("Invalid messages");
 
             // Prepare OpenAI Request
-            const openAIReq = {
-                model: aiModel,
-                messages: messages,
-                stream: true
-            };
+            let streamResponse;
 
-            const resp = await fetch(`${aiBaseUrl}/chat/completions`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${aiKey}`
-                },
-                body: JSON.stringify(openAIReq)
-            });
+            if (useCfAi && env.AI) {
+                 // Use Cloudflare Workers AI
+                 const response = await env.AI.run(cfAiModel, {
+                     messages: messages,
+                     stream: true
+                 });
+                 streamResponse = response;
+            } else {
+                 // Use OpenAI Compatible API
+                 const openAIReq = {
+                     model: aiModel,
+                     messages: messages,
+                     stream: true
+                 };
 
-            if (!resp.ok) {
-                const errText = await resp.text();
-                return json({ error: "AI Provider Error", details: errText }, resp.status);
+                 const resp = await fetch(`${aiBaseUrl}/chat/completions`, {
+                     method: "POST",
+                     headers: {
+                         "Content-Type": "application/json",
+                         "Authorization": `Bearer ${aiKey}`
+                     },
+                     body: JSON.stringify(openAIReq)
+                 });
+
+                 if (!resp.ok) {
+                     const errText = await resp.text();
+                     return json({ error: "AI Provider Error", details: errText }, resp.status);
+                 }
+                 streamResponse = resp.body;
             }
 
             // Handle Stream
@@ -363,7 +386,7 @@ export default {
             // We can iterate it.
 
             // To process without blocking the response, we use ctx.waitUntil
-            const reader = resp.body.getReader();
+            const reader = streamResponse.getReader ? streamResponse.getReader() : streamResponse;
             const decoder = new TextDecoder();
 
             let fullResponse = "";
@@ -391,8 +414,17 @@ export default {
                                 if (data !== "[DONE]") {
                                     try {
                                         const json = JSON.parse(data);
+                                        // Handle both OpenAI and Cloudflare AI response formats
+                                        // OpenAI: choices[0].delta.content
+                                        // Cloudflare: response (sometimes just the string or object with response)
+                                        // Actually Cloudflare Workers AI stream returns SSE similar to OpenAI but payload might differ slightly
+                                        // Let's check common patterns.
+
                                         if (json.choices && json.choices[0] && json.choices[0].delta && json.choices[0].delta.content) {
                                             fullResponse += json.choices[0].delta.content;
+                                        } else if (json.response) {
+                                            // Some Cloudflare models return { response: "token" }
+                                            fullResponse += json.response;
                                         }
                                     } catch (e) {
                                         // Ignore parse errors for partial chunks

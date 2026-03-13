@@ -48,6 +48,14 @@ Worker 需要一个 KV 命名空间来存储用户计划数据和缓存。
     *   **KV Namespace**：选择你在第一步创建的 `ROADBOOK_DATA`。
     *   点击 **Save and Deploy**。
 
+3.  **绑定 AI 模块 (可选 - 用于启用免费 AI)**：
+    *   进入 Worker 详情页 -> **Settings** -> **Variables**。
+    *   向下滚动找到 **Workers AI Bindings** (或类似名称)。
+    *   点击 **Add Binding**。
+    *   **Variable name (变量名)**：填写 `AI` (**必须完全一致**)。
+    *   点击 **Save and Deploy**。
+    *   然后在环境变量中设置 `USE_CF_AI` 为 `true` 即可。
+
 ### 第三步：部署代码
 
 1.  点击 Worker 详情页右上角的 **Edit code**。
@@ -73,6 +81,8 @@ Worker 需要一个 KV 命名空间来存储用户计划数据和缓存。
 | `AI_KEY` | (空) | **启用AI时必需**。OpenAI 格式的 API Key。 |
 | `AI_BASE_URL` | `https://api.openai.com/v1` | **可选**。AI API 的 Base URL，可用于兼容 OpenAI 的服务（如 DeepSeek, OneAPI）。 |
 | `AI_MODEL` | `gpt-3.5-turbo` | **可选**。使用的模型名称。 |
+| `USE_CF_AI` | `false` | **可选**。设置为 `true` 使用 Cloudflare Workers AI（需绑定 AI 模块）。 |
+| `CF_AI_MODEL` | `@cf/qwen/qwen1.5-14b-chat-awq` | **可选**。Cloudflare Workers AI 模型名称。 |
 
 ### 🔐 用户管理
 
