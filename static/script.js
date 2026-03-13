@@ -2008,111 +2008,18 @@ class RoadbookApp {
     }
 
     initDebugFeatures() {
-        // 创建一个自定义的Leaflet控件
-        const DebugControl = L.Control.extend({
-            options: {
-                position: 'topleft'
-            },
-
-            onAdd: () => {
-                const container = L.DomUtil.create('div', 'leaflet-bar leaflet-control map-control-btn debug-btn');
-                container.innerHTML = '🐞';
-                container.title = '显示调试信息';
-
-                container.onclick = (e) => {
-                    e.stopPropagation(); // 防止地图捕获点击事件
-                    this.showDebugInfo();
-                };
-
-                // 防止双击时缩放地图
-                L.DomEvent.disableClickPropagation(container);
-                L.DomEvent.on(container, 'dblclick', L.DomEvent.stop);
-
-
-                return container;
-            }
-        });
-
-        this.map.addControl(new DebugControl());
+        // 使用 DebugModule 初始化调试功能
+        if (window.DebugModule) {
+            this.debugModule = new window.DebugModule(this);
+            this.debugModule.initDebugFeatures();
+        }
     }
+
     showDebugInfo() {
-        // 移除已存在的调试窗口
-        const existingModal = document.getElementById('debugInfoModal');
-        if (existingModal) {
-            document.body.removeChild(existingModal);
-            return; // 如果已存在，则点击按钮的行为是关闭它
+        // 委托给 DebugModule 处理
+        if (this.debugModule) {
+            this.debugModule.showDebugInfo();
         }
-
-        // 创建遮罩和模态窗口
-        const modal = document.createElement('div');
-        modal.id = 'debugInfoModal';
-
-        const modalContent = document.createElement('div');
-        modalContent.className = 'debug-modal-content';
-
-        const closeButton = document.createElement('button');
-        closeButton.innerText = '✖';
-        closeButton.className = 'debug-modal-close';
-        closeButton.onclick = () => {
-            document.body.removeChild(modal);
-        };
-
-        const pre = document.createElement('pre');
-
-        // 收集数据
-        const debugData = {
-            localStorage: {},
-            appState: {
-                markers: this.markers.map(m => ({ // 移除 Leaflet 实例
-                    id: m.id,
-                    position: m.position,
-                    title: m.title,
-                    labels: m.labels,
-                    logo: m.logo,
-                    icon: m.icon,
-                    createdAt: m.createdAt,
-                    dateTimes: m.dateTimes
-                })),
-                connections: this.connections.map(c => ({ // 移除 Leaflet 实例
-                    id: c.id,
-                    startId: c.startId,
-                    endId: c.endId,
-                    transportType: c.transportType,
-                    dateTime: c.dateTime,
-                    label: c.label,
-                    logo: c.logo,
-                    duration: c.duration
-                })),
-                dateNotes: this.dateNotes,
-                history: this.history,
-                map: {
-                    center: this.map.getCenter(),
-                    zoom: this.map.getZoom()
-                }
-            }
-        };
-
-        for (let i = 0; i < localStorage.length; i++) {
-            const key = localStorage.key(i);
-            try {
-                debugData.localStorage[key] = JSON.parse(localStorage.getItem(key));
-            } catch (e) {
-                debugData.localStorage[key] = localStorage.getItem(key);
-            }
-        }
-
-        pre.textContent = JSON.stringify(debugData, null, 2);
-
-        modalContent.appendChild(closeButton);
-        modalContent.appendChild(pre);
-        modal.appendChild(modalContent);
-        document.body.appendChild(modal);
-
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) {
-                document.body.removeChild(modal);
-            }
-        });
     }
 
     // 初始化移动端菜单
