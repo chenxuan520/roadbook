@@ -71,6 +71,7 @@ IMPORTANT RULES:
 4. Generate the entire plan first, then let the user make adjustments later.
 5. You can use 'update_date_note' to add a summary or description for each day in the itinerary. This helps the user understand the plan for each day.
 6. IMPORTANT: Only call 'update_date_note' AFTER you have already added itinerary items for that date (markers and/or connections). If the date does not exist yet, the action will be rejected.
+7. REQUIRED (for /generate): You MUST create a date note for EVERY date in the itinerary (use 'update_date_note'). Each note should include: (a) the main route/schedule for the day (key places in order), (b) highlights/scenery or experiences, (c) practical tips & cautions (tickets/booking, traffic, weather, time planning, safety). Keep it concise and actionable.
 Description: ${prompt}`;
 
             // Send as a user message (which triggers the AI)
@@ -754,6 +755,7 @@ This tool returns up to 3 search results. You should use the results to propose 
 ### 9. Update Date Note
 Update the note for a specific date. This is useful for adding day summaries or specific reminders for a day.
 IMPORTANT: You MUST add markers/connections for that date first. If the date is not present in the itinerary yet, do NOT call this action.
+When the user asks you to generate a full itinerary (e.g. via /generate), you MUST create notes for EVERY date covering: main schedule, highlights, and cautions.
 \`\`\`json
 {
   "action": "update_date_note",
@@ -1269,6 +1271,22 @@ IMPORTANT: You MUST add markers/connections for that date first. If the date is 
                                 continue;
                             }
 
+                            // De-dup: if the directed edge already exists, skip creating it.
+                            // This prevents the model from repeatedly adding the same connection.
+                            if (this.app.connections && Array.isArray(this.app.connections)) {
+                                const exists = this.app.connections.some(c => c && c.startId === startId && c.endId === endId);
+                                if (exists) {
+                                    this.appendActionStatus(containerElement, `ℹ️ 已存在连接，跳过重复连线`);
+                                    const systemMsg = {
+                                        role: 'user',
+                                        content: `Action Result: Connection already exists between ${startId} -> ${endId}. Skipped.`
+                                    };
+                                    this.messages.push(systemMsg);
+                                    hasExecutedSyncAction = true;
+                                    continue;
+                                }
+                            }
+
                             const success = this.app.aiConnectMarkers(startId, endId, actionData.transport || 'car', actionData.dateTime);
                             if (success) {
                                 this.appendActionStatus(containerElement, `✅ 已连接标记点`);
@@ -1603,7 +1621,14 @@ IMPORTANT: You MUST add markers/connections for that date first. If the date is 
                         }
                     } else if (actionData.action === 'update_date_note') {
                         if (this.app && this.app.aiUpdateDateNote) {
-                            const date = actionData.date;
+                            const normalizeDateKey = (raw) => {
+                                if (raw === null || raw === undefined) return null;
+                                const s = String(raw).replace(/\u200b/g, '').trim();
+                                const m = s.match(/(\d{4}-\d{2}-\d{2})/);
+                                return m ? m[1] : null;
+                            };
+
+                            const date = normalizeDateKey(actionData.date);
                             const note = actionData.note;
 
                             if (!date || !note) {

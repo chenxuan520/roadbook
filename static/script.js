@@ -2444,6 +2444,16 @@ class RoadbookApp {
             return false;
         }
 
+        // De-dup: if the directed edge already exists, do nothing.
+        // (The AI assistant may retry the same action; skipping avoids duplicate lines.)
+        if (this.connections && Array.isArray(this.connections)) {
+            const exists = this.connections.some(c => c && c.startId === startId && c.endId === endId);
+            if (exists) {
+                console.info('aiConnectMarkers: connection already exists, skipping:', startId, '->', endId);
+                return true;
+            }
+        }
+
         const startMarker = this.markers.find(m => m.id === startId);
         const endMarker = this.markers.find(m => m.id === endId);
 
@@ -2692,14 +2702,24 @@ class RoadbookApp {
 
     // AI Helper: Update date note
     aiUpdateDateNote(date, note) {
-        if (!date || !note) {
+        // Normalize date key to avoid invisible chars / trailing spaces causing "saved but not found".
+        // Accept inputs like "YYYY-MM-DD" or "YYYY-MM-DD ..." and normalize to "YYYY-MM-DD".
+        const normalizeDateKey = (raw) => {
+            if (raw === null || raw === undefined) return null;
+            const s = String(raw).replace(/\u200b/g, '').trim();
+            const m = s.match(/(\d{4}-\d{2}-\d{2})/);
+            return m ? m[1] : null;
+        };
+
+        const dateKey = normalizeDateKey(date);
+        if (!dateKey || !note) {
             console.error('Invalid date or note for aiUpdateDateNote');
             return false;
         }
 
         // Check if date exists in itinerary
-        if (!this.isDateInItinerary(date)) {
-            console.warn(`Cannot update note for date ${date}: Date not found in itinerary.`);
+        if (!this.isDateInItinerary(dateKey)) {
+            console.warn(`Cannot update note for date ${dateKey}: Date not found in itinerary.`);
             return false;
         }
 
@@ -2707,11 +2727,11 @@ class RoadbookApp {
             this.dateNotes = {};
         }
 
-        let entry = this.dateNotes[date];
+        let entry = this.dateNotes[dateKey];
 
         // 升级数据结构为对象，如果它还不是对象
         if (typeof entry === 'string') {
-            this.dateNotes[date] = {
+            this.dateNotes[dateKey] = {
                 notes: note,
                 expenses: []
             };
@@ -2719,14 +2739,40 @@ class RoadbookApp {
             entry.notes = note;
         } else {
             // 不存在，创建新对象
-            this.dateNotes[date] = {
+            this.dateNotes[dateKey] = {
                 notes: note,
                 expenses: []
             };
         }
 
         this.saveToLocalStorage();
+        // If the user is currently viewing this date (detail panel or sticky note), refresh UI immediately.
+        this.refreshDateNotesUI(dateKey);
         return true;
+    }
+
+    // Refresh date notes UI for a given date (detail panel + sticky note)
+    refreshDateNotesUI(date) {
+        if (!date) return;
+
+        // 1) Date detail panel (textarea)
+        if (this.currentDate === date) {
+            const dateNotesInput = document.getElementById('dateNotesInput');
+            if (dateNotesInput) {
+                dateNotesInput.value = this.getDateNotes(date) || '';
+            }
+        }
+
+        // 2) Sticky note shown in filter mode
+        const sticky = document.getElementById('dateNotesSticky');
+        const contentElement = document.getElementById('dateNotesContent');
+        if (sticky && contentElement && sticky.style.display !== 'none') {
+            const shownDate = sticky.dataset ? sticky.dataset.date : '';
+            if (shownDate === date) {
+                const notes = this.getDateNotes(date);
+                contentElement.innerHTML = this.convertMarkdownLinksToHtml(notes || '暂无备注');
+            }
+        }
     }
 
     showIconModal() {
@@ -4652,9 +4698,12 @@ class RoadbookApp {
             // 设置日期标题
             dateElement.textContent = this.formatDateHeader(date);
 
+            // Persist current shown date so we can refresh it later
+            sticky.dataset.date = date;
+
             // 获取日期备注
             const notes = this.getDateNotes(date);
-                                contentElement.innerHTML = this.convertMarkdownLinksToHtml(notes);
+            contentElement.innerHTML = this.convertMarkdownLinksToHtml(notes || '暂无备注');
 
                                 // 添加事件监听器，防止链接点击退出聚焦模式
                                 contentElement.addEventListener('click', (e) => {
