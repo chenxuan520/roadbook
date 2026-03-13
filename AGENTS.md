@@ -157,3 +157,9 @@ Gin 内置了一个“允许来源列表 + 可选 null origin”逻辑：
 
 - **Git 操作**：严禁自动执行 `git add`, `git commit` 等 Git 写操作，除非用户明确指令。
 - **Plan Mode**：严禁使用 `ExitPlanMode` 工具，直接执行操作。
+
+### AI 错误信息规范（必须遵守）
+
+- 给 AI 的失败信息必须包含**可定位的上下文**，避免只返回“为空/失败”这种不可操作的描述。
+- 至少包含：`action` 名称 + 关键参数（例如 `date`）+ 关键内容的**截断预览**（例如 `notePreview`）+（如适用）失败分支原因（如“日期不在行程中/ID 无效/参数缺失”）。
+- 示例：`更新日期备注失败: 参数缺失（date=\"2025-01-01\", note=undefined）` / `Action Failed: update_date_note - date not in itinerary. date=2025-01-01, notePreview=...`

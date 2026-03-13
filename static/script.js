@@ -6370,7 +6370,7 @@ class RoadbookApp {
                         if (!isNaN(lat) && !isNaN(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
                             bounds.extend([lat, lng]);
                             hasValidPoints = true;
-                            console.log(`添加筛选后标记点到边界: [${lat}, ${lng}]`);
+                            // console.log(`添加筛选后标记点到边界: [${lat}, ${lng}]`);
                         } else {
                             console.warn(`无效的筛选后标记点坐标: [${lat}, ${lng}]`);
                         }

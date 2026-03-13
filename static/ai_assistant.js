@@ -1190,6 +1190,20 @@ When the user asks you to generate a full itinerary (e.g. via /generate), you MU
         let lastAddedMarkerId = null;
         let hasExecutedSyncAction = false;
 
+        const summarize = (value, maxLen = 80) => {
+            if (value === null) return 'null';
+            if (value === undefined) return 'undefined';
+            let s;
+            try {
+                s = typeof value === 'string' ? value : JSON.stringify(value);
+            } catch (e) {
+                s = String(value);
+            }
+            s = String(s);
+            if (s.length <= maxLen) return s;
+            return s.slice(0, maxLen) + '...';
+        };
+
         // Step 4: Parse and execute each JSON object
         for (const jsonStr of jsonObjects) {
             try {
@@ -1206,7 +1220,13 @@ When the user asks you to generate a full itinerary (e.g. via /generate), you MU
                         // Validate required params
                         if (actionData.lat === undefined || actionData.lng === undefined) {
                             console.error('AI Add Marker: Missing coordinates', actionData);
-                            this.appendActionStatus(containerElement, `❌ 添加失败: 缺少坐标`);
+                            this.appendActionStatus(containerElement, `❌ 添加失败: 缺少坐标（title=${summarize(actionData.title)}，lat=${summarize(actionData.lat)}，lng=${summarize(actionData.lng)}）`);
+                            const systemMsg = {
+                                role: 'user',
+                                content: `Action Failed: add_marker - missing coordinates. title=${summarize(actionData.title)}, lat=${summarize(actionData.lat)}, lng=${summarize(actionData.lng)}, dateTime=${summarize(actionData.dateTime)}, id=${summarize(actionData.id)}`
+                            };
+                            this.messages.push(systemMsg);
+                            hasExecutedSyncAction = true;
                             continue;
                         }
 
@@ -1223,7 +1243,13 @@ When the user asks you to generate a full itinerary (e.g. via /generate), you MU
                                 this.messages.push(systemMsg);
                                 hasExecutedSyncAction = true;
                             } else {
-                                this.appendActionStatus(containerElement, `❌ 添加失败: 坐标无效`);
+                                this.appendActionStatus(containerElement, `❌ 添加失败: 坐标无效（lat=${summarize(actionData.lat)}，lng=${summarize(actionData.lng)}）`);
+                                const systemMsg = {
+                                    role: 'user',
+                                    content: `Action Failed: add_marker - invalid coordinates. title=${summarize(actionData.title)}, lat=${summarize(actionData.lat)}, lng=${summarize(actionData.lng)}, dateTime=${summarize(actionData.dateTime)}, id=${summarize(actionData.id)}`
+                                };
+                                this.messages.push(systemMsg);
+                                hasExecutedSyncAction = true;
                             }
                         }
                     } else if (actionData.action === 'connect_markers') {
@@ -1587,7 +1613,13 @@ When the user asks you to generate a full itinerary (e.g. via /generate), you MU
                         if (this.app && this.app.aiSearchLocation) {
                             const query = actionData.query;
                             if (!query) {
-                                this.appendActionStatus(containerElement, `❌ 搜索失败: 未提供查询词`);
+                                this.appendActionStatus(containerElement, `❌ 搜索失败: 未提供查询词（query=${summarize(actionData.query)}）`);
+                                const systemMsg = {
+                                    role: 'user',
+                                    content: `Action Failed: search_location - missing query. query=${summarize(actionData.query)}`
+                                };
+                                this.messages.push(systemMsg);
+                                hasExecutedSyncAction = true;
                                 continue;
                             }
 
@@ -1628,11 +1660,22 @@ When the user asks you to generate a full itinerary (e.g. via /generate), you MU
                                 return m ? m[1] : null;
                             };
 
-                            const date = normalizeDateKey(actionData.date);
-                            const note = actionData.note;
+                            const rawDate = actionData.date;
+                            const rawNote = actionData.note;
+                            const date = normalizeDateKey(rawDate);
+                            const note = rawNote;
 
                             if (!date || !note) {
-                                this.appendActionStatus(containerElement, `❌ 更新日期备注失败: 日期或内容为空`);
+                                this.appendActionStatus(
+                                    containerElement,
+                                    `❌ 更新日期备注失败: 参数缺失（date=${summarize(rawDate)}，note=${summarize(rawNote)}）`
+                                );
+                                const systemMsg = {
+                                    role: 'user',
+                                    content: `Action Failed: update_date_note - missing required fields. rawDate=${summarize(rawDate)}, normalizedDate=${summarize(date)}, note=${summarize(rawNote)}`
+                                };
+                                this.messages.push(systemMsg);
+                                hasExecutedSyncAction = true;
                                 continue;
                             }
 
@@ -1640,7 +1683,7 @@ When the user asks you to generate a full itinerary (e.g. via /generate), you MU
                                 this.appendActionStatus(containerElement, `❌ 更新日期备注失败: 行程中不存在日期 ${date}，请先规划该日期的行程。`);
                                 const systemMsg = {
                                     role: 'user',
-                                    content: `Action Failed: Cannot update note for date ${date} because it does not exist in the itinerary.`
+                                    content: `Action Failed: update_date_note - date not in itinerary. date=${date}, rawDate=${summarize(rawDate)}, notePreview=${summarize(rawNote)}`
                                 };
                                 this.messages.push(systemMsg);
                                 hasExecutedSyncAction = true; // Still notify AI of failure
@@ -1657,7 +1700,13 @@ When the user asks you to generate a full itinerary (e.g. via /generate), you MU
                                 this.messages.push(systemMsg);
                                 hasExecutedSyncAction = true;
                             } else {
-                                this.appendActionStatus(containerElement, `❌ 更新日期备注失败`);
+                                this.appendActionStatus(containerElement, `❌ 更新日期备注失败: 写入被拒绝（date=${date}，note=${summarize(note)}）`);
+                                const systemMsg = {
+                                    role: 'user',
+                                    content: `Action Failed: update_date_note - rejected by app. date=${date}, rawDate=${summarize(rawDate)}, notePreview=${summarize(note)}`
+                                };
+                                this.messages.push(systemMsg);
+                                hasExecutedSyncAction = true;
                             }
                         }
                     }
@@ -1665,6 +1714,12 @@ When the user asks you to generate a full itinerary (e.g. via /generate), you MU
             } catch (actionError) {
                 console.error('Error executing action:', actionError);
                 this.appendActionStatus(containerElement, `❌ 执行出错: ${actionError.message}`);
+                const systemMsg = {
+                    role: 'user',
+                    content: `Action Failed: Exception while executing action - ${actionError && actionError.message ? actionError.message : actionError}`
+                };
+                this.messages.push(systemMsg);
+                hasExecutedSyncAction = true;
             }
         }
 
