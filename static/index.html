@@ -489,7 +489,19 @@
                 <h4>🎬 视频介绍</h4>
                 <hr>
                 <br>
-                <iframe src="https://player.bilibili.com/player.html?isOutside=true&aid=115690749040661&bvid=BV1EDmHByEYh&cid=34624048670&p=1" scrolling="no" border="0" frameborder="no" framespacing="0" allowfullscreen="true" style="width: 100%; height: 400px;"></iframe>
+                <!-- Bilibili 播放器：避免首屏就发起跨站请求，改为在打开帮助面板时再注入 src -->
+                <iframe
+                    id="bilibiliHelpIframe"
+                    src="about:blank"
+                    data-src="https://player.bilibili.com/player.html?isOutside=true&aid=115690749040661&bvid=BV1EDmHByEYh&cid=34624048670&p=1"
+                    loading="lazy"
+                    scrolling="no"
+                    border="0"
+                    frameborder="no"
+                    framespacing="0"
+                    allowfullscreen="true"
+                    style="width: 100%; height: 400px;"
+                ></iframe>
 
 
                 <h3>核心优势</h3>

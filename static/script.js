@@ -7139,6 +7139,20 @@ class RoadbookApp {
 
     showHelpModal() {
         document.getElementById('helpModal').style.display = 'block';
+
+        // 懒加载帮助面板内的 Bilibili iframe，避免页面打开即加载第三方资源
+        try {
+            const iframe = document.getElementById('bilibiliHelpIframe');
+            if (iframe) {
+                const dataSrc = iframe.getAttribute('data-src');
+                const currentSrc = iframe.getAttribute('src') || '';
+                if (dataSrc && dataSrc.trim() && currentSrc !== dataSrc) {
+                    iframe.setAttribute('src', dataSrc);
+                }
+            }
+        } catch (e) {
+            // ignore
+        }
     }
 
     closeHelpModal() {

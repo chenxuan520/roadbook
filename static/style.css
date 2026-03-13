@@ -2971,6 +2971,13 @@ body.dark-mode .leaflet-tile {
     vertical-align: middle;
 }
 
+/* 移动端不展示版本号 */
+@media (max-width: 768px) {
+    #version-display.version-visible {
+        display: none !important;
+    }
+}
+
 /* 密码输入框 “小眼睛” 样式 */
 .password-wrapper {
     position: relative;
