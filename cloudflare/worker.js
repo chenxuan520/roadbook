@@ -28,7 +28,7 @@ const DEFAULTS = {
   CF_AI_MODEL: "@cf/zai-org/glm-4.7-flash",
   USE_CF_AI: "false",
   // Plan Expiration
-  PLAN_TTL_HOURS: "24",
+  PLAN_TTL_HOURS: "0",
 };
 
 // --- Global Cache (Warm Start) ---
