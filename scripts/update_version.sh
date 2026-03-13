@@ -100,6 +100,8 @@ if [ "$OS_TYPE" = "Darwin" ]; then
     sed -i -E 's#src="script\.js"#src="script.js?v='${VERSION_STRING}'"#g' "$INDEX_FILE"
     sed -i -E 's#src="html_export\.js"#src="html_export.js?v='${VERSION_STRING}'"#g' "$INDEX_FILE"
     sed -i -E 's#src="online_mode\.js"#src="online_mode.js?v='${VERSION_STRING}'"#g' "$INDEX_FILE"
+    sed -i -E 's#src="debug\.js"#src="debug.js?v='${VERSION_STRING}'"#g' "$INDEX_FILE"
+    sed -i -E 's#src="ai_assistant\.js"#src="ai_assistant.js?v='${VERSION_STRING}'"#g' "$INDEX_FILE"
 fi
 
 echo "Successfully updated version in $INDEX_FILE to $VERSION_STRING (display + cache busting)"
