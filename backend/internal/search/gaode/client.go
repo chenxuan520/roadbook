@@ -3,6 +3,7 @@ package gaode
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -65,9 +66,19 @@ func Search(query string, apiKey string) ([]domain.NominatimResult, error) {
 		return nil, fmt.Errorf("gaode api returned non-200 status: %d", resp.StatusCode)
 	}
 
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %w", err)
+	}
+
 	var gaodeResp GaodeResponse
-	if err := json.NewDecoder(resp.Body).Decode(&gaodeResp); err != nil {
-		return nil, fmt.Errorf("error decoding gaode response: %w", err)
+	if err := json.Unmarshal(bodyBytes, &gaodeResp); err != nil {
+		// Truncate body for error message
+		displayBody := string(bodyBytes)
+		if len(displayBody) > 200 {
+			displayBody = displayBody[:200] + "..."
+		}
+		return nil, fmt.Errorf("error decoding gaode response: %w. Raw data: %s", err, displayBody)
 	}
 
 	if gaodeResp.Status != "1" {

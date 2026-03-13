@@ -7538,11 +7538,45 @@ class RoadbookApp {
         }
     }
 
+    // 配置后端API地址
+    configureBackendApi() {
+        const currentApi = localStorage.getItem('custom_api_base_url') || ((window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:') ? 'http://127.0.0.1:5436' : window.location.origin);
+        const url = prompt(`请输入后端 API 地址 (例如 https://api.example.com)\n当前生效地址: ${currentApi}\n(留空并确认可恢复默认设置)`, localStorage.getItem('custom_api_base_url') || '');
+
+        if (url === null) {
+            return; // 用户点击取消
+        }
+
+        if (url.trim() === '') {
+            localStorage.removeItem('custom_api_base_url');
+            alert('已恢复默认后端地址，请刷新页面生效');
+        } else {
+            localStorage.setItem('custom_api_base_url', url.replace(/\/$/, ''));
+            alert('设置成功，请刷新页面生效');
+        }
+    }
+
 }
 
 // 初始化应用
 let app;
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('RoadbookMaker已加载，支持Ctrl+Z撤销功能');
+
     app = new RoadbookApp();
     window.app = app; // 使应用实例全局可访问
+
+    // Initialize the HTML exporter module
+    if (typeof RoadbookHtmlExporter !== 'undefined' && window.app) {
+        window.htmlExporter = new RoadbookHtmlExporter(window.app);
+        // HTML导出按钮事件现在在script.js中统一处理
+    }
+
+    // 绑定标题双击事件
+    const mainTitle = document.getElementById('mainTitle');
+    if (mainTitle) {
+        mainTitle.addEventListener('dblclick', () => {
+            app.configureBackendApi();
+        });
+    }
 });

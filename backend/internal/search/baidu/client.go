@@ -42,14 +42,29 @@ func Search(query string) ([]domain.NominatimResult, error) {
 	}
 	defer resp.Body.Close()
 
-	bodyBytes, _ := io.ReadAll(resp.Body)
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %w", err)
+	}
+
 	if strings.HasPrefix(strings.TrimSpace(string(bodyBytes)), "<") {
-		return []domain.NominatimResult{}, nil
+		// Truncate body for error message
+		displayBody := string(bodyBytes)
+		if len(displayBody) > 200 {
+			displayBody = displayBody[:200] + "..."
+		}
+		// Baidu HTML response usually means error or block, treat as error
+		return nil, fmt.Errorf("baidu api returned html (likely error/block): %s", displayBody)
 	}
 
 	var baiduResp map[string]interface{}
 	if err := json.Unmarshal(bodyBytes, &baiduResp); err != nil {
-		return []domain.NominatimResult{}, nil
+		// Truncate body for error message
+		displayBody := string(bodyBytes)
+		if len(displayBody) > 200 {
+			displayBody = displayBody[:200] + "..."
+		}
+		return nil, fmt.Errorf("error decoding baidu response: %w. Raw data: %s", err, displayBody)
 	}
 
 	var contentList []interface{}

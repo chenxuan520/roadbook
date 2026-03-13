@@ -16,7 +16,7 @@
     <div class="container">
         <header>
             <div class="header-top">
-                <h1 id="mainTitle" ondblclick="const url = prompt('请输入后端 API 地址 (例如 https://api.example.com)', localStorage.getItem('custom_api_base_url') || ''); if(url) { localStorage.setItem('custom_api_base_url', url.replace(/\/$/, '')); alert('设置成功，请刷新页面生效'); }">RoadbookMaker</h1>
+                <h1 id="mainTitle">RoadbookMaker</h1>
                 <div id="onlineModeActions" class="online-mode-actions"></div>
                 <span id="version-display"></span>
                 <div class="theme-toggle-container">
@@ -703,19 +703,6 @@
     <script src="html_export.js"></script>
     <script src="online_mode.js"></script>
     <script src="ai_assistant.js"></script>
-    <script>
-        // 添加提示信息以展示新功能
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('RoadbookMaker已加载，支持Ctrl+Z撤销功能');
-
-            // Initialize the HTML exporter module
-            if (typeof RoadbookHtmlExporter !== 'undefined' && window.app) {
-                window.htmlExporter = new RoadbookHtmlExporter(window.app);
-
-                // HTML导出按钮事件现在在script.js中统一处理
-            }
-        });
-    </script>
 
     <!-- 扩大编辑弹窗 -->
     <div id="expandModal" class="expand-modal">

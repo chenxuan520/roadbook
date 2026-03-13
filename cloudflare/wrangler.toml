@@ -1,4 +1,4 @@
-name = "roadbook-worker"
+name = 'roadbook'
 main = "worker.js"
 compatibility_date = "2023-10-01"
 
@@ -9,7 +9,24 @@ binding = "ROADBOOK_KV"
 id = "c1e6c2e7951d48d59c6c3c4f8453aa12"
 preview_id = "c1e6c2e7951d48d59c6c3c4f8453aa12"
 
-# 环境变量配置 (可选，用于覆盖 CONFIG 中的默认值)
+# 环境变量配置 (可选，用于覆盖默认值)
 [vars]
-# JWT_SECRET = "local-secret-key"
-# GAODE_KEY = "your_key_here"
+# JWT_SECRET = "changeme-to-a-secure-random-string-please"
+
+# 用户配置 (二选一)
+# 方式1: 简单管理员配置
+# ADMIN_USER = "admin"
+# ADMIN_PASSWORD = "password"
+# 方式2: 完整用户列表 JSON (优先级高于方式1)
+# USERS_JSON = '{"admin":{"salt":"...","hash":"..."}}'
+
+# 地图 API Keys
+# TIAN_KEY = "75f0434f240669f4a2df6359275146d2"
+# GAODE_KEY = ""
+# GAODE_LOGIN_REQUIRED = "false"
+
+# AI 配置
+# AI_ENABLED = "false"
+# AI_BASE_URL = "https://api.openai.com/v1"
+# AI_KEY = ""
+# AI_MODEL = "gpt-3.5-turbo"

@@ -25,6 +25,56 @@ CONFIG_FILE_PATH="backend/configs/config.json"
 # --- Main Script ---
 print_info
 
+# Check if config file exists
+if [ -f "$CONFIG_FILE_PATH" ]; then
+    echo "Warning: Configuration file '$CONFIG_FILE_PATH' already exists."
+    echo "To avoid overwriting existing configuration, we will only generate a new user entry."
+    echo
+
+    # Get Username
+    read -p "Enter the new username [${DEFAULT_USERNAME}]: " username
+    username=${username:-$DEFAULT_USERNAME}
+
+    # Get Password
+    while true; do
+        read -s -p "Enter the password for '${username}': " password
+        echo
+        if [ -n "$password" ]; then
+            break
+        fi
+        echo "Error: Password cannot be empty."
+    done
+
+    echo "Generating secure hash..."
+
+    # Generate salt and hash the password
+    salt=$(openssl rand -hex 16)
+    # sha256sum on macOS might need coreutils or shasum -a 256
+    if command -v sha256sum >/dev/null 2>&1; then
+        hashed_password=$(echo -n "${salt}${password}" | sha256sum | awk '{print $1}')
+    else
+        hashed_password=$(echo -n "${salt}${password}" | shasum -a 256 | awk '{print $1}')
+    fi
+
+    if [ -z "$hashed_password" ]; then
+        echo "Error: Failed to hash password. Please ensure 'sha256sum' or 'shasum' is installed."
+        exit 1
+    fi
+
+    echo
+    echo "----------------------------------------------------------------"
+    echo "Please copy the following JSON snippet into your '$CONFIG_FILE_PATH'"
+    echo "inside the \"users\" object:"
+    echo "----------------------------------------------------------------"
+    echo "\"${username}\": {"
+    echo "  \"salt\": \"${salt}\","
+    echo "  \"hash\": \"${hashed_password}\""
+    echo "}"
+    echo "----------------------------------------------------------------"
+    echo
+    exit 0
+fi
+
 # 1. Get Port
 read -p "Enter the port number for the server [${DEFAULT_PORT}]: " port
 port=${port:-$DEFAULT_PORT}
@@ -34,12 +84,14 @@ read -p "Enter the admin username [${DEFAULT_USERNAME}]: " username
 username=${username:-$DEFAULT_USERNAME}
 
 # 3. Get Password
-read -s -p "Enter the admin password (will not be displayed): " password
-echo
-if [ -z "$password" ]; then
+while true; do
+    read -s -p "Enter the admin password (will not be displayed): " password
+    echo
+    if [ -n "$password" ]; then
+        break
+    fi
     echo "Error: Password cannot be empty."
-    exit 1
-fi
+done
 
 # 4. Get Allowed Origins
 read -p "Enter allowed origins, separated by commas (e.g., http://localhost:3000,https://my-domain.com): " origins_input
@@ -78,9 +130,15 @@ fi
 # Generate salt and hash the password
 echo " - Hashing password with salted SHA256..."
 salt=$(openssl rand -hex 16)
-hashed_password=$(echo -n "${salt}${password}" | sha256sum | head -c 64)
-if [ $? -ne 0 ]; then
-    echo "Error: Failed to hash password. Please ensure 'sha256sum' is installed."
+# sha256sum on macOS might need coreutils or shasum -a 256
+if command -v sha256sum >/dev/null 2>&1; then
+    hashed_password=$(echo -n "${salt}${password}" | sha256sum | awk '{print $1}')
+else
+    hashed_password=$(echo -n "${salt}${password}" | shasum -a 256 | awk '{print $1}')
+fi
+
+if [ -z "$hashed_password" ]; then
+    echo "Error: Failed to hash password. Please ensure 'sha256sum' or 'shasum' is installed."
     exit 1
 fi
 
@@ -91,7 +149,7 @@ echo " - Creating JSON configuration..."
 mkdir -p "$(dirname "$CONFIG_FILE_PATH")"
 
 # Write the config file
-generated_json_content=$(cat << JSON_EOL
+cat > "$CONFIG_FILE_PATH" << JSON_EOL
 {
   "port": ${port},
   "allowed_origins": [${origins_json_array}],
@@ -105,14 +163,10 @@ generated_json_content=$(cat << JSON_EOL
   }
 }
 JSON_EOL
-)
 
 echo "--- Generated config.json content ---"
-echo "${generated_json_content}"
+cat "$CONFIG_FILE_PATH"
 echo "-------------------------------------"
-
-echo "${generated_json_content}" > "$CONFIG_FILE_PATH"
-
 echo
 echo "Success! Configuration file written to '${CONFIG_FILE_PATH}'."
 echo "You can now start the backend server."

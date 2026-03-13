@@ -12,26 +12,15 @@
  *    - TIAN_KEY (for Tianditu search)
  */
 
-// --- Configuration ---
-const CONFIG = {
+// --- Configuration Defaults ---
+const DEFAULTS = {
   JWT_SECRET: "changeme-to-a-secure-random-string-please",
-  // Default Users Configuration (matches Go backend structure)
-  // Password is "password", Salt is "2d133fd795f2dd1e5815ca4db70d779d"
-  // echo -n "2d133fd795f2dd1e5815ca4db70d779d" | shasum -a 256
-  USERS: {
-    "admin": {
-      "salt": "2d133fd795f2dd1e5815ca4db70d779d",
-      "hash": "560179c13d7f5a5b179040648fb1845b29ea014edbf9f23dfe62d6acf7c8d686"
-    }
-  },
-  // Tianditu Token (default from Go backend)
+  ADMIN_USER: "admin",
+  ADMIN_PASSWORD: "password",
   TIAN_KEY: "75f0434f240669f4a2df6359275146d2",
-  // Gaode Key (leave empty to require env var, or set here)
   GAODE_KEY: "",
-  // Whether login is required for Gaode search (default false)
-  GAODE_LOGIN_REQUIRED: false,
-  // AI Config
-  AI_ENABLED: false,
+  GAODE_LOGIN_REQUIRED: "false",
+  AI_ENABLED: "false",
   AI_BASE_URL: "https://api.openai.com/v1",
   AI_KEY: "",
   AI_MODEL: "gpt-3.5-turbo",
@@ -40,6 +29,7 @@ const CONFIG = {
 // --- Global Cache (Warm Start) ---
 let cachedAirports = null;
 let cachedStations = null;
+let cachedUsers = null;
 
 // --- Main Worker Logic ---
 export default {
@@ -49,26 +39,49 @@ export default {
     const path = url.pathname;
 
     // 1. Environment Variables & Config Merge
-    const jwtSecret = env.JWT_SECRET || CONFIG.JWT_SECRET;
-    const gaodeKey = env.GAODE_KEY || CONFIG.GAODE_KEY;
-    const tianKey = env.TIAN_KEY || CONFIG.TIAN_KEY;
-    const gaodeLoginRequired = env.GAODE_LOGIN_REQUIRED === "true" || CONFIG.GAODE_LOGIN_REQUIRED;
+    const jwtSecret = env.JWT_SECRET || DEFAULTS.JWT_SECRET;
+    const gaodeKey = env.GAODE_KEY || DEFAULTS.GAODE_KEY;
+    const tianKey = env.TIAN_KEY || DEFAULTS.TIAN_KEY;
+    const gaodeLoginRequired = (env.GAODE_LOGIN_REQUIRED || DEFAULTS.GAODE_LOGIN_REQUIRED) === "true";
 
     // AI Config
-    const aiEnabled = (env.AI_ENABLED === "true" || CONFIG.AI_ENABLED) && !!(env.AI_KEY || CONFIG.AI_KEY);
-    const aiBaseUrl = (env.AI_BASE_URL || CONFIG.AI_BASE_URL).replace(/\/$/, ""); // Remove trailing slash
-    const aiKey = env.AI_KEY || CONFIG.AI_KEY;
-    const aiModel = env.AI_MODEL || CONFIG.AI_MODEL;
+    const aiEnabledStr = env.AI_ENABLED || DEFAULTS.AI_ENABLED;
+    const aiKey = env.AI_KEY || DEFAULTS.AI_KEY;
+    const aiEnabled = (aiEnabledStr === "true") && !!aiKey;
+    const aiBaseUrl = (env.AI_BASE_URL || DEFAULTS.AI_BASE_URL).replace(/\/$/, ""); // Remove trailing slash
+    const aiModel = env.AI_MODEL || DEFAULTS.AI_MODEL;
 
     // Parse Users Config
-    let users = CONFIG.USERS;
-    if (env.USERS_JSON) {
-        try {
-            users = JSON.parse(env.USERS_JSON);
-        } catch (e) {
-            console.error("Failed to parse USERS_JSON env var", e);
+    // If USERS_JSON is provided, use it.
+    // Otherwise, generate a user based on ADMIN_USER/ADMIN_PASSWORD env vars (or defaults).
+    if (!cachedUsers) {
+        if (env.USERS_JSON) {
+            try {
+                cachedUsers = JSON.parse(env.USERS_JSON);
+            } catch (e) {
+                console.error("Failed to parse USERS_JSON env var", e);
+                cachedUsers = {}; // Fallback empty to prevent crash, but login will fail
+            }
+        } else {
+            const adminUser = env.ADMIN_USER || DEFAULTS.ADMIN_USER;
+            const adminPass = env.ADMIN_PASSWORD || DEFAULTS.ADMIN_PASSWORD;
+
+            // Generate salt and hash on the fly for this worker instance
+            // We use a fixed salt for consistency if needed, but random is better security.
+            // Since this runs on every request in a new isolate (or cached),
+            // for a single user config, generating it once per worker start is fine.
+            const salt = crypto.randomUUID().replace(/-/g, "");
+            const hash = await sha256(salt + adminPass);
+
+            cachedUsers = {
+                [adminUser]: {
+                    salt: salt,
+                    hash: hash
+                }
+            };
         }
     }
+    const users = cachedUsers;
 
     // 2. CORS Handling
     const corsHeaders = {
@@ -583,7 +596,10 @@ async function baiduSearch(query) {
     let data;
     try {
         data = JSON.parse(text);
-    } catch(e) { return []; }
+    } catch(e) {
+        console.error("Baidu parse error:", text.slice(0, 200));
+        return [];
+    }
 
     let contentList = [];
     if (Array.isArray(data.content)) contentList = data.content;
@@ -660,7 +676,13 @@ async function tianmapSearch(query, key) {
         }
     });
 
-    const data = await resp.json();
+    const text = await resp.text();
+    let data;
+    try {
+        data = JSON.parse(text);
+    } catch (e) {
+        throw new Error(`Failed to parse Tianmap response: ${e.message}. Raw data: ${text.slice(0, 200)}...`);
+    }
     const results = [];
 
     if (Array.isArray(data.pois)) {
@@ -726,7 +748,14 @@ async function tianmapSearch(query, key) {
 async function gaodeSearch(query, key) {
     const apiUrl = `https://restapi.amap.com/v3/place/text?keywords=${encodeURIComponent(query)}&key=${key}&offset=20&page=1&extensions=all`;
     const resp = await fetch(apiUrl);
-    const data = await resp.json();
+
+    const text = await resp.text();
+    let data;
+    try {
+        data = JSON.parse(text);
+    } catch (e) {
+        throw new Error(`Failed to parse Gaode response: ${e.message}. Raw data: ${text.slice(0, 200)}...`);
+    }
 
     if (data.status !== "1") {
         throw new Error(data.info || "Gaode API error");

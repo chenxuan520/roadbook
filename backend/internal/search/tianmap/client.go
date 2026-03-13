@@ -3,6 +3,7 @@ package tianmap
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -51,9 +52,19 @@ func Search(query string) ([]domain.NominatimResult, error) {
 	}
 	defer resp.Body.Close()
 
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %w", err)
+	}
+
 	var tianResp map[string]interface{}
-	if err := json.NewDecoder(resp.Body).Decode(&tianResp); err != nil {
-		return []domain.NominatimResult{}, nil
+	if err := json.Unmarshal(bodyBytes, &tianResp); err != nil {
+		// Truncate body for error message to avoid overly long logs
+		displayBody := string(bodyBytes)
+		if len(displayBody) > 200 {
+			displayBody = displayBody[:200] + "..."
+		}
+		return nil, fmt.Errorf("failed to decode tianmap response: %w. Raw data: %s", err, displayBody)
 	}
 
 	results := []domain.NominatimResult{}
