@@ -8,6 +8,16 @@
 *   **单文件部署**：所有逻辑封装在 `worker.js` 中。
 *   **兼容性**：前端无需改动代码，只需配置 BaseURL 即可无缝切换。
 
+## 维护与同步
+
+Cloudflare Worker 代码（`worker.js`）被设计为与 Go 后端保持功能完全一致。
+
+**重要规则：**
+
+*   **API 同步**：任何对 Go 后端 API（路径、参数、响应结构）的修改，都必须同步更新到 `worker.js`。
+*   **数据兼容**：Worker 产生的 KV 数据结构应尽量保持与 Go 后端产生的文件 JSON 结构一致（使用 CamelCase 字段名）。
+*   **功能对齐**：新增加的功能（如 AI 助手、新的搜索源）需要在两端同时实现。
+
 ---
 
 ## 🚀 部署指南
@@ -59,6 +69,10 @@ Worker 需要一个 KV 命名空间来存储用户计划数据和缓存。
 | `GAODE_KEY` | (空) | **可选**。高德地图 API Key (Web服务类型)，用于高德搜索代理。 |
 | `TIAN_KEY` | `75f0434f...` | **可选**。天地图 API Key，默认使用内置 Key。 |
 | `USERS_JSON` | (无) | **可选**。用于配置多用户（见下文）。 |
+| `AI_ENABLED` | `false` | **可选**。设置为 `true` 启用 AI 助手功能。 |
+| `AI_KEY` | (空) | **启用AI时必需**。OpenAI 格式的 API Key。 |
+| `AI_BASE_URL` | `https://api.openai.com/v1` | **可选**。AI API 的 Base URL，可用于兼容 OpenAI 的服务（如 DeepSeek, OneAPI）。 |
+| `AI_MODEL` | `gpt-3.5-turbo` | **可选**。使用的模型名称。 |
 
 ### 🔐 用户管理
 
@@ -135,3 +149,8 @@ Worker 实现了以下后端 API：
     *   `GET /api/search/providers` (搜索源状态)
 *   **工具**：
     *   `GET /api/trafficpos` (最近交通枢纽查询，自动从 GitHub 拉取数据缓存到 KV)
+*   **AI 助手**：
+    *   `GET /api/v1/ai/config` (获取 AI 配置)
+    *   `GET /api/v1/ai/session` (获取对话历史)
+    *   `POST /api/v1/ai/session` (保存对话历史)
+    *   `POST /api/v1/ai/chat` (发送对话消息，支持流式响应)

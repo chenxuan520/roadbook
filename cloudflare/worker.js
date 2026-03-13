@@ -30,6 +30,11 @@ const CONFIG = {
   GAODE_KEY: "",
   // Whether login is required for Gaode search (default false)
   GAODE_LOGIN_REQUIRED: false,
+  // AI Config
+  AI_ENABLED: false,
+  AI_BASE_URL: "https://api.openai.com/v1",
+  AI_KEY: "",
+  AI_MODEL: "gpt-3.5-turbo",
 };
 
 // --- Global Cache (Warm Start) ---
@@ -48,6 +53,12 @@ export default {
     const gaodeKey = env.GAODE_KEY || CONFIG.GAODE_KEY;
     const tianKey = env.TIAN_KEY || CONFIG.TIAN_KEY;
     const gaodeLoginRequired = env.GAODE_LOGIN_REQUIRED === "true" || CONFIG.GAODE_LOGIN_REQUIRED;
+
+    // AI Config
+    const aiEnabled = (env.AI_ENABLED === "true" || CONFIG.AI_ENABLED) && !!(env.AI_KEY || CONFIG.AI_KEY);
+    const aiBaseUrl = (env.AI_BASE_URL || CONFIG.AI_BASE_URL).replace(/\/$/, ""); // Remove trailing slash
+    const aiKey = env.AI_KEY || CONFIG.AI_KEY;
+    const aiModel = env.AI_MODEL || CONFIG.AI_MODEL;
 
     // Parse Users Config
     let users = CONFIG.USERS;
@@ -78,7 +89,30 @@ export default {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
 
-    const err = (msg, status = 400) => json({ error: msg }, status);
+    const err = (msg, status = 400) => json({ message: msg, code: status }, status);
+
+    // Convert internal plan (KV) to API Plan format (CamelCase)
+    // Assuming KV stores data using same JSON tags as Go backend (CamelCase)
+    const toApiPlan = (p) => ({
+        id: p.id,
+        name: p.name,
+        createdAt: p.createdAt,
+        description: p.description || "",
+        startTime: p.startTime || "",
+        endTime: p.endTime || "",
+        labels: p.labels || [],
+        content: p.content
+    });
+
+    const toApiPlanSummary = (p) => ({
+        id: p.id,
+        name: p.name,
+        createdAt: p.createdAt,
+        description: p.description || "",
+        startTime: p.startTime || "",
+        endTime: p.endTime || "",
+        labels: p.labels || []
+    });
 
     const requireAuth = async () => {
       const authHeader = request.headers.get("Authorization");
@@ -152,11 +186,9 @@ export default {
         for (const key of list.keys) {
             const plan = await env.ROADBOOK_KV.get(key.name, "json");
             if (plan) {
-                // Frontend expects the full plan object for sorting and display
-                plans.push(plan);
+                plans.push(toApiPlanSummary(plan));
             }
         }
-        // Frontend expects the array to be wrapped in a "plans" object.
         return json({ plans: plans });
       }
 
@@ -165,14 +197,23 @@ export default {
         const id = crypto.randomUUID();
         const now = new Date().toISOString();
         const plan = {
-          ...body,
-          id,
-          owner: userPayload.username || userPayload.sub, // Record creator
-          created_at: now,
-          updated_at: now,
+          id: id,
+          name: body.name,
+          description: body.description,
+          startTime: body.startTime,
+          endTime: body.endTime,
+          labels: body.labels,
+          content: body.content,
+          owner: userPayload.username || userPayload.sub,
+          createdAt: now,
+          updatedAt: now,
         };
         await env.ROADBOOK_KV.put(`plan:${id}`, JSON.stringify(plan));
-        return json(plan);
+        return json({
+            id: plan.id,
+            name: plan.name,
+            createdAt: plan.createdAt
+        }, 201);
       }
     }
 
@@ -185,43 +226,218 @@ export default {
 
       if (method === "GET") {
         const plan = await env.ROADBOOK_KV.get(key, "json");
-        return plan ? json(plan) : err("Plan not found", 404);
+        return plan ? json({ plan: toApiPlan(plan) }) : err("Plan not found", 404);
       }
 
       if (method === "PUT") {
         const existing = await env.ROADBOOK_KV.get(key, "json");
         if (!existing) return err("Plan not found", 404);
         const body = await request.json();
+        const now = new Date().toISOString();
         const updated = {
             ...existing,
-            ...body,
-            updated_at: new Date().toISOString()
-            // Note: owner is not updated
+            name: body.name,
+            description: body.description,
+            startTime: body.startTime,
+            endTime: body.endTime,
+            labels: body.labels,
+            content: body.content,
+            updatedAt: now
         };
         await env.ROADBOOK_KV.put(key, JSON.stringify(updated));
-        return json(updated);
+        return json({
+            id: updated.id,
+            name: updated.name,
+            updatedAt: updated.updatedAt
+        });
       }
 
       if (method === "DELETE") {
         await env.ROADBOOK_KV.delete(key);
-        return json({ success: true });
+        return json({ message: `计划 ${id} 删除成功` });
       }
     }
 
+    // --- AI Routes ---
+
+    // AI Config
+    if (path === "/api/v1/ai/config" && method === "GET") {
+        if (!(await requireAuth())) return err("Unauthorized", 401);
+        return json({
+            enabled: aiEnabled,
+            model: aiModel
+        });
+    }
+
+    // AI Session: Get
+    if (path === "/api/v1/ai/session" && method === "GET") {
+        const userPayload = await requireAuth();
+        if (!userPayload) return err("Unauthorized", 401);
+
+        // Use username for isolation, or global if preferred.
+        // Go backend uses a single file, so it's shared. Let's use user-specific for better UX.
+        const username = userPayload.username || userPayload.sub;
+        const key = `ai:session:${username}`;
+
+        const messages = await env.ROADBOOK_KV.get(key, "json");
+        return json({ messages: messages || [] });
+    }
+
+    // AI Session: Save
+    if (path === "/api/v1/ai/session" && method === "POST") {
+        const userPayload = await requireAuth();
+        if (!userPayload) return err("Unauthorized", 401);
+
+        const username = userPayload.username || userPayload.sub;
+        const key = `ai:session:${username}`;
+
+        try {
+            const body = await request.json();
+            if (!body.messages || !Array.isArray(body.messages)) {
+                return err("Invalid messages format");
+            }
+            await env.ROADBOOK_KV.put(key, JSON.stringify(body.messages));
+            return new Response(null, { status: 200, headers: corsHeaders });
+        } catch (e) {
+            return err("Bad Request", 400);
+        }
+    }
+
+    // AI Chat
+    if (path === "/api/v1/ai/chat" && method === "POST") {
+        const userPayload = await requireAuth();
+        if (!userPayload) return err("Unauthorized", 401);
+
+        if (!aiEnabled) return err("AI service is disabled", 503);
+
+        const username = userPayload.username || userPayload.sub;
+
+        try {
+            const body = await request.json();
+            const messages = body.messages;
+            if (!messages || !Array.isArray(messages)) return err("Invalid messages");
+
+            // Prepare OpenAI Request
+            const openAIReq = {
+                model: aiModel,
+                messages: messages,
+                stream: true
+            };
+
+            const resp = await fetch(`${aiBaseUrl}/chat/completions`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${aiKey}`
+                },
+                body: JSON.stringify(openAIReq)
+            });
+
+            if (!resp.ok) {
+                const errText = await resp.text();
+                return json({ error: "AI Provider Error", details: errText }, resp.status);
+            }
+
+            // Handle Stream
+            const { readable, writable } = new TransformStream();
+            const writer = writable.getWriter();
+
+            // We need to tee the stream to:
+            // 1. Send back to client
+            // 2. Accumulate response to save to KV
+
+            // Note: Cloudflare Workers fetch response body is a ReadableStream.
+            // We can iterate it.
+
+            // To process without blocking the response, we use ctx.waitUntil
+            const reader = resp.body.getReader();
+            const decoder = new TextDecoder();
+
+            let fullResponse = "";
+
+            // Custom processing loop
+            const processStream = async () => {
+                try {
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        if (done) {
+                            await writer.close();
+                            break;
+                        }
+
+                        // Write to client
+                        await writer.write(value);
+
+                        // Process for storage (accumulate content)
+                        const chunk = decoder.decode(value, { stream: true });
+                        const lines = chunk.split("\n");
+                        for (const line of lines) {
+                            const trimmed = line.trim();
+                            if (trimmed.startsWith("data: ")) {
+                                const data = trimmed.slice(6);
+                                if (data !== "[DONE]") {
+                                    try {
+                                        const json = JSON.parse(data);
+                                        if (json.choices && json.choices[0] && json.choices[0].delta && json.choices[0].delta.content) {
+                                            fullResponse += json.choices[0].delta.content;
+                                        }
+                                    } catch (e) {
+                                        // Ignore parse errors for partial chunks
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.error("Stream processing error", e);
+                    await writer.abort(e);
+                }
+            };
+
+            // Start processing (doesn't await here to return response immediately)
+            const streamPromise = processStream();
+
+            // Wait for stream to finish, then save to KV
+            ctx.waitUntil(streamPromise.then(async () => {
+                if (fullResponse) {
+                    // Filter system messages and append new response
+                    const msgsToSave = messages.filter(m => m.role !== "system");
+                    msgsToSave.push({ role: "assistant", content: fullResponse });
+
+                    const key = `ai:session:${username}`;
+                    await env.ROADBOOK_KV.put(key, JSON.stringify(msgsToSave));
+                }
+            }));
+
+            return new Response(readable, {
+                headers: {
+                    ...corsHeaders,
+                    "Content-Type": "text/event-stream",
+                    "Cache-Control": "no-cache",
+                    "Connection": "keep-alive"
+                }
+            });
+
+        } catch (e) {
+            console.error(e);
+            return err("Internal Server Error", 500);
+        }
+    }
+
     // 6. Share: Public Plan (GET)
-    const shareMatch = path.match(/^\/api\/share\/plans\/([a-zA-Z0-9-]+)$/);
+    const shareMatch = path.match(/^\/api\/v1\/share\/plans\/([a-zA-Z0-9-]+)$/);
     if (shareMatch && method === "GET") {
       const id = shareMatch[1];
       const plan = await env.ROADBOOK_KV.get(`plan:${id}`, "json");
-      return plan ? json(plan) : err("Plan not found", 404);
+      return plan ? json({ plan: toApiPlan(plan) }) : err("Plan not found", 404);
     }
 
     // 7. Search Providers Config (GET)
     if (path === "/api/search/providers" && method === "GET") {
         return json([
-            { Name: "tianmap", Enabled: true, Label: "天地图", LoginRequired: false },
-            { Name: "baidu", Enabled: true, Label: "百度", LoginRequired: false },
-            { Name: "gaode", Enabled: !!gaodeKey, Label: "高德", LoginRequired: gaodeLoginRequired }
+            { name: "tianmap", enabled: true, label: "天地图", login_required: false },
+            { name: "baidu", enabled: true, label: "百度", login_required: false },
+            { name: "gaode", enabled: !!gaodeKey, label: "高德", login_required: gaodeLoginRequired }
         ]);
     }
 
@@ -302,9 +518,14 @@ export default {
 
         if (!cachedAirports || !cachedStations) return err("Data unavailable", 503);
 
-        const nearestAirport = findNearest(lat, lon, cachedAirports);
-        const nearestStation = findNearest(lat, lon, cachedStations);
-        return json({ airport: nearestAirport, station: nearestStation });
+        const nearestAirport = findNearestFromMap(lat, lon, cachedAirports, true);
+        const nearestStation = findNearestFromMap(lat, lon, cachedStations, false);
+
+        return json({
+            input: { lat, lon },
+            nearest_airport: nearestAirport,
+            nearest_station: nearestStation
+        });
     }
 
     // Root (Fake Nginx)
@@ -395,7 +616,7 @@ async function baiduSearch(query) {
             // Convert to GPS (WGS84)
             const [gpsLng, gpsLat] = convertBaiduToGPS(mx, my);
 
-            const osmID = Date.now() + i; // Fake ID
+            const osmID = Date.now() * 1000000 + i; // Fake ID
             results.push({
                 place_id: osmID,
                 licence: "Data © Baidu Map",
@@ -456,7 +677,7 @@ async function tianmapSearch(query, key) {
             if (p.address) displayName += ", " + p.address;
             if (p.phone) displayName += " (" + p.phone + ")";
 
-            const osmID = Date.now() + i;
+            const osmID = Date.now() * 1000000 + i;
             const latVal = parseFloat(lat);
             const lngVal = parseFloat(lng);
 
@@ -483,7 +704,7 @@ async function tianmapSearch(query, key) {
         const lonlat = data.area.lonlat || "";
         const parts = lonlat.replace(/,/g, " ").trim().split(/\s+/);
         if (parts.length >= 2) {
-             const osmID = Date.now();
+             const osmID = Date.now() * 1000000;
              results.push({
                 place_id: osmID,
                 licence: "Data © Tianditu",
@@ -528,7 +749,22 @@ async function gaodeSearch(query, key) {
             // However, the front-end 'gaode' parser in script.js uses 'nominatim' parser!
             // So we MUST convert to Nominatim format.
 
-            const osmID = Date.now() + i;
+            const osmID = Date.now() * 1000000 + i; // Simulate nanosecond timestamp like Go
+
+            // Handle address (could be string or array)
+            let address = "";
+            if (poi.address) {
+                if (Array.isArray(poi.address)) {
+                    address = poi.address.join("");
+                } else if (typeof poi.address === "string") {
+                    address = poi.address;
+                }
+            }
+
+            let displayName = poi.name;
+            if (address) {
+                displayName += ", " + address;
+            }
 
             results.push({
                  place_id: osmID,
@@ -536,12 +772,12 @@ async function gaodeSearch(query, key) {
                  osm_type: "node",
                  osm_id: osmID,
                  boundingbox: [
-                     (lat - 0.001).toFixed(6), (lat + 0.001).toFixed(6),
-                     (lng - 0.001).toFixed(6), (lng + 0.001).toFixed(6)
+                     (lat - 0.001).toFixed(7), (lat + 0.001).toFixed(7),
+                     (lng - 0.001).toFixed(7), (lng + 0.001).toFixed(7)
                  ],
                  lat: lat.toString(),
                  lon: lng.toString(),
-                 display_name: `${poi.name}, ${poi.address || ''}, ${poi.pname || ''}${poi.cityname || ''}${poi.adname || ''}`,
+                 display_name: displayName,
                  class: "place",
                  type: "poi",
                  importance: 0.8
@@ -688,33 +924,30 @@ async function sha256(message) {
 }
 
 // 4. Distance Utils
-function findNearest(lat, lon, points) {
+function findNearestFromMap(lat, lon, mapData, isLatLonOrder) {
+    if (!mapData) return null;
     let minDist = Infinity;
     let nearest = null;
 
-    // Support various formats: array of objects, or map
-    const list = Array.isArray(points) ? points : Object.values(points);
+    for (const [key, coords] of Object.entries(mapData)) {
+        if (!Array.isArray(coords) || coords.length < 2) continue;
 
-    for (const point of list) {
-        // Adapt to format (airports.json / station_geo.json)
-        // Assume they have Lat/Lon or latitude/longitude fields
-        let pLat = point.lat || point.Lat || point.latitude;
-        let pLon = point.lon || point.Lon || point.longitude;
+        const pLat = isLatLonOrder ? coords[0] : coords[1];
+        const pLon = isLatLonOrder ? coords[1] : coords[0];
 
-        // Some might be strings
-        if (typeof pLat === 'string') pLat = parseFloat(pLat);
-        if (typeof pLon === 'string') pLon = parseFloat(pLon);
+        const d = haversine(lat, lon, pLat, pLon); // meters
+        const dKm = d / 1000.0;
 
-        if (!pLat || !pLon) continue;
-
-        const d = haversine(lat, lon, pLat, pLon);
-        if (d < minDist) {
-            minDist = d;
-            nearest = point;
+        if (dKm < minDist) {
+            minDist = dKm;
+            nearest = {
+                code: isLatLonOrder ? key : "",
+                name: key,
+                dist_km: Math.round(dKm * 100) / 100
+            };
         }
     }
-    if (nearest) return { ...nearest, distance: Math.round(minDist) };
-    return null;
+    return nearest;
 }
 
 function haversine(lat1, lon1, lat2, lon2) {

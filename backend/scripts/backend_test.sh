@@ -19,6 +19,7 @@ set -e
 : "${ADMIN_USERNAME:=admin}"
 : "${ADMIN_PASSWORD:=password}"
 : "${CONFIG_FILE:=/tmp/roadbook_test_config.json}"
+: "${SKIP_LOCAL_SERVER:=false}"
 
 # --- Helper Functions ---
 # Utility for colored output
@@ -70,18 +71,19 @@ trap cleanup EXIT
 # 1. Setup Environment
 print_step "Setting up test environment"
 
-# Generate a salted SHA256 hash for the password
-print_info "Generating password hash for '${ADMIN_PASSWORD}'..."
-SALT=$(openssl rand -hex 16)
-HASHED_PASSWORD=$(sha256_hex "${SALT}${ADMIN_PASSWORD}")
-JWT_SECRET=$(openssl rand -hex 32)
+if [ "$SKIP_LOCAL_SERVER" != "true" ]; then
+    # Generate a salted SHA256 hash for the password
+    print_info "Generating password hash for '${ADMIN_PASSWORD}'..."
+    SALT=$(openssl rand -hex 16)
+    HASHED_PASSWORD=$(sha256_hex "${SALT}${ADMIN_PASSWORD}")
+    JWT_SECRET=$(openssl rand -hex 32)
 
-# Create config directory if it doesn't exist
-mkdir -p "$(dirname "$CONFIG_FILE")"
+    # Create config directory if it doesn't exist
+    mkdir -p "$(dirname "$CONFIG_FILE")"
 
-# Create a temporary config file
-print_info "Creating temporary config file at ${CONFIG_FILE}"
-cat > "$CONFIG_FILE" << EOL
+    # Create a temporary config file
+    print_info "Creating temporary config file at ${CONFIG_FILE}"
+    cat > "$CONFIG_FILE" << EOL
 {
   "port": 5436,
   "allowed_origins": ["*"],
@@ -95,27 +97,32 @@ cat > "$CONFIG_FILE" << EOL
   }
 }
 EOL
-print_info "Config file created."
+    print_info "Config file created."
 
-# Build the backend
-print_step "Building backend binary"
-if [ -f "./backend/scripts/build.sh" ]; then
-    ./backend/scripts/build.sh
+    # Build the backend
+    print_step "Building backend binary"
+    if [ -f "./backend/scripts/build.sh" ]; then
+        ./backend/scripts/build.sh
+    else
+        print_fail "Dedicated backend build script not found at ./backend/scripts/build.sh. Cannot proceed."
+        exit 1
+    fi
+
+    # Start the server in the background
+    print_step "Starting backend server"
+    # Export CONFIG_FILE environment variable for the backend process
+    (cd backend && export CONFIG_FILE="$CONFIG_FILE" && GIN_MODE=release ./roadbook-api) &
+    SERVER_PID=$!
+    print_info "Backend server started with PID: $SERVER_PID"
+
+    # Wait for the server to be ready
+    print_info "Waiting for server to initialize..."
+    sleep 2 # Increased sleep for stability
 else
-    print_fail "Dedicated backend build script not found at ./backend/scripts/build.sh. Cannot proceed."
-    exit 1
+    print_info "SKIP_LOCAL_SERVER is set to true. Skipping local server setup."
+    print_info "Testing against external URL: $API_BASE_URL"
+    print_info "Ensure the target server has user '${ADMIN_USERNAME}' with password '${ADMIN_PASSWORD}' configured."
 fi
-
-# Start the server in the background
-print_step "Starting backend server"
-# Export CONFIG_FILE environment variable for the backend process
-(cd backend && export CONFIG_FILE="$CONFIG_FILE" && GIN_MODE=release ./roadbook-api) &
-SERVER_PID=$!
-print_info "Backend server started with PID: $SERVER_PID"
-
-# Wait for the server to be ready
-print_info "Waiting for server to initialize..."
-sleep 2 # Increased sleep for stability
 
 # 2. Run Tests
 print_step "Running API tests"

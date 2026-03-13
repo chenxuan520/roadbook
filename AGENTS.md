@@ -145,3 +145,8 @@ Gin 内置了一个“允许来源列表 + 可选 null origin”逻辑：
 - **功能**：实现了 Go 后端的全部核心功能（JWT 认证、计划 CRUD、搜索代理、KV 数据存储）。
 - **部署**：详情见 `cloudflare/README.md`。
 - **配置**：前端通过双击标题配置 BaseURL 即可无缝切换到 Worker 后端。
+- **维护规则（重要）**：
+  - Cloudflare Worker 代码（`cloudflare/worker.js`）必须与 Go 后端（`backend/`）保持严格的功能对齐。
+  - **任何对 Go 后端 API 接口的修改（包括路径、请求参数、返回 JSON 结构、字段命名风格、错误码），都必须同步修改 `cloudflare/worker.js`。**
+  - Worker 的数据存储（KV）应尽量保持与 Go 后端文件存储的 JSON 结构兼容（CamelCase 字段名），以便于未来可能的数据迁移。
+  - 特别注意：Go 后端的 `TrafficPos` 接口对机场和火车站的经纬度顺序处理逻辑不同（IATA Map: lat,lon; Station Map: lon,lat），Worker 已对其进行了对齐，修改时需保持一致。
