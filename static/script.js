@@ -1945,7 +1945,7 @@ class RoadbookApp {
         }
 
         // 显示进入提示
-        this.showSwalAlert('只读模式', '当前为移动端只读模式，如需编辑请使用电脑访问。', 'info');
+        alert('当前为移动端只读模式，如需编辑请使用电脑访问。');
 
         // 初始化移动端菜单功能
         this.initMobileMenu();
@@ -7627,10 +7627,6 @@ class RoadbookApp {
         // 构建提示信息
         let promptMsg = `请输入后端 API 地址 (例如 https://api.example.com)\n\n`;
         promptMsg += `当前实际生效地址: ${currentEffectiveUrl}\n`;
-
-        if (typeof window.API_BASE_URL !== 'undefined') {
-             promptMsg += `默认预设地址 (CI/CD): ${window.API_BASE_URL}\n`;
-        }
 
         promptMsg += `\n(留空并确认可清除自定义设置，恢复默认)`;
 

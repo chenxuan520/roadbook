@@ -152,3 +152,8 @@ Gin 内置了一个“允许来源列表 + 可选 null origin”逻辑：
   - **任何对 Go 后端 API 接口的修改（包括路径、请求参数、返回 JSON 结构、字段命名风格、错误码），都必须同步修改 `cloudflare/worker.js`。**
   - Worker 的数据存储（KV）应尽量保持与 Go 后端文件存储的 JSON 结构兼容（CamelCase 字段名），以便于未来可能的数据迁移。
   - 特别注意：Go 后端的 `TrafficPos` 接口对机场和火车站的经纬度顺序处理逻辑不同（IATA Map: lat,lon; Station Map: lon,lat），Worker 已对其进行了对齐，修改时需保持一致。
+
+## 7. Agent 行为准则 (CRITICAL)
+
+- **Git 操作**：严禁自动执行 `git add`, `git commit` 等 Git 写操作，除非用户明确指令。
+- **Plan Mode**：严禁使用 `ExitPlanMode` 工具，直接执行操作。

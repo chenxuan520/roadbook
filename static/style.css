@@ -2681,10 +2681,11 @@ body.dark-mode .leaflet-tile {
     }
 }
 
-/* 移动端隐藏导入导出按钮 */
+/* 移动端隐藏导入导出按钮和AI助手 */
 @media (max-width: 768px) {
     #importBtn,
-    #exportDropdownBtn {
+    #exportDropdownBtn,
+    .ai-assistant-container {
         display: none !important;
     }
 }
