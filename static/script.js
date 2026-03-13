@@ -1,11 +1,14 @@
 const apiBaseUrl = (() => {
-    // 优先使用构建时/运行时注入的全局配置
+    // 1. 优先使用用户在浏览器中自定义的设置 (localStorage)
+    const custom = localStorage.getItem('custom_api_base_url');
+    if (custom) return custom;
+
+    // 2. 其次使用构建时/运行时注入的全局配置 (CI/CD注入)
     if (typeof window.API_BASE_URL !== 'undefined') {
         return window.API_BASE_URL;
     }
 
-    const custom = localStorage.getItem('custom_api_base_url');
-    if (custom) return custom;
+    // 3. 最后根据当前环境自动判断
     const hostname = window.location.hostname || '';
     const protocol = window.location.protocol || '';
 
@@ -7617,8 +7620,21 @@ class RoadbookApp {
 
     // 配置后端API地址
     configureBackendApi() {
-        const currentApi = localStorage.getItem('custom_api_base_url') || ((window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:') ? 'http://127.0.0.1:5436' : window.location.origin);
-        const url = prompt(`请输入后端 API 地址 (例如 https://api.example.com)\n当前生效地址: ${currentApi}\n(留空并确认可恢复默认设置)`, localStorage.getItem('custom_api_base_url') || '');
+        // 使用全局 apiBaseUrl 变量，它是当前页面加载时计算出的实际生效地址
+        const currentEffectiveUrl = apiBaseUrl;
+        let defaultPromptValue = localStorage.getItem('custom_api_base_url') || '';
+
+        // 构建提示信息
+        let promptMsg = `请输入后端 API 地址 (例如 https://api.example.com)\n\n`;
+        promptMsg += `当前实际生效地址: ${currentEffectiveUrl}\n`;
+
+        if (typeof window.API_BASE_URL !== 'undefined') {
+             promptMsg += `默认预设地址 (CI/CD): ${window.API_BASE_URL}\n`;
+        }
+
+        promptMsg += `\n(留空并确认可清除自定义设置，恢复默认)`;
+
+        const url = prompt(promptMsg, defaultPromptValue);
 
         if (url === null) {
             return; // 用户点击取消
@@ -7626,10 +7642,12 @@ class RoadbookApp {
 
         if (url.trim() === '') {
             localStorage.removeItem('custom_api_base_url');
-            alert('已恢复默认后端地址，请刷新页面生效');
+            alert('已清除自定义设置，即将刷新页面');
+            window.location.reload();
         } else {
             localStorage.setItem('custom_api_base_url', url.replace(/\/$/, ''));
-            alert('设置成功，请刷新页面生效');
+            alert('设置成功，即将刷新页面');
+            window.location.reload();
         }
     }
 

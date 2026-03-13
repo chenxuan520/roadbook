@@ -27,6 +27,8 @@ const DEFAULTS = {
   // Cloudflare AI defaults
   CF_AI_MODEL: "@cf/zai-org/glm-4.7-flash",
   USE_CF_AI: "false",
+  // Plan Expiration
+  PLAN_TTL_HOURS: "24",
 };
 
 // --- Global Cache (Warm Start) ---
@@ -57,6 +59,7 @@ export default {
     const useCfAiStr = env.USE_CF_AI || DEFAULTS.USE_CF_AI;
     const useCfAi = (useCfAiStr === "true");
     const cfAiModel = env.CF_AI_MODEL || DEFAULTS.CF_AI_MODEL;
+    const planTtlHours = parseInt(env.PLAN_TTL_HOURS || DEFAULTS.PLAN_TTL_HOURS, 10);
 
     // AI is enabled if (AI_ENABLED=true AND AI_KEY exists) OR (USE_CF_AI=true AND AI binding exists)
     const aiEnabled = (aiEnabledStr === "true" && !!aiKey) || (useCfAi && !!env.AI);
@@ -231,7 +234,8 @@ export default {
           createdAt: now,
           updatedAt: now,
         };
-        await env.ROADBOOK_KV.put(`plan:${id}`, JSON.stringify(plan));
+        const ttl = planTtlHours > 0 ? planTtlHours * 3600 : undefined;
+        await env.ROADBOOK_KV.put(`plan:${id}`, JSON.stringify(plan), ttl ? { expirationTtl: ttl } : {});
         return json({
             id: plan.id,
             name: plan.name,
@@ -267,7 +271,8 @@ export default {
             content: body.content,
             updatedAt: now
         };
-        await env.ROADBOOK_KV.put(key, JSON.stringify(updated));
+        const ttl = planTtlHours > 0 ? planTtlHours * 3600 : undefined;
+        await env.ROADBOOK_KV.put(key, JSON.stringify(updated), ttl ? { expirationTtl: ttl } : {});
         return json({
             id: updated.id,
             name: updated.name,
@@ -319,7 +324,8 @@ export default {
             if (!body.messages || !Array.isArray(body.messages)) {
                 return err("Invalid messages format");
             }
-            await env.ROADBOOK_KV.put(key, JSON.stringify(body.messages));
+            const ttl = planTtlHours > 0 ? planTtlHours * 3600 : undefined;
+            await env.ROADBOOK_KV.put(key, JSON.stringify(body.messages), ttl ? { expirationTtl: ttl } : {});
             return new Response(null, { status: 200, headers: corsHeaders });
         } catch (e) {
             return err("Bad Request", 400);
@@ -465,7 +471,8 @@ export default {
                     msgsToSave.push({ role: "assistant", content: fullResponse });
 
                     const key = `ai:session:${username}`;
-                    await env.ROADBOOK_KV.put(key, JSON.stringify(msgsToSave));
+                    const ttl = planTtlHours > 0 ? planTtlHours * 3600 : undefined;
+                    await env.ROADBOOK_KV.put(key, JSON.stringify(msgsToSave), ttl ? { expirationTtl: ttl } : {});
                 }
             }));
 

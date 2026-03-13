@@ -26,6 +26,9 @@ preview_id = "c1e6c2e7951d48d59c6c3c4f8453aa12"
 USE_CF_AI = "true"
 CF_AI_MODEL = "@cf/zai-org/glm-4.7-flash"
 
+# 计划与会话过期时间 (小时)，设置为 0 表示永不过期
+PLAN_TTL_HOURS = "24"
+
 # 用户配置 (二选一)
 # 方式1: 简单管理员配置
 # ADMIN_USER = "admin"
