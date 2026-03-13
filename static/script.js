@@ -79,6 +79,11 @@ class RoadbookApp {
         this.dragPreviewLine = null; // 拖拽时的预览线
         this.dragPreviewArrow = null; // 拖拽时的预览箭头
 
+        // 框选功能状态
+        this.isSelecting = false; // 是否正在框选
+        this.selectionStartLatLng = null; // 框选起始坐标
+        this.selectionRectangle = null; // 框选矩形
+
         this.searchProviderOriginalTexts = new Map();
 
         this.init();
@@ -1186,53 +1191,93 @@ class RoadbookApp {
 
                 this.dragPreviewArrow = this.createArrowHead(startMarker.position, previewLatLng, previewColorType);
                 this.dragPreviewArrow.addTo(this.map);
+            } else {
+                // 框选逻辑
+                e.preventDefault(); // 阻止默认右键菜单
+                e.stopPropagation();
+
+                this.isSelecting = true;
+                this.selectionStartLatLng = latlng;
+                this.map.dragging.disable(); // 禁用地图拖拽
+
+                // 初始化虚线框
+                this.selectionRectangle = L.rectangle([latlng, latlng], {
+                    color: '#3388ff',
+                    weight: 2,
+                    dashArray: '5, 5',
+                    fillOpacity: 0.2
+                }).addTo(this.map);
             }
         });
 
         document.addEventListener('mousemove', (e) => {
-            if (!this.isDraggingLine) {
-                return;
-            }
+            if (this.isDraggingLine) {
+                const latlng = this.map.mouseEventToLatLng(e);
+                const previewLatLng = [latlng.lat, latlng.lng];
 
-            const latlng = this.map.mouseEventToLatLng(e);
-            const previewLatLng = [latlng.lat, latlng.lng];
+                if (this.dragPreviewLine) {
+                    this.dragPreviewLine.setLatLngs([this.dragStartMarker.position, previewLatLng]);
+                }
 
-            if (this.dragPreviewLine) {
-                this.dragPreviewLine.setLatLngs([this.dragStartMarker.position, previewLatLng]);
-            }
-
-            if (this.dragPreviewArrow) {
-                this.dragPreviewArrow.remove();
-                const previewColorType = 'preview'; // 使用预览颜色
-                this.dragPreviewArrow = this.createArrowHead(this.dragStartMarker.position, previewLatLng, previewColorType);
-                this.dragPreviewArrow.addTo(this.map);
+                if (this.dragPreviewArrow) {
+                    this.dragPreviewArrow.remove();
+                    const previewColorType = 'preview'; // 使用预览颜色
+                    this.dragPreviewArrow = this.createArrowHead(this.dragStartMarker.position, previewLatLng, previewColorType);
+                    this.dragPreviewArrow.addTo(this.map);
+                }
+            } else if (this.isSelecting) {
+                const latlng = this.map.mouseEventToLatLng(e);
+                if (this.selectionRectangle) {
+                    const bounds = L.latLngBounds(this.selectionStartLatLng, latlng);
+                    this.selectionRectangle.setBounds(bounds);
+                }
             }
         });
 
         document.addEventListener('mouseup', (e) => {
-            if (!this.isDraggingLine) {
-                return;
-            }
+            if (this.isDraggingLine) {
+                if (this.dragPreviewLine) {
+                    this.dragPreviewLine.remove();
+                    this.dragPreviewLine = null;
+                }
+                if (this.dragPreviewArrow) {
+                    this.dragPreviewArrow.remove();
+                    this.dragPreviewArrow = null;
+                }
 
-            if (this.dragPreviewLine) {
-                this.dragPreviewLine.remove();
-                this.dragPreviewLine = null;
-            }
-            if (this.dragPreviewArrow) {
-                this.dragPreviewArrow.remove();
-                this.dragPreviewArrow = null;
-            }
+                const latlng = this.map.mouseEventToLatLng(e);
+                const endMarker = this.getMarkerAt(latlng);
 
-            const latlng = this.map.mouseEventToLatLng(e);
-            const endMarker = this.getMarkerAt(latlng);
+                if (endMarker && endMarker.id !== this.dragStartMarker.id) {
+                    this.createConnection(this.dragStartMarker, endMarker, 'car');
+                }
 
-            if (endMarker && endMarker.id !== this.dragStartMarker.id) {
-                this.createConnection(this.dragStartMarker, endMarker, 'car');
+                this.isDraggingLine = false;
+                this.dragStartMarker = null;
+                this.map.dragging.enable();
+            } else if (this.isSelecting) {
+                const latlng = this.map.mouseEventToLatLng(e);
+                const bounds = L.latLngBounds(this.selectionStartLatLng, latlng);
+
+                // 移除视觉元素
+                if (this.selectionRectangle) {
+                    this.selectionRectangle.remove();
+                    this.selectionRectangle = null;
+                }
+
+                this.isSelecting = false;
+                this.selectionStartLatLng = null;
+                this.map.dragging.enable();
+
+                // 查找框选中的标记点
+                const selectedMarkers = this.markers.filter(marker => {
+                    return bounds.contains(L.latLng(marker.position));
+                });
+
+                if (selectedMarkers.length > 0) {
+                    this.showBatchOperationModal(selectedMarkers);
+                }
             }
-
-            this.isDraggingLine = false;
-            this.dragStartMarker = null;
-            this.map.dragging.enable();
         });
 
 
@@ -6427,6 +6472,41 @@ class RoadbookApp {
 
         // 保存到本地存储
         this.saveToLocalStorage();
+    }
+
+    showBatchOperationModal(selectedMarkers) {
+        Swal.fire({
+            title: '批量操作',
+            text: `已选中 ${selectedMarkers.length} 个标记点，请选择操作`,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: '🗑️ 删除',
+            confirmButtonColor: '#d33',
+            cancelButtonText: '取消'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                this.deleteMarkers(selectedMarkers);
+            }
+        });
+    }
+
+    async deleteMarkers(markers) {
+        const result = await this.showSwalConfirm('删除确认', `确定要删除选中的 ${markers.length} 个标记点吗？`, '删除', '取消');
+        if (result.isConfirmed) {
+            const markersToDelete = [...markers];
+            let count = 0;
+
+            // 批量删除，暂时直接循环调用
+            markersToDelete.forEach(marker => {
+                // 检查标记点是否仍然存在（可能已被删除）
+                if (this.markers.includes(marker)) {
+                    this.removeMarker(marker);
+                    count++;
+                }
+            });
+
+            this.showSwalAlert('成功', `已删除 ${count} 个标记点`, 'success');
+        }
     }
 
     // 检查并处理筛选模式 - 如果处于筛选模式则退出但保持当前视图
