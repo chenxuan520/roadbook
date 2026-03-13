@@ -70,6 +70,7 @@ IMPORTANT RULES:
 3. Try to use "search_location" for accurate coordinates first. However, if search fails or returns no results, DO NOT ask the user. Instead, use your internal knowledge to provide the best possible estimated coordinates and proceed with generating the itinerary.
 4. Generate the entire plan first, then let the user make adjustments later.
 5. You can use 'update_date_note' to add a summary or description for each day in the itinerary. This helps the user understand the plan for each day.
+6. IMPORTANT: Only call 'update_date_note' AFTER you have already added itinerary items for that date (markers and/or connections). If the date does not exist yet, the action will be rejected.
 Description: ${prompt}`;
 
             // Send as a user message (which triggers the AI)
@@ -752,6 +753,7 @@ This tool returns up to 3 search results. You should use the results to propose 
 
 ### 9. Update Date Note
 Update the note for a specific date. This is useful for adding day summaries or specific reminders for a day.
+IMPORTANT: You MUST add markers/connections for that date first. If the date is not present in the itinerary yet, do NOT call this action.
 \`\`\`json
 {
   "action": "update_date_note",
