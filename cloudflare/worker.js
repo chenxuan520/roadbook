@@ -25,7 +25,7 @@ const DEFAULTS = {
   AI_KEY: "",
   AI_MODEL: "gpt-3.5-turbo",
   // Cloudflare AI defaults
-  CF_AI_MODEL: "@cf/qwen/qwen3-30b-a3b-fp8",
+  CF_AI_MODEL: "@cf/zai-org/glm-4.7-flash",
   USE_CF_AI: "false",
 };
 

@@ -146,7 +146,7 @@ Gin 内置了一个“允许来源列表 + 可选 null origin”逻辑：
 - **部署**：详情见 `cloudflare/README.md`。
 - **配置**：
   - 前端通过双击标题配置 BaseURL 即可无缝切换到 Worker 后端。
-  - 在 Cloudflare Dashboard 绑定 AI 模块（Binding 名称：`AI`），并设置环境变量 `USE_CF_AI=true` 即可启用免费的内置大模型（默认：@cf/qwen/qwen3-30b-a3b-fp8）。
+  - 在 Cloudflare Dashboard 绑定 AI 模块（Binding 名称：`AI`），并设置环境变量 `USE_CF_AI=true` 即可启用免费的内置大模型（默认：@cf/zai-org/glm-4.7-flash）。
 - **维护规则（重要）**：
   - Cloudflare Worker 代码（`cloudflare/worker.js`）必须与 Go 后端（`backend/`）保持严格的功能对齐。
   - **任何对 Go 后端 API 接口的修改（包括路径、请求参数、返回 JSON 结构、字段命名风格、错误码），都必须同步修改 `cloudflare/worker.js`。**

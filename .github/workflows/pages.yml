@@ -5,6 +5,10 @@ on:
   # Runs on pushes targeting the default branch
   push:
     branches: ["master"]
+    paths:
+      - 'static/**'
+      - '.github/workflows/pages.yml'
+      - 'scripts/update_version.sh'
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
