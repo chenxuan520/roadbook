@@ -1,6 +1,14 @@
 import { test, expect } from '@playwright/test';
 import fs from 'node:fs/promises';
-import { prepareApp, addMarker, confirmSwal } from './helpers.mjs';
+import { prepareApp, addMarker, confirmSwal, maybeStartJSCoverage, maybeStopJSCoverage } from './helpers.mjs';
+
+test.beforeEach(async ({ page }) => {
+  await maybeStartJSCoverage(page);
+});
+
+test.afterEach(async ({ page }, testInfo) => {
+  await maybeStopJSCoverage(page, testInfo);
+});
 
 test('主题切换可用，并能在刷新后保持', async ({ page }) => {
   await prepareApp(page);
@@ -120,4 +128,3 @@ test('帮助与快捷键：H 打开帮助，/ 聚焦搜索框', async ({ page })
   await page.keyboard.press('/');
   await expect(page.locator('#searchInput')).toBeFocused();
 });
-

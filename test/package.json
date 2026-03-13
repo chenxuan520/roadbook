@@ -4,13 +4,21 @@
   "type": "module",
   "devDependencies": {
     "@playwright/test": "^1.58.2",
-    "playwright": "^1.58.2"
+    "istanbul-lib-coverage": "^3.2.2",
+    "istanbul-lib-report": "^3.0.1",
+    "istanbul-reports": "^3.2.0",
+    "playwright": "^1.58.2",
+    "v8-to-istanbul": "^9.3.0"
   },
   "scripts": {
     "setup:local": "PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm install",
     "setup:ci": "PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm ci && playwright install --with-deps chromium",
     "test": "playwright test",
     "test:local": "USE_SYSTEM_CHROME=1 playwright test",
-    "test:ci": "playwright test"
+    "test:ci": "playwright test",
+    "test:coverage": "PW_TEST_COVERAGE=1 playwright test",
+    "test:local:coverage": "USE_SYSTEM_CHROME=1 PW_TEST_COVERAGE=1 playwright test",
+    "coverage:report": "node ./scripts/coverage.mjs",
+    "test:local:coverage:report": "npm run test:local:coverage && npm run coverage:report"
   }
 }

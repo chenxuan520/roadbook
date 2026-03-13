@@ -1,5 +1,13 @@
 import { test, expect } from '@playwright/test';
-import { prepareApp, addMarker, confirmSwal } from './helpers.mjs';
+import { prepareApp, addMarker, confirmSwal, maybeStartJSCoverage, maybeStopJSCoverage } from './helpers.mjs';
+
+test.beforeEach(async ({ page }) => {
+  await maybeStartJSCoverage(page);
+});
+
+test.afterEach(async ({ page }, testInfo) => {
+  await maybeStopJSCoverage(page, testInfo);
+});
 
 test('点击地图上的标记点可打开编辑面板', async ({ page }) => {
   await prepareApp(page);

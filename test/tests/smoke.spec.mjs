@@ -1,6 +1,14 @@
 import { test, expect } from '@playwright/test';
 import fs from 'node:fs/promises';
-import { prepareApp, addMarker } from './helpers.mjs';
+import { prepareApp, addMarker, maybeStartJSCoverage, maybeStopJSCoverage } from './helpers.mjs';
+
+test.beforeEach(async ({ page }) => {
+  await maybeStartJSCoverage(page);
+});
+
+test.afterEach(async ({ page }, testInfo) => {
+  await maybeStopJSCoverage(page, testInfo);
+});
 
 test('页面可打开并初始化 app', async ({ page }) => {
   await prepareApp(page);
@@ -42,4 +50,3 @@ test('可添加标记点，并可导出 JSON 后再导入恢复', async ({ page 
 
   await page.waitForFunction((count) => window.app.markers.length === count, exported.markers.length);
 });
-

@@ -1,4 +1,13 @@
 import { expect } from '@playwright/test';
+import fs from 'node:fs/promises';
+import path from 'node:path';
+
+function sanitizeFileNamePart(s) {
+  return String(s)
+    .replace(/[^a-zA-Z0-9._-]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .slice(0, 180);
+}
 
 function looksLikeMapTile(url) {
   // 各地图源的瓦片 URL 不统一，这里用一些通用特征来识别：
@@ -132,4 +141,40 @@ export async function confirmSwal(page) {
   const btn = page.locator('.swal2-container .swal2-confirm');
   await btn.waitFor({ state: 'visible', timeout: 10_000 });
   await btn.click();
+}
+
+// --- 可选：浏览器侧 JS Coverage（Chromium V8） ---
+// 使用方式：PW_TEST_COVERAGE=1 npm run test:coverage
+
+export async function maybeStartJSCoverage(page) {
+  if (!process.env.PW_TEST_COVERAGE) return;
+  if (!page.coverage || !page.coverage.startJSCoverage) return;
+  await page.coverage.startJSCoverage({ resetOnNavigation: false });
+}
+
+export async function maybeStopJSCoverage(page, testInfo) {
+  if (!process.env.PW_TEST_COVERAGE) return;
+  if (!page.coverage || !page.coverage.stopJSCoverage) return;
+
+  const entries = await page.coverage.stopJSCoverage();
+
+  // 只保留本项目的静态资源（减少噪音）
+  const filtered = entries.filter((e) => {
+    const url = String(e.url || '');
+    return url.includes('/static/') && !url.includes('unpkg.com/leaflet');
+  });
+
+  const outDir = path.resolve(process.cwd(), 'test-results', 'js-coverage');
+  await fs.mkdir(outDir, { recursive: true });
+
+  let title = testInfo?.title || 'unknown';
+  if (typeof testInfo?.titlePath === 'function') {
+    title = testInfo.titlePath().join(' - ');
+  } else if (Array.isArray(testInfo?.titlePath)) {
+    title = testInfo.titlePath.join(' - ');
+  } else if (testInfo?.file) {
+    title = `${path.basename(testInfo.file)} - ${title}`;
+  }
+  const fileName = `${sanitizeFileNamePart(title)}-${Date.now()}.json`;
+  await fs.writeFile(path.join(outDir, fileName), JSON.stringify(filtered, null, 2), 'utf-8');
 }
