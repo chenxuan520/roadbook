@@ -200,7 +200,7 @@
                 e.stopPropagation();
                 const isExpanded = content.classList.contains('expanded');
                 content.classList.toggle('expanded');
-                toggle.textContent = isExpanded ? '📂' : '📁';
+                toggle.textContent = isExpanded ? '📁' : '📂';
             });
 
             group.appendChild(header);
@@ -258,7 +258,7 @@
                 e.stopPropagation();
                 const isExpanded = content.classList.contains('expanded');
                 content.classList.toggle('expanded');
-                toggle.textContent = isExpanded ? '📂' : '📁';
+                toggle.textContent = isExpanded ? '📁' : '📂';
             });
 
             // 复制按钮点击事件

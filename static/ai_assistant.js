@@ -25,7 +25,7 @@ class RoadbookAIAssistant {
         // How many recent chat messages to include in each AI request.
         // Tool/action results generated after the last assistant message are always included,
         // even if that exceeds this limit.
-        this.HISTORY_LIMIT = 15;
+        this.HISTORY_LIMIT = 30;
 
         // Command System
         this.commands = {};
@@ -161,9 +161,22 @@ Description: ${prompt}`;
             const response = await fetch(`${this.apiBase}/api/v1/ai/session`, { headers });
             if (response.ok) {
                 const data = await response.json();
-                if (data.messages && Array.isArray(data.messages)) {
+                if (data.messages && Array.isArray(data.messages) && data.messages.length > 0) {
                     this.messages = data.messages;
                     this.renderMessages();
+
+                    // Prepend a non-persistent system message to the DOM to inform the user about the context limit.
+                    const hintMsgDiv = document.createElement('div');
+                    hintMsgDiv.className = 'ai-message system';
+                    const hintContentDiv = document.createElement('div');
+                    hintContentDiv.className = 'message-content';
+                    hintContentDiv.innerHTML = `ℹ️ 温馨提示: 为优化性能，AI仅能记忆最近的 <b>${this.HISTORY_LIMIT}</b> 条对话上下文。`;
+                    hintMsgDiv.appendChild(hintContentDiv);
+                    this.messagesContainer.prepend(hintMsgDiv);
+
+                } else {
+                    this.messages = [];
+                    this.renderMessages(); // This will just clear the view
                 }
             }
         } catch (e) {
