@@ -576,6 +576,55 @@ Description: ${prompt}`;
         this.chatWindow.style.top = `${top}px`;
     }
 
+    reconstructStatusFromHistory(text) {
+        if (!text) return null;
+
+        if (text.startsWith('Action Failed:')) {
+            const reason = text.replace('Action Failed:', '').trim();
+            // Attempt to find a more user-friendly mapping, otherwise show the raw reason.
+            if (reason.includes('missing coordinates')) return '❌ 添加失败: 缺少坐标';
+            if (reason.includes('ID invalid')) return '❌ 操作失败: ID无效';
+            if (reason.includes('missing id')) return '❌ 操作失败: 未指定ID';
+            if (reason.includes('date not in itinerary')) return '❌ 操作失败: 日期不在行程中';
+            if (reason.includes('marker with the same coordinates already exists')) return 'ℹ️ 标记点已存在，已跳过';
+            return `❌ 操作失败: ${reason}`;
+        }
+
+        if (text.startsWith('Action Result:')) {
+            const result = text.replace('Action Result:', '').trim();
+            let match;
+
+            match = result.match(/^Added marker "([^"]+)"/);
+            if (match) return `✅ 已添加标记点: ${match[1]}`;
+
+            match = result.match(/^Updated note for date ([\d-]+)/);
+            if (match) return `✅ 已更新 ${match[1]} 的备注`;
+
+            match = result.match(/^Connected markers/);
+            if (match) return `✅ 已连接标记点`;
+
+            match = result.match(/^Removed marker/);
+            if (match) return `✅ 已删除标记点`;
+
+            match = result.match(/^Updated marker/);
+            if (match) return `✅ 已更新标记点`;
+
+            match = result.match(/^Connection already exists/);
+            if (match) return `ℹ️ 已存在连接，跳过重复连线`;
+
+            match = result.match(/^Removed connection/);
+            if (match) return `✅ 已删除连接线`;
+
+            match = result.match(/^Updated connection/);
+            if (match) return `✅ 已更新连接线`;
+        }
+
+        if (text.startsWith('Search Results for')) return `✅ 搜索完成`;
+        if (text.startsWith('Current Map Details')) return `✅ 已获取地图详情`;
+
+        return null;
+    }
+
     renderMessages() {
         this.messagesContainer.innerHTML = '';
         this.messages.forEach(msg => {
@@ -583,6 +632,24 @@ Description: ${prompt}`;
             if (msg.role === 'system' && (msg.content.includes('You are RoadbookAI') || msg.content.includes('Current Context'))) {
                 return;
             }
+
+            // For historical messages, check if it's a tool result that should be displayed as a status line
+            const statusText = this.reconstructStatusFromHistory(msg.content);
+
+            if (statusText) {
+                // This is a message that should be rendered as a status on the previous bubble.
+                const lastMessageBubble = this.messagesContainer.lastElementChild;
+                if (lastMessageBubble && lastMessageBubble.classList.contains('assistant')) {
+                    const contentDiv = lastMessageBubble.querySelector('.message-content');
+                    if (contentDiv) {
+                        this.appendActionStatus(contentDiv, statusText);
+                    }
+                }
+                // Do not render this message as a separate bubble.
+                return;
+            }
+
+            // If it's not a reconstruct-able status message, render it normally.
             this.appendMessageElement(msg);
         });
         this.scrollToBottom();
@@ -759,12 +826,16 @@ This tool returns up to 3 search results. You should use the results to propose 
 ### 9. Update Date Note
 Update the note for a specific date. This is useful for adding day summaries or specific reminders for a day.
 IMPORTANT: You MUST add markers/connections for that date first. If the date is not present in the itinerary yet, do NOT call this action.
-When the user asks you to generate a full itinerary (e.g. via /generate), you MUST create notes for EVERY date covering: main schedule, highlights, and cautions.
+When the user asks you to generate a full itinerary (e.g. via /generate), you MUST create notes for EVERY date.
+DEFAULT NOTE FORMAT: If the user does not specify note content, you MUST create a note with three points, each on a new line. The entire note, including the labels for each point (e.g., "行程", "注意事项"), MUST be in the user's language. The labels should be the translation of "Itinerary", "Cautions", and "Scenery".
+- Itinerary: (The day's schedule and route)
+- Cautions: (Practical tips, tickets, traffic, safety)
+- Scenery: (Highlights and experiences)
 \`\`\`json
 {
   "action": "update_date_note",
   "date": "2025-01-01",
-  "note": "Day 1 Summary: Visited Tiananmen Square and Forbidden City."
+  "note": "Itinerary: Visited Tiananmen Square and Forbidden City.\nCautions: Book tickets in advance.\nScenery: Historic architecture."
 }
 \`\`\`
 

@@ -77,31 +77,40 @@ if [ "$OS_TYPE" = "Darwin" ]; then
     # macOS需要特殊的sed语法 -i ''
     sed -i '' -E 's#<span id="version-display"[^>]*>.*</span>#<span id="version-display" class="version-visible">'${VERSION_STRING}'</span>#g' "$INDEX_FILE"
 
-    # Update CSS/JS files with version query param
-    # First remove any existing version params to avoid duplication if run multiple times
-    sed -i '' -E 's#(href|src)="([^"]*)\?v=[^"]*"#\1="\2"#g' "$INDEX_FILE"
-    # Then append the new version
-    # Target specific local files to avoid breaking external CDNs
-    sed -i '' -E 's#href="style\.css"#href="style.css?v='${VERSION_STRING}'"#g' "$INDEX_FILE"
-    sed -i '' -E 's#src="script\.js"#src="script.js?v='${VERSION_STRING}'"#g' "$INDEX_FILE"
-    sed -i '' -E 's#src="html_export\.js"#src="html_export.js?v='${VERSION_STRING}'"#g' "$INDEX_FILE"
-    sed -i '' -E 's#src="online_mode\.js"#src="online_mode.js?v='${VERSION_STRING}'"#g' "$INDEX_FILE"
-    sed -i '' -E 's#src="debug\.js"#src="debug.js?v='${VERSION_STRING}'"#g' "$INDEX_FILE"
-    sed -i '' -E 's#src="ai_assistant\.js"#src="ai_assistant.js?v='${VERSION_STRING}'"#g' "$INDEX_FILE"
-    else
-        # Linux和其他系统
-        sed -i -E 's#<span id="version-display"[^>]*>.*</span>#<span id="version-display" class="version-visible">'${VERSION_STRING}'</span>#g' "$INDEX_FILE"
+    # --- 为本地JS/CSS动态添加版本号，实现缓存更新 ---
+    # 1. 先移除所有已存在的 ?v=... 参数，避免重复添加
+    sed -i '' -E 's#((href|src)="[^"]+)\?v=[^"]*#\1#g' "$INDEX_FILE"
+    # 2. 动态查找所有本地资源(非http/https/根路径)并添加版本号
+    grep -o -E '(src|href)="[^"]+\.(css|js)"' "$INDEX_FILE" | \
+        sed -E 's/^(src|href)="(.*)"$/\2/' | \
+        grep -v -E '^(https?://|//)' | \
+        while read -r asset; do
+            if [ -z "$asset" ]; then continue; fi
+            echo "  -> 正在为资源添加版本号: $asset"
+            # 为了在sed的正则中使用，需要转义特殊字符
+            asset_escaped=$(printf '%s\n' "$asset" | sed -e 's/[]\/$*.^|[]/\\&/g')
+            # 对匹配到的资源添加版本号
+            sed -i '' -E "s#(src|href)=\"${asset_escaped}\"#\1=\"${asset}?v=${VERSION_STRING}\"#g" "$INDEX_FILE"
+        done
+else
+    # Linux和其他系统
+    sed -i -E 's#<span id="version-display"[^>]*>.*</span>#<span id="version-display" class="version-visible">'${VERSION_STRING}'</span>#g' "$INDEX_FILE"
 
-    # Update CSS/JS files with version query param
-    # First remove any existing version params
-    sed -i -E 's#(href|src)="([^"]*)\?v=[^"]*"#\1="\2"#g' "$INDEX_FILE"
-    # Then append the new version
-    sed -i -E 's#href="style\.css"#href="style.css?v='${VERSION_STRING}'"#g' "$INDEX_FILE"
-    sed -i -E 's#src="script\.js"#src="script.js?v='${VERSION_STRING}'"#g' "$INDEX_FILE"
-    sed -i -E 's#src="html_export\.js"#src="html_export.js?v='${VERSION_STRING}'"#g' "$INDEX_FILE"
-    sed -i -E 's#src="online_mode\.js"#src="online_mode.js?v='${VERSION_STRING}'"#g' "$INDEX_FILE"
-    sed -i -E 's#src="debug\.js"#src="debug.js?v='${VERSION_STRING}'"#g' "$INDEX_FILE"
-    sed -i -E 's#src="ai_assistant\.js"#src="ai_assistant.js?v='${VERSION_STRING}'"#g' "$INDEX_FILE"
+    # --- 为本地JS/CSS动态添加版本号，实现缓存更新 ---
+    # 1. 先移除所有已存在的 ?v=... 参数，避免重复添加
+    sed -i -E 's#((href|src)="[^"]+)\?v=[^"]*#\1#g' "$INDEX_FILE"
+    # 2. 动态查找所有本地资源(非http/https/根路径)并添加版本号
+    grep -o -E '(src|href)="[^"]+\.(css|js)"' "$INDEX_FILE" | \
+        sed -E 's/^(src|href)="(.*)"$/\2/' | \
+        grep -v -E '^(https?://|//)' | \
+        while read -r asset; do
+            if [ -z "$asset" ]; then continue; fi
+            echo "  -> 正在为资源添加版本号: $asset"
+            # 为了在sed的正则中使用，需要转义特殊字符
+            asset_escaped=$(printf '%s\n' "$asset" | sed -e 's/[]\/$*.^|[]/\\&/g')
+            # 对匹配到的资源添加版本号
+            sed -i -E "s#(src|href)=\"${asset_escaped}\"#\1=\"${asset}?v=${VERSION_STRING}\"#g" "$INDEX_FILE"
+        done
 fi
 
 echo "Successfully updated version in $INDEX_FILE to $VERSION_STRING (display + cache busting)"
