@@ -595,7 +595,23 @@ export default {
         });
     }
 
-    // Root (Project Info Page)
+    // --- Static Assets Handling (Frontend) ---
+    // Only handle GET requests for non-API paths
+    if (method === "GET" && !path.startsWith("/api/")) {
+        // 1. Try env.ASSETS (Cloudflare Pages / Workers Sites)
+        if (env.ASSETS) {
+            try {
+                const asset = await env.ASSETS.fetch(request);
+                if (asset.status < 400) {
+                    return asset;
+                }
+            } catch (e) {
+                // Ignore
+            }
+        }
+    }
+
+    // Root (Project Info Page) - Fallback if index.html not found
     if (path === "/") {
         return new Response(`<!DOCTYPE html>
 <html lang="zh-CN">

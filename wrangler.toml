@@ -1,5 +1,5 @@
 name = 'roadbook'
-main = "worker.js"
+main = "cloudflare/worker.js"
 compatibility_date = "2024-04-01"
 
 # 启用 Workers 日志与跟踪
@@ -12,11 +12,11 @@ head_sampling_rate = 1
 binding = "AI"
 
 # 绑定 KV 命名空间
-# 请替换 id 和 preview_id 为你实际创建的 KV ID
+# 注意：使用一键部署按钮时，无需填入 id。Wrangler 会自动在你的账号下创建名为 "roadbook-ROADBOOK_KV" 的命名空间。
+# 如果你使用命令行手动部署，也请保持 id 为空，并在首次部署提示时让其自动创建。
 [[kv_namespaces]]
 binding = "ROADBOOK_KV"
-id = "c1e6c2e7951d48d59c6c3c4f8453aa12"
-preview_id = "c1e6c2e7951d48d59c6c3c4f8453aa12"
+# id = "c1e6c2e7951d48d59c6c3c4f8453aa12" # 请保持注释状态，由部署工具自动注入或创建
 
 # 环境变量配置
 [vars]
@@ -27,7 +27,7 @@ USE_CF_AI = "true"
 CF_AI_MODEL = "@cf/zai-org/glm-4.7-flash"
 
 # 计划与会话过期时间 (小时)，设置为 0 表示永不过期
-PLAN_TTL_HOURS = "24"
+PLAN_TTL_HOURS = "0"
 
 # 用户配置 (二选一)
 # 方式1: 简单管理员配置
@@ -37,7 +37,7 @@ PLAN_TTL_HOURS = "24"
 # USERS_JSON = '{"admin":{"salt":"...","hash":"..."}}'
 
 # 地图 API Keys
-TIAN_KEY = "75f0434f240669f4a2df6359275146d2"
+# TIAN_KEY = "75f0434f240669f4a2df6359275146d2"
 # GAODE_KEY = ""
 # GAODE_LOGIN_REQUIRED = "false"
 
@@ -46,3 +46,9 @@ TIAN_KEY = "75f0434f240669f4a2df6359275146d2"
 # AI_BASE_URL = "https://api.openai.com/v1"
 # AI_KEY = ""
 # AI_MODEL = "gpt-3.5-turbo"
+
+# 配置静态资源托管 (Wrangler v3+ / Cloudflare Pages)
+# worker.js 会优先使用 env.ASSETS 获取资源
+[assets]
+directory = "./static"
+binding = "ASSETS"
