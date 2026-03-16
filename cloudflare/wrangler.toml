@@ -15,8 +15,8 @@ binding = "AI"
 # 请替换 id 和 preview_id 为你实际创建的 KV ID
 [[kv_namespaces]]
 binding = "ROADBOOK_KV"
-id = "c1e6c2e7951d48d59c6c3c4f8453aa12"
-preview_id = "c1e6c2e7951d48d59c6c3c4f8453aa12"
+# id = "c1e6c2e7951d48d59c6c3c4f8453aa12"
+# preview_id = "c1e6c2e7951d48d59c6c3c4f8453aa12"
 
 # 环境变量配置
 [vars]
@@ -37,7 +37,7 @@ PLAN_TTL_HOURS = "24"
 # USERS_JSON = '{"admin":{"salt":"...","hash":"..."}}'
 
 # 地图 API Keys
-TIAN_KEY = "75f0434f240669f4a2df6359275146d2"
+# TIAN_KEY = "75f0434f240669f4a2df6359275146d2"
 # GAODE_KEY = ""
 # GAODE_LOGIN_REQUIRED = "false"
 

@@ -1302,7 +1302,8 @@ class RoadbookApp {
                 const endMarker = this.getMarkerAt(latlng);
 
                 if (endMarker && endMarker.id !== this.dragStartMarker.id) {
-                    this.createConnection(this.dragStartMarker, endMarker, 'car');
+                    // Pass null for transportType to trigger auto-calculation based on distance
+                    this.createConnection(this.dragStartMarker, endMarker, null);
                 }
 
                 this.isDraggingLine = false;
@@ -2991,7 +2992,7 @@ class RoadbookApp {
         return Math.round(durationHours);
     }
 
-    createConnection(startMarker, endMarker, _transportType, dateTime = null) { // transportType is now ignored, but kept for compatibility
+    createConnection(startMarker, endMarker, transportType, dateTime = null) {
         if (!startMarker || !endMarker) {
             console.error('创建连接失败：起始点或终点无效。');
             return;
@@ -3004,30 +3005,36 @@ class RoadbookApp {
         }
 
         const distance = startMarker.marker.getLatLng().distanceTo(endMarker.marker.getLatLng()); // in meters
-        const recommendedTransport = this.getRecommendedTransport(distance);
-        const estimatedDuration = this.estimateDuration(distance, recommendedTransport);
 
-        console.log(`创建连接线: ${startMarker.title} -> ${endMarker.title}, 距离: ${(distance / 1000).toFixed(2)} km, 推荐交通: ${recommendedTransport}, 预估时间: ${estimatedDuration} 小时`);
+        // 优先使用传入的交通方式，如果没有则根据距离自动计算推荐方式
+        let finalTransport = transportType;
+        if (!finalTransport) {
+            finalTransport = this.getRecommendedTransport(distance);
+        }
+
+        const estimatedDuration = this.estimateDuration(distance, finalTransport);
+
+        console.log(`创建连接线: ${startMarker.title} -> ${endMarker.title}, 距离: ${(distance / 1000).toFixed(2)} km, 交通: ${finalTransport}, 预估时间: ${estimatedDuration} 小时`);
 
         // 创建连接线
         const polyline = L.polyline([
             [startMarker.position[0], startMarker.position[1]],
             [endMarker.position[0], endMarker.position[1]]
         ], {
-            color: this.getTransportColor(recommendedTransport),
+            color: this.getTransportColor(finalTransport),
             weight: 6,
             opacity: 1.0,
             smoothFactor: 1.0
         }).addTo(this.map);
 
         // 创建箭头
-        const arrowHead = this.createArrowHead(startMarker.position, endMarker.position, recommendedTransport);
+        const arrowHead = this.createArrowHead(startMarker.position, endMarker.position, finalTransport);
         arrowHead.addTo(this.map);
 
         // 添加终点标记（小圆点）
         const endCircle = L.circleMarker([endMarker.position[0], endMarker.position[1]], {
             radius: 6,
-            fillColor: this.getTransportColor(recommendedTransport),
+            fillColor: this.getTransportColor(finalTransport),
             color: '#fff',
             weight: 2,
             opacity: 1,
@@ -3049,11 +3056,11 @@ class RoadbookApp {
         const fallbackMidLat = (startLat + endLat) / 2;
         const fallbackMidLng = (startLng + endLng) / 2;
         const midPos = this.getPointOnConnection(startMarker.position, endMarker.position, 0.5) || [fallbackMidLat, fallbackMidLng];
-        const transportIcon = this.getTransportIcon(recommendedTransport);
+        const transportIcon = this.getTransportIcon(finalTransport);
         const iconMarker = L.marker(midPos, {
             icon: L.divIcon({
                 className: 'transport-icon',
-                html: `<div style="background-color: white; border: 2px solid ${this.getTransportColor(recommendedTransport)}; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-size: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.3);">${transportIcon}</div>`,
+                html: `<div style="background-color: white; border: 2px solid ${this.getTransportColor(finalTransport)}; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-size: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.3);">${transportIcon}</div>`,
                 iconSize: [30, 30],
                 iconAnchor: [15, 15]
             })
@@ -3074,7 +3081,7 @@ class RoadbookApp {
             id: Date.now(),
             startId: startMarker.id,
             endId: endMarker.id,
-            transportType: recommendedTransport,
+            transportType: finalTransport,
             polyline: polyline,
             endCircle: endCircle,
             iconMarker: iconMarker,
@@ -6256,6 +6263,10 @@ class RoadbookApp {
         // 加载上次使用的日期范围
         if (data.lastDateRange) {
             this.lastDateRange = data.lastDateRange;
+        } else {
+            // 如果云端没有存储范围，则清空本地的，避免残留上一个计划的筛选状态
+            // 这会让 UI 回退到默认逻辑（展示所有点的时间范围）
+            this.lastDateRange = null;
         }
 
         this.updateMarkerList();
