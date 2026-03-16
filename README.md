@@ -4,14 +4,14 @@
   <img src="static/favicon.png" alt="RoadbookMaker Logo" width="300" height="300">
 </p>
 
+RoadbookMaker是一个功能强大的基于网页的地图标记和路线规划工具，允许用户在地图上轻松编辑行程，并导出分享您的行程规划。
+
 ## 🌐 在线体验
 
 - [https://map.chenxuanweb.top](https://map.chenxuanweb.top)
   *(纯静态版本，不支持在线登录保存)*
 - [GitHub Pages 镜像](https://chenxuan520.github.io/roadbook/) (由 GitHub Actions 自动部署)
   *(连接演示后端 `roadmap.011203.xyz`，支持所有功能（含 AI 助手）及在线登录保存。默认演示账号：`admin`，密码：`password`。注：演示环境数据仅保留 24 小时)*
-
-RoadbookMaker是一个功能强大的基于网页的地图标记和路线规划工具，允许用户在地图上轻松编辑行程，并导出分享您的行程规划。
 
 ## 🌟 核心优势
 

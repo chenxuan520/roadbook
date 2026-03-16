@@ -157,6 +157,7 @@ Gin 内置了一个“允许来源列表 + 可选 null origin”逻辑：
 
 - **Git 写操作**：除非用户明确要求，否则严禁自动执行 `git add` / `git commit` / `git push` 等。
 - **Plan Mode 限制**：严禁使用 `ExitPlanMode` 工具；按用户指令直接执行。
+- **重置/回滚限制（重要）**：任何 `reset` / `checkout` / `restore` / “还原文件”等操作，只允许回滚 **我本次会话里明确修改过的文件**；涉及到非我修改的文件，除非用户明确点名要求，否则一律禁止重置。
 
 ### AI 错误信息规范（必须遵守）
 
@@ -165,6 +166,10 @@ Gin 内置了一个“允许来源列表 + 可选 null origin”逻辑：
 - 示例：`更新日期备注失败: 参数缺失（date="2025-01-01", note=undefined）` / `Action Failed: update_date_note - date not in itinerary. date=2025-01-01, notePreview=...`
 
 ## 9. 变更与测试规则（前端优先）
+
+### 配置文件保护（重要）
+
+- 除非用户明确要求，否则禁止修改 `backend/configs/config.json`（该文件常被用作本地测试配置，误改会影响开发者环境）。
 
 ### 前端变更必须同步更新 E2E（强制）
 
