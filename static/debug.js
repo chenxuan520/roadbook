@@ -40,6 +40,29 @@
         }
     }
 
+    function guessPlatformFromUserAgent(ua) {
+        const s = String(ua || '').toLowerCase();
+        if (!s) return '';
+        if (s.includes('windows')) return 'Windows';
+        if (s.includes('mac os') || s.includes('macintosh')) return 'macOS';
+        if (s.includes('iphone') || s.includes('ipad') || s.includes('ipod')) return 'iOS';
+        if (s.includes('android')) return 'Android';
+        if (s.includes('linux')) return 'Linux';
+        return '';
+    }
+
+    function getPlatformLabel() {
+        try {
+            // UA Client Hints (preferred; avoids deprecated navigator.platform)
+            const uaData = navigator.userAgentData;
+            const p = uaData && uaData.platform;
+            if (p) return String(p);
+        } catch {
+            // ignore
+        }
+        return guessPlatformFromUserAgent(navigator.userAgent);
+    }
+
     function calcLocalStorageStats() {
         let totalChars = 0;
         const perKey = {};
@@ -172,30 +195,36 @@
                 if (typeof onDone === 'function') onDone(ok);
             };
 
+            const content = String(text || '');
+
+            // Modern clipboard API (requires secure context in most browsers)
             try {
-                if (navigator.clipboard && navigator.clipboard.writeText) {
-                    navigator.clipboard.writeText(text).then(() => done(true)).catch(() => done(false));
+                if (window.isSecureContext && navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(content).then(() => done(true)).catch(() => {
+                        this.promptManualCopy(content);
+                        done(false);
+                    });
                     return;
                 }
             } catch {
                 // ignore
             }
 
-            // fallback: textarea
+            // Non-secure context fallback (file:// or http://): no reliable modern auto-copy.
+            // Use a system prompt to let the user manually copy.
+            this.promptManualCopy(content);
+            done(false);
+        }
+
+        promptManualCopy(text) {
             try {
-                const ta = document.createElement('textarea');
-                ta.value = text;
-                ta.setAttribute('readonly', '');
-                ta.style.position = 'fixed';
-                ta.style.top = '-1000px';
-                ta.style.left = '-1000px';
-                document.body.appendChild(ta);
-                ta.select();
-                const ok = document.execCommand('copy');
-                document.body.removeChild(ta);
-                done(!!ok);
+                const platform = getPlatformLabel();
+                const isMac = /mac|ios/i.test(String(platform || ''));
+                const shortcut = isMac ? '⌘+C' : 'Ctrl+C';
+                // Using prompt keeps UI minimal and does not change existing icons/buttons.
+                window.prompt(`无法自动复制，请手动复制（${shortcut}）`, String(text || ''));
             } catch {
-                done(false);
+                // ignore
             }
         }
 
@@ -229,7 +258,7 @@
                 userAgent: String(navigator.userAgent || ''),
                 language: String(navigator.language || ''),
                 languages: Array.isArray(navigator.languages) ? navigator.languages : [],
-                platform: String(navigator.platform || ''),
+                platform: getPlatformLabel(),
                 onLine: typeof navigator.onLine === 'boolean' ? navigator.onLine : null,
                 cookieEnabled: typeof navigator.cookieEnabled === 'boolean' ? navigator.cookieEnabled : null,
                 screen: {

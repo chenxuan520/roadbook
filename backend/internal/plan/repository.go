@@ -3,7 +3,6 @@ package plan
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -64,7 +63,7 @@ func (r *fileRepository) Save(plan *Plan) error {
 		return fmt.Errorf("序列化计划失败: %w", err)
 	}
 
-	err = ioutil.WriteFile(filePath, data, 0644)
+	err = os.WriteFile(filePath, data, 0644)
 	if err != nil {
 		return fmt.Errorf("写入计划文件失败: %w", err)
 	}
@@ -81,7 +80,7 @@ func (r *fileRepository) FindByID(id string) (*Plan, error) {
 	defer r.mu.RUnlock()
 
 	filePath := filepath.Join(dataDir, id+fileExt)
-	data, err := ioutil.ReadFile(filePath)
+	data, err := os.ReadFile(filePath)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil, fmt.Errorf("计划 %s 未找到", id)
@@ -102,31 +101,31 @@ func (r *fileRepository) FindAll() ([]PlanSummary, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	files, err := ioutil.ReadDir(dataDir)
+	entries, err := os.ReadDir(dataDir)
 	if err != nil {
 		return nil, fmt.Errorf("读取数据目录失败: %w", err)
 	}
 
 	var summaries []PlanSummary
-	for _, file := range files {
-		if file.IsDir() || filepath.Ext(file.Name()) != fileExt {
+	for _, entry := range entries {
+		if entry.IsDir() || filepath.Ext(entry.Name()) != fileExt {
 			continue
 		}
 
 		// id := file.Name()[:len(file.Name())-len(fileExt)] // 变量id在此处未使用，已注释或删除
-		filePath := filepath.Join(dataDir, file.Name())
+		filePath := filepath.Join(dataDir, entry.Name())
 
-		data, err := ioutil.ReadFile(filePath)
+		data, err := os.ReadFile(filePath)
 		if err != nil {
 			// 如果单个文件读取失败，记录错误并跳过，不影响其他计划
-			log.Printf("警告: 读取计划文件 %s 失败: %v\n", file.Name(), err)
+			log.Printf("警告: 读取计划文件 %s 失败: %v\n", entry.Name(), err)
 			continue
 		}
 
 		var plan Plan
 		err = json.Unmarshal(data, &plan)
 		if err != nil {
-			log.Printf("警告: 反序列化计划文件 %s 失败: %v\n", file.Name(), err)
+			log.Printf("警告: 反序列化计划文件 %s 失败: %v\n", entry.Name(), err)
 			continue
 		}
 

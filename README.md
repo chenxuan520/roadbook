@@ -121,7 +121,7 @@ cd roadbook
    a. **生成配置文件**
       在项目根目录运行配置生成脚本：
       ```bash
-      ./script./scripts/generate_config.sh
+      ./scripts/generate_config.sh
       ```
       脚本会提示您输入端口、管理员账户密码、允许的跨域来源等信息。它会自动生成一个 `backend/configs/config.json` 文件。
 
