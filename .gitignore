@@ -1,3 +1,4 @@
+# temp file
 backend/roadbook-api
 run.sh
 *.out
@@ -10,5 +11,12 @@ cloudflare/node_modules/
 cloudflare/wrangler.log
 .wrangler/
 cloudflare/.wrangler/
+
+# stupid mac
 .DS_Store
+
+# ai
 GEMINI.md
+.coco
+.gemini
+.claude
