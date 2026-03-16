@@ -69,6 +69,7 @@ class RoadbookApp {
         this.filteredDate = null; // 当前筛选的日期
         this.history = []; // 操作历史栈
         this.historyLimit = 50; // 历史记录最大数量
+        this.pendingConnectionRestores = []; // 撤销删除标记点时，延迟恢复的连接线（等待两端点都被恢复）
         this.dateNotes = {}; // 日期备注信息
         this.hoverTimeout = null; // 聚焦按钮的悬浮计时器
         this.lastDateRange = null; // 上次使用的日期范围
@@ -355,12 +356,36 @@ class RoadbookApp {
         }
     }
 
+    flushPendingConnectionRestores() {
+        if (!Array.isArray(this.pendingConnectionRestores) || this.pendingConnectionRestores.length === 0) return;
+
+        const remaining = [];
+        this.pendingConnectionRestores.forEach((connData) => {
+            if (!connData || typeof connData !== 'object') return;
+
+            // 已经存在则无需再恢复
+            if (this.connections && this.connections.some(c => c && c.id === connData.id)) return;
+
+            const startMarker = this.markers.find(m => m.id === connData.startId);
+            const endMarker = this.markers.find(m => m.id === connData.endId);
+            if (!startMarker || !endMarker) {
+                remaining.push(connData);
+                return;
+            }
+
+            // 复用现有撤销删除连接线逻辑
+            this.undoRemoveConnection(connData);
+        });
+
+        this.pendingConnectionRestores = remaining;
+    }
+
     undoAddMarker(data) {
         // 查找要撤销的标记点
         const markerIndex = this.markers.findIndex(m => m.id === data.id);
         if (markerIndex !== -1) {
             const marker = this.markers[markerIndex];
-            this.removeMarker(marker);
+            this.removeMarker(marker, { skipHistory: true });
             console.log(`已撤销添加标记点: ${data.title}`);
             return true;
         }
@@ -443,6 +468,28 @@ class RoadbookApp {
             this.saveToLocalStorage();
         });
 
+        // 如果删除标记点时同步删除了相关连接线，这里尝试一并恢复
+        if (data && Array.isArray(data.removedConnections) && data.removedConnections.length > 0) {
+            data.removedConnections.forEach((connData) => {
+                if (!connData || typeof connData !== 'object') return;
+
+                // 已经存在则跳过
+                if (this.connections && this.connections.some(c => c && c.id === connData.id)) return;
+
+                const startMarker = this.markers.find(m => m.id === connData.startId);
+                const endMarker = this.markers.find(m => m.id === connData.endId);
+                if (startMarker && endMarker) {
+                    this.undoRemoveConnection(connData);
+                } else {
+                    // 如果两端点还没被恢复，先放入待恢复队列，等后续撤销其它点时再尝试
+                    this.pendingConnectionRestores.push(connData);
+                }
+            });
+        }
+
+        // 顺带尝试恢复之前因端点缺失而延迟的连接线
+        this.flushPendingConnectionRestores();
+
         console.log(`已撤销删除标记点: ${data.title}`);
         return true;
     }
@@ -452,7 +499,7 @@ class RoadbookApp {
         const connectionIndex = this.connections.findIndex(c => c.id === data.id);
         if (connectionIndex !== -1) {
             const connection = this.connections[connectionIndex];
-            this.removeConnection(connection);
+            this.removeConnection(connection, { skipHistory: true });
             console.log('已撤销添加连接线');
             return true;
         }
@@ -6509,21 +6556,24 @@ class RoadbookApp {
         }
     }
 
-    removeConnection(connection) {
+    removeConnection(connection, options = {}) {
         if (!connection) return;
 
-        // 记录删除连接操作到历史栈
-        this.addHistory('removeConnection', {
-            id: connection.id,
-            startId: connection.startId,
-            endId: connection.endId,
-            transportType: connection.transportType,
-            dateTime: connection.dateTime,
-            label: connection.label,
-            duration: connection.duration,
-            startTitle: connection.startTitle,
-            endTitle: connection.endTitle
-        });
+        if (!options.skipHistory) {
+            // 记录删除连接操作到历史栈
+            this.addHistory('removeConnection', {
+                id: connection.id,
+                startId: connection.startId,
+                endId: connection.endId,
+                transportType: connection.transportType,
+                dateTime: connection.dateTime,
+                label: connection.label,
+                logo: connection.logo || null,
+                duration: connection.duration,
+                startTitle: connection.startTitle,
+                endTitle: connection.endTitle
+            });
+        }
 
         // 从地图上移除
         connection.polyline.remove();
@@ -6544,18 +6594,38 @@ class RoadbookApp {
         this.saveToLocalStorage();
     }
 
-    removeMarker(markerData) {
-        // 记录删除操作到历史栈
-        this.addHistory('removeMarker', {
-            id: markerData.id,
-            position: [...markerData.position],
-            title: markerData.title,
-            labels: [...markerData.labels], // 复制数组
-            icon: {...markerData.icon}, // 复制对象
-            createdAt: markerData.createdAt,
-            dateTimes: [...markerData.dateTimes],
-            dateTime: markerData.dateTime
-        });
+    removeMarker(markerData, options = {}) {
+        // 先收集将被删除的相关连接线数据（用于撤销时恢复）
+        const removedConnections = (this.connections || [])
+            .filter(conn => conn && (conn.startId === markerData.id || conn.endId === markerData.id))
+            .map(conn => ({
+                id: conn.id,
+                startId: conn.startId,
+                endId: conn.endId,
+                transportType: conn.transportType,
+                dateTime: conn.dateTime,
+                label: conn.label,
+                logo: conn.logo || null,
+                duration: conn.duration,
+                startTitle: conn.startTitle,
+                endTitle: conn.endTitle
+            }));
+
+        if (!options.skipHistory) {
+            // 记录删除操作到历史栈
+            this.addHistory('removeMarker', {
+                id: markerData.id,
+                position: [...markerData.position],
+                title: markerData.title,
+                labels: [...markerData.labels], // 复制数组
+                logo: markerData.logo || null,
+                icon: { ...markerData.icon }, // 复制对象
+                createdAt: markerData.createdAt,
+                dateTimes: [...markerData.dateTimes],
+                dateTime: markerData.dateTime,
+                removedConnections
+            });
+        }
 
         // 删除标记点
         markerData.marker.remove();

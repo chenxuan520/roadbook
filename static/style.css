@@ -3512,6 +3512,51 @@ body.dark-mode .ai-command-item .cmd-desc {
     box-shadow: 0 10px 30px rgba(0,0,0,0.3);
 }
 
+.debug-actions {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin: 0 0 18px 0;
+}
+
+.debug-filter-input {
+    flex: 1;
+    min-width: 160px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color, rgba(0,0,0,0.18));
+    background: var(--bg-primary, rgba(255,255,255,0.06));
+    color: var(--text-primary, #333);
+    outline: none;
+}
+
+.debug-filter-input:focus {
+    border-color: rgba(102, 126, 234, 0.7);
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.18);
+}
+
+.debug-action-btn {
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: 1px solid rgba(102, 126, 234, 0.6);
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.25), rgba(74, 144, 226, 0.18));
+    color: var(--text-primary, #333);
+    cursor: pointer;
+    user-select: none;
+    transition: transform 0.15s ease, background 0.2s ease;
+    font-family: inherit;
+}
+
+.debug-action-btn:hover {
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.32), rgba(74, 144, 226, 0.24));
+    transform: translateY(-1px);
+}
+
+.debug-action-btn-secondary {
+    border-color: var(--border-color, rgba(0,0,0,0.18));
+    background: var(--bg-primary, rgba(255,255,255,0.06));
+}
+
 .debug-modal-close {
     position: absolute;
     top: 10px;
@@ -3581,15 +3626,13 @@ body.dark-mode .ai-command-item .cmd-desc {
 }
 
 .debug-group-content {
-    max-height: 0;
-    overflow: hidden;
-    transition: max-height 0.3s ease, padding 0.3s ease;
+    display: none;
     background-color: var(--bg-tertiary, rgba(0,0,0,0.1));
     padding: 0 16px;
 }
 
 .debug-group-content.expanded {
-    max-height: 1000px !important;
+    display: block;
     overflow-y: auto !important;
     padding: 12px 16px !important;
 }
@@ -3652,9 +3695,9 @@ body.dark-mode .ai-command-item .cmd-desc {
 }
 
 .debug-sub-group-content {
-    max-height: 0;
-    overflow: hidden;
-    transition: max-height 0.3s ease, padding 0.3s ease;
+    display: none;
+    overflow: auto;
+    transition: none;
     padding: 0 !important;
     font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
     font-size: 13px;
@@ -3665,8 +3708,7 @@ body.dark-mode .ai-command-item .cmd-desc {
 }
 
 .debug-sub-group-content.expanded {
-    max-height: 5000px !important;
-    overflow: auto !important;
+    display: block;
     padding: 10px 0 0 0 !important;
 }
 

@@ -23,7 +23,8 @@ function looksLikeMapTile(url) {
   return false;
 }
 
-export async function prepareApp(page) {
+export async function prepareApp(page, options = {}) {
+  const entryPath = options.entryPath || '/static/index.html';
   // 0) 避免 geolocation 弹窗/超时影响测试
   await page.addInitScript(() => {
     try {
@@ -108,7 +109,7 @@ export async function prepareApp(page) {
   });
 
   // 3) 打开页面并等待初始化完成
-  const resp = await page.goto('/static/index.html', { waitUntil: 'load' });
+  const resp = await page.goto(entryPath, { waitUntil: 'load' });
   if (!resp || !resp.ok()) {
     const status = resp ? resp.status() : 'no-response';
     throw new Error(`Failed to load app page, status=${status}`);

@@ -140,41 +140,48 @@ Gin 内置了一个“允许来源列表 + 可选 null origin”逻辑：
 - 后端计划文件目录是相对路径 `data/`（见 `backend/internal/plan/repository.go:17`）。
 - Docker 镜像会创建 `/app/data` 并将后端工作目录设置为 `/app`（见 `Dockerfile:35`、`docker-entrypoint.sh:7`），保证相对路径落在容器内可写目录。
 
-## 附：Cloudflare Worker 后端 (Alternative Backend)
+## 7. 双后端（Go / Cloudflare Worker）对齐规则
 
-`cloudflare/` 目录包含一个完整的 Cloudflare Worker 实现，可作为 Go 后端的 **Serverless 替代方案**。
+`cloudflare/` 目录包含一个完整的 Cloudflare Worker 实现，可作为 Go 后端（`backend/`）的 **Serverless 替代方案**。
 
-- **功能**：实现了 Go 后端的全部核心功能（JWT 认证、计划 CRUD、搜索代理、KV 数据存储），支持 Cloudflare Workers AI。
-- **部署**：详情见 `cloudflare/README.md`。
-- **配置**：
-  - 前端通过双击标题配置 BaseURL 即可无缝切换到 Worker 后端。
-  - 在 Cloudflare Dashboard 绑定 AI 模块（Binding 名称：`AI`），并设置环境变量 `USE_CF_AI=true` 即可启用免费的内置大模型（默认：@cf/zai-org/glm-4.7-flash）。
-- **维护规则（重要）**：
-  - Cloudflare Worker 代码（`cloudflare/worker.js`）必须与 Go 后端（`backend/`）保持严格的功能对齐。
-  - **任何对 Go 后端 API 接口的修改（包括路径、请求参数、返回 JSON 结构、字段命名风格、错误码），都必须同步修改 `cloudflare/worker.js`。**
-  - Worker 的数据存储（KV）应尽量保持与 Go 后端文件存储的 JSON 结构兼容（CamelCase 字段名），以便于未来可能的数据迁移。
-  - 特别注意：Go 后端的 `TrafficPos` 接口对机场和火车站的经纬度顺序处理逻辑不同（IATA Map: lat,lon; Station Map: lon,lat），Worker 已对其进行了对齐，修改时需保持一致。
+- **功能范围**：覆盖 Go 后端核心能力（JWT 认证、计划 CRUD、搜索代理、KV 数据存储），并支持 Cloudflare Workers AI。
+- **部署与使用**：详情见 `cloudflare/README.md`。
+- **切换方式**：前端通过双击标题配置 BaseURL，可切换到 Worker 后端。
+- **对齐要求（重要）**：
+  - `cloudflare/worker.js` 必须与 `backend/` 保持严格的功能对齐。
+  - **任何对 Go 后端 API 的修改（路径、请求参数、返回 JSON 结构、字段命名、错误码），都必须同步修改 `cloudflare/worker.js`。**
+  - KV 存储的 JSON 结构尽量与 Go 后端文件存储兼容（CamelCase 字段名），方便潜在迁移。
+  - `TrafficPos` 经纬度顺序（机场：lat,lon；火车站：lon,lat）已对齐；修改时必须保持一致。
 
-## 7. Agent 行为准则 (CRITICAL)
+## 8. Agent/协作行为准则（CRITICAL）
 
-- **Git 操作**：严禁自动执行 `git add`, `git commit` 等 Git 写操作，除非用户明确指令。
-- **Plan Mode**：严禁使用 `ExitPlanMode` 工具，直接执行操作。
+- **Git 写操作**：除非用户明确要求，否则严禁自动执行 `git add` / `git commit` / `git push` 等。
+- **Plan Mode 限制**：严禁使用 `ExitPlanMode` 工具；按用户指令直接执行。
 
 ### AI 错误信息规范（必须遵守）
 
-- 给 AI 的失败信息必须包含**可定位的上下文**，避免只返回“为空/失败”这种不可操作的描述。
-- 至少包含：`action` 名称 + 关键参数（例如 `date`）+ 关键内容的**截断预览**（例如 `notePreview`）+（如适用）失败分支原因（如“日期不在行程中/ID 无效/参数缺失”）。
-- 示例：`更新日期备注失败: 参数缺失（date=\"2025-01-01\", note=undefined）` / `Action Failed: update_date_note - date not in itinerary. date=2025-01-01, notePreview=...`
+- 给 AI 的失败信息必须包含**可定位上下文**，避免只返回“为空/失败”等不可操作描述。
+- 至少包含：`action` 名称 + 关键参数（例如 `date`）+ 关键内容**截断预览**（例如 `notePreview`）+（如适用）失败分支原因（如“日期不在行程中/ID 无效/参数缺失”）。
+- 示例：`更新日期备注失败: 参数缺失（date="2025-01-01", note=undefined）` / `Action Failed: update_date_note - date not in itinerary. date=2025-01-01, notePreview=...`
 
-## 8. 调试模式 (Debug Mode)
+## 9. 变更与测试规则（前端优先）
 
-项目内置了一个调试模式，方便开发者查看应用的内部状态。
+### 前端变更必须同步更新 E2E（强制）
 
-- **激活方式**：在访问前端页面时，在 URL 中添加查询参数 `?debug=true`。例如：`http://localhost:5215/?debug=true`。
-- **功能**：激活后，在地图右下角的控件区（帮助按钮 `❓` 旁边）会出现一个瓢虫图标的“调试”按钮 `🐞`。点击该按钮即可打开调试信息窗口。
-- **调试信息**：该窗口以可交互的折叠形式，展示了当前应用几乎所有的内部状态，包括：
-  - `localStorage` 中的数据（路书、配置等）
-  - AI 助手的消息历史
-  - 地图上所有标记点（Markers）、连接线（Polylines）和日期备注（Date Notes）的详细数据结构。
+- **任何前端行为变更**（按钮/弹窗/交互流程/快捷键/删除-撤销语义/DOM id 或 class/文案影响选择器等）必须同步：
+  - 新增或更新 Playwright E2E 用例（`test/tests/*.spec.mjs`），并确保选择器稳定（优先使用 id）。
+  - 若变更影响调试模式、导入导出、在线模式等关键路径，必须补充对应覆盖用例。
 
-该模式对于排查数据问题、理解 AI 上下文以及开发新功能非常有帮助。
+### 运行测试的约束（避免全量耗时）
+
+- 默认只运行**新增/修改的那几个用例文件**，不要一次性跑全量（除非用户明确要求）。
+- 推荐命令：`cd test && npm run test:local -- tests/<your-new>.spec.mjs`
+- 修改前端 JS 后必须做语法检查：`node -c static/script.js`（其它前端文件同理）。
+
+## 10. 调试模式 (Debug Mode)
+
+项目内置调试模式，方便查看应用内部状态并导出现场信息。
+
+- **激活方式**：URL 添加查询参数 `?debug=true`（例如：`http://localhost:5215/?debug=true`）。
+- **入口**：地图右下角控件区（帮助按钮 `❓` 旁边）出现 `🐞` 按钮。
+- **内容**：调试窗口支持折叠查看与复制/导出，覆盖 `localStorage`、应用状态（Markers/Connections/Date Notes 等）以及运行态信息。
