@@ -24,6 +24,18 @@ jobs:
       - name: Zip static files
         run: zip -r static-${{ env.TAG }}.zip static/
 
+      - name: Generate release notes (from remote script)
+        id: release_notes
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL "https://raw.githubusercontent.com/chenxuan520/gh-action-shell/main/git_commit_message_from_last_tag.sh" | bash 1>commit-message.log 2>/dev/null
+          {
+            echo "body<<'EOF'"
+            cat commit-message.log
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Create Release
         id: create_release
         uses: actions/create-release@v1
@@ -32,6 +44,7 @@ jobs:
         with:
           tag_name: ${{ env.TAG }}
           release_name: Release ${{ env.TAG }}
+          body: ${{ steps.release_notes.outputs.body }}
           draft: false
           prerelease: false
 
