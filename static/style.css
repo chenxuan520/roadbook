@@ -747,6 +747,10 @@ body.dark-mode .btn:not(.btn-primary):not(.btn-danger):not(.btn-secondary):not(#
     gap: 8px;
     z-index: 1001;
     backdrop-filter: blur(5px);
+    position: absolute;
+    right: 60px;
+    top: 0;
+    white-space: nowrap;
 }
 
 .date-range-picker input[type="date"] {
@@ -1998,6 +2002,7 @@ input[type="color"] {
     padding: 10px;
     border: 1px solid var(--border-color);
     border-radius: 4px;
+}
     font-size: 14px;
     margin-top: 5px;
     box-sizing: border-box;
