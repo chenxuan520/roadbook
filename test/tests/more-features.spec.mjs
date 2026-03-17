@@ -338,7 +338,7 @@ test('日期范围筛选：应用后会保存 lastDateRange 到 localStorage', a
 
   await page.fill('#startDate', '2026-01-01');
   await page.fill('#endDate', '2026-01-05');
-  await page.click('#applyDateRangeFilter');
+  await page.click('#fitViewBtn');
 
   const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('roadbookData') || '{}').lastDateRange);
   expect(saved).toMatchObject({ start: '2026-01-01', end: '2026-01-05' });

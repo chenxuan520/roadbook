@@ -1753,10 +1753,24 @@ class RoadbookApp {
         if (fitViewBtn) {
             fitViewBtn.addEventListener('click', () => {
                 const picker = document.getElementById('dateRangePicker');
-                if (picker && picker.style.display === 'flex') {
-                    return; // 如果选择器可见，则不执行默认聚焦，防止冲突
+                // 如果日期选择器可见，则优先处理日期范围
+                if (picker && picker.style.display !== 'none') {
+                    const startDate = document.getElementById('startDate').value;
+                    const endDate = document.getElementById('endDate').value;
+
+                    if (startDate && endDate) {
+                        // 保存用户选择的日期范围，以便下次悬停时恢复
+                        this.lastDateRange = { start: startDate, end: endDate };
+                        this.fitViewByDateRange(startDate, endDate);
+                        picker.style.display = 'none'; // 操作后隐藏
+                    } else {
+                        // 如果日期不完整，提示用户
+                        this.showSwalAlert('提示', '请选择完整的起始和结束日期以进行聚焦。', 'info');
+                    }
+                } else {
+                    // 否则，执行默认的全局聚焦
+                    this.handleFitViewClick();
                 }
-                this.handleFitViewClick();
             });
 
             // 添加悬浮事件
@@ -1942,20 +1956,7 @@ class RoadbookApp {
         }
 
 
-        // 日期范围选择器应用按钮
-        const applyDateRangeFilterBtn = document.getElementById('applyDateRangeFilter');
-        if (applyDateRangeFilterBtn) {
-            applyDateRangeFilterBtn.addEventListener('click', () => {
-                const startDate = document.getElementById('startDate').value;
-                const endDate = document.getElementById('endDate').value;
-                if (startDate && endDate) {
-                    this.fitViewByDateRange(startDate, endDate);
-                    document.getElementById('dateRangePicker').style.display = 'none';
-                } else {
-                    this.showSwalAlert('提示', '请选择起始和结束日期。', 'warning');
-                }
-            });
-        }
+        // (The 'applyDateRangeFilterBtn' listener has been removed as it is now redundant)
 
         // 点击页面其他地方隐藏日期选择器
         document.addEventListener('click', (e) => {
