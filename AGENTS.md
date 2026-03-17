@@ -12,6 +12,7 @@ RoadbookMaker 是一个基于网页的地图标记与行程规划工具：
   - `static/script.js`：核心地图逻辑、交互与状态管理。
   - `static/online_mode.js`：在线模式 API 交互。
   - `static/ai_assistant.js`：AI 助手功能，实现自然语言驱动的地图操作。
+  - `static/debug.js`：调试模块，提供应用状态快照、日志捕获与环境信息查看（见第 10 节）。
   - `static/html_export.js`：负责生成包含完整数据与交互逻辑的独立 HTML/TXT 导出文件。
 - **后端**：`backend/` 下的 Go + Gin API 服务（入口 `backend/cmd/roadbook-api/main.go`），提供：
   - 在线模式（登录/JWT、计划 CRUD、分享读取）
@@ -34,6 +35,7 @@ RoadbookMaker 是一个基于网页的地图标记与行程规划工具：
 ### 后端
 
 - 生成后端配置（交互式）：`./scripts/generate_config.sh`（写入 `backend/configs/config.json`，见 `scripts/generate_config.sh:23`）
+- 管理 Agent 软链接：`./scripts/link_agents.sh`（用于同步 `.agent` 配置到 `.coco/.gemini` 等目录，见 `scripts/link_agents.sh`）
 - 编译后端：`./backend/scripts/build.sh`（产物：`backend/roadbook-api`，见 `backend/scripts/build.sh:34`）
 - 启动后端：在 `backend/` 目录执行 `./roadbook-api`（README 与 `backend/cmd/roadbook-api/main.go:41`）
 
@@ -55,6 +57,7 @@ RoadbookMaker 是一个基于网页的地图标记与行程规划工具：
 ### 前端（`static/`）
 
 - 无框架：主要逻辑集中在 `static/script.js`（地图、标记点、连接线、费用记录 `dateNotes`、导入导出等）、`static/online_mode.js`（在线模式/云端保存/登录）与 `static/ai_assistant.js`（AI 助手）。
+- 调试逻辑独立于 `static/debug.js`，通过 `DebugModule` 类实现，仅在需要时被调用。
 - 在线 token 存储：`localStorage` 的 key 为 `online_token`（见 `static/online_mode.js:6`）。
 ### 维护规则
 
@@ -125,6 +128,13 @@ RoadbookMaker 是一个基于网页的地图标记与行程规划工具：
 - 默认读取路径：运行目录下的 `configs/config.json`（见 `backend/internal/config/config.go:26`）。
 - 生成位置：项目根目录脚本写入 `backend/configs/config.json`（见 `scripts/generate_config.sh:23`、`scripts/generate_config.sh:114`）。
 - 字段：`port`、`allowed_origins`、`allow_null_origin_for_dev`、`jwtSecret`、`users`、`search`、`ai`（见 `backend/internal/config/config.go:15`-`backend/internal/config/config.go:23`）。
+- **AI 配置** (`ai` 字段)：
+  - `enabled`: 是否启用 AI 助手。
+  - `base_url`: AI 服务提供商的 Base URL（兼容 OpenAI 格式）。
+  - `key`: API Key。
+  - `model`: 模型名称。
+- **搜索配置** (`search` 字段)：
+  - `providers`: 目前支持 `gaode`（高德地图），需配置 `key`。
 
 ### CORS
 
@@ -185,8 +195,13 @@ Gin 内置了一个“允许来源列表 + 可选 null origin”逻辑：
 
 ## 10. 调试模式 (Debug Mode)
 
-项目内置调试模式，方便查看应用内部状态并导出现场信息。
+项目内置调试模式，由 `static/debug.js` 实现，方便查看应用内部状态并导出现场信息。
 
 - **激活方式**：URL 添加查询参数 `?debug=true`（例如：`http://localhost:5215/?debug=true`）。
 - **入口**：地图右下角控件区（帮助按钮 `❓` 旁边）出现 `🐞` 按钮。
-- **内容**：调试窗口支持折叠查看与复制/导出，覆盖 `localStorage`、应用状态（Markers/Connections/Date Notes 等）以及运行态信息。
+- **核心功能** (`DebugModule`)：
+  - **环境嗅探**：收集 UA、屏幕尺寸、时区、网络状态等。
+  - **状态快照**：完整抓取 `app.markers`、`app.connections`、`localStorage` 等数据。
+  - **日志捕获**：Hook `console` 与 `window.onerror`，记录最近 200 条日志与 50 条错误（仅在 debug 模式下生效）。
+  - **存储分析**：统计 `localStorage` 各 key 占用大小，帮助排查配额问题。
+- **交互**：调试窗口支持关键词过滤、JSON 导出下载、一键复制全部信息。

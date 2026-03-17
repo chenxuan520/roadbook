@@ -376,7 +376,7 @@ roadbook/
 ### 后端开发
 - 后端代码使用Go语言编写
 - 主要API端点：
-  - `/api/cnmap/search` - 百度地图搜索
+  - `/api/cnmap/search` - ~~百度地图搜索~~ 已弃用
   - `/api/tianmap/search` - 天地图搜索
   - `/api/v1/share/plans/:id` - 分享路书
 
@@ -499,7 +499,7 @@ roadbook/
 
 - [Leaflet](https://leafletjs.com/) - 优秀的开源地图库
 - [OpenStreetMap](https://www.openstreetmap.org/) - 免费可编辑的世界地图
-- 百度地图、高德地图、Google地图等地图服务提供方
+- 高德地图、Google地图等地图服务提供方
 - 所有贡献者和用户
 
 ## 📞 支持与反馈
