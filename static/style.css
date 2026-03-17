@@ -1815,9 +1815,9 @@ input[type="color"] {
     backdrop-filter: blur(10px);
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: center;
     width: auto; /* 自动宽度以适应内容 */
-    min-width: 100px; /* 减少最小宽度 */
+    min-width: auto; /* 移除最小宽度 */
     text-align: center;
 }
 
