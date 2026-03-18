@@ -45,6 +45,145 @@ class RoadbookHtmlExporter {
         URL.revokeObjectURL(url);
     }
 
+    exportToIcs() {
+        if (this.app.markers.length === 0) {
+            // 这里假设 Swal 是全局可用的，或者通过 this.app 访问（如果 app 有封装的话）
+            // script.js 中 Swal 是全局的
+            if (typeof Swal !== 'undefined') {
+                Swal.fire('提示', '当前没有可导出的标记点。', 'info');
+            } else {
+                alert('当前没有可导出的标记点。');
+            }
+            return;
+        }
+
+        let icsContent = [
+            'BEGIN:VCALENDAR',
+            'VERSION:2.0',
+            'PRODID:-//RoadbookMaker//EN',
+            'CALSCALE:GREGORIAN'
+        ];
+
+        // 格式化时间为 YYYYMMDDTHHMMSSZ
+        const formatDateForIcs = (dateStr) => {
+            if (!dateStr) return null;
+            try {
+                // 处理 "2024-05-01 10:00:00" 这种格式，将其视为本地时间
+                // 但 ICS 需要 UTC 时间或者本地时间。这里我们将其转换为 UTC 格式
+                const date = new Date(dateStr);
+                if (isNaN(date.getTime())) return null;
+
+                // 将本地时间转换为 UTC 字符串
+                const year = date.getUTCFullYear();
+                const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+                const day = String(date.getUTCDate()).padStart(2, '0');
+                const hours = String(date.getUTCHours()).padStart(2, '0');
+                const minutes = String(date.getUTCMinutes()).padStart(2, '0');
+                const seconds = String(date.getUTCSeconds()).padStart(2, '0');
+
+                return `${year}${month}${day}T${hours}${minutes}${seconds}Z`;
+            } catch (e) {
+                return null;
+            }
+        };
+
+        const getUid = () => {
+            return Date.now().toString(36) + Math.random().toString(36).substring(2) + '@roadbookmaker.com';
+        };
+
+        // 为每个标记点的每个时间生成一个事件
+        this.app.markers.forEach(marker => {
+            const times = marker.dateTimes && marker.dateTimes.length > 0 ? marker.dateTimes : [marker.dateTime];
+
+            times.forEach((timeStr) => {
+                const icsTime = formatDateForIcs(timeStr);
+                if (!icsTime) return; // 如果没有有效时间则跳过
+
+                // 结束时间默认设置为开始时间后1小时
+                const dateObj = new Date(timeStr);
+                dateObj.setHours(dateObj.getHours() + 1);
+                // 这里也需要格式化为 UTC
+                const icsEndTime = formatDateForIcs(dateObj.toISOString());
+
+                icsContent.push('BEGIN:VEVENT');
+                icsContent.push(`UID:${getUid()}`);
+                icsContent.push(`DTSTAMP:${formatDateForIcs(new Date().toISOString())}`);
+                icsContent.push(`DTSTART:${icsTime}`);
+                if (icsEndTime) {
+                    icsContent.push(`DTEND:${icsEndTime}`);
+                }
+
+                // 处理标题和描述，转义特殊字符
+                const summary = marker.title ? marker.title.replace(/[,;]/g, '\\$&').replace(/\n/g, '\\n') : '未命名地点';
+
+                // 组合备注信息
+                let description = '';
+                if (marker.labels && marker.labels.length > 0) {
+                    description += `标签: ${marker.labels.join(', ')}\\n`;
+                }
+
+                // 尝试获取当天的日期备注
+                const dateOnlyStr = timeStr.split(' ')[0]; // 获取 YYYY-MM-DD
+                if (this.app.dateNotes && this.app.dateNotes[dateOnlyStr]) {
+                    // dateNotes 可能是字符串或对象，这里做一下兼容
+                    const noteEntry = this.app.dateNotes[dateOnlyStr];
+                    let noteText = '';
+                    if (typeof noteEntry === 'string') {
+                        noteText = noteEntry;
+                    } else if (noteEntry && typeof noteEntry === 'object') {
+                        noteText = noteEntry.notes || '';
+                    }
+
+                    if (noteText) {
+                        description += `📅 今日备注: ${noteText.replace(/[,;]/g, '\\$&').replace(/\n/g, '\\n')}\\n`;
+                    }
+                }
+
+                // 交通方式连接信息（如果有从该点出发的连接）
+                const outgoingConnections = this.app.connections.filter(c => c.startId === marker.id);
+                if (outgoingConnections.length > 0) {
+                     description += `\\n🔜 下一站:`;
+                     outgoingConnections.forEach(conn => {
+                         const endMarker = this.app.markers.find(m => m.id === conn.endId);
+                         const endTitle = endMarker ? endMarker.title : '未知地点';
+                         description += `\\n- 前往 ${endTitle} (${this.getTransportTypeName(conn.transportType)}${conn.duration ? ', ' + conn.duration + 'h' : ''})`;
+                     });
+                     description += `\\n`;
+                }
+
+                // 处理经纬度
+                if (marker.position && marker.position.lat !== undefined && marker.position.lng !== undefined) {
+                    icsContent.push(`GEO:${marker.position.lat};${marker.position.lng}`);
+                    // 某些日历应用可能不显示GEO，所以在描述里也加一下
+                    // Google Maps link
+                    description += `\\n📍 导航: https://www.google.com/maps/search/?api=1&query=${marker.position.lat},${marker.position.lng}`;
+                } else if (marker.position && Array.isArray(marker.position)) { // 兼容数组格式 [lat, lng]
+                     icsContent.push(`GEO:${marker.position[0]};${marker.position[1]}`);
+                     description += `\\n📍 导航: https://www.google.com/maps/search/?api=1&query=${marker.position[0]},${marker.position[1]}`;
+                }
+
+                icsContent.push(`SUMMARY:${summary}`);
+                if (description) {
+                    icsContent.push(`DESCRIPTION:${description}`);
+                }
+                icsContent.push('END:VEVENT');
+            });
+        });
+
+        icsContent.push('END:VCALENDAR');
+
+        const icsString = icsContent.join('\r\n');
+        const blob = new Blob([icsString], { type: 'text/calendar;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `roadbook_${this.#getLocalDateString(new Date())}.ics`;
+        a.click();
+
+        URL.revokeObjectURL(url);
+    }
+
     generateTxtContent(data) {
         let content = "行程安排\n\n";
         const markersById = new Map(data.markers.map(m => [m.id, m]));

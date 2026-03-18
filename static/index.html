@@ -9,6 +9,8 @@
     <meta property="og:type" content="website" />
     <meta property="og:image" content="https://map.chenxuanweb.top/favicon.png" />
     <link rel="icon" type="image/png" href="favicon.png">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#667eea">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="style.css">
 </head>
@@ -54,6 +56,7 @@
                             <button id="exportBtn" class="dropdown-item">📄 导出 JSON</button>
                             <button id="exportHtmlBtn" class="dropdown-item">🌐 导出 HTML</button>
                             <button id="exportTxtBtn" class="dropdown-item">📝 导出 TXT</button>
+                            <button id="exportIcsBtn" class="dropdown-item">📅 导出 ICS</button>
                         </div>
                     </div>
                     <button id="importBtn" class="btn">📥 导入</button>
@@ -646,6 +649,7 @@
                     <li><strong>本地存储</strong>：自动保存到浏览器本地存储，刷新不丢失</li>
                     <li><strong>JSON导入/导出</strong>：支持完整数据的导入导出，便于备份</li>
                     <li><strong>HTML导出</strong>：生成独立HTML文件，包含完整地图和数据</li>
+                    <li><strong>ICS导出</strong>：生成标准日历文件，可导入日历应用进行提醒</li>
                     <li><strong>分享功能</strong>：生成分享链接，他人可导入您的路书</li>
                     <li><strong>在线模式</strong>：支持云端保存和管理路书计划（需要登录）</li>
                 </ul>
@@ -753,5 +757,20 @@
     <div id="logoPreview" class="logo-preview" style="display: none; position: fixed; z-index: 10000; pointer-events: none;">
         <img id="logoPreviewImg" class="logo-preview-img" alt="Logo预览" style="max-width: 100px; max-height: 100px; border-radius: 4px; border: 2px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.3);">
     </div>
+
+    <!-- PWA Service Worker 注册 -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js')
+                    .then(registration => {
+                        console.log('ServiceWorker registration successful with scope: ', registration.scope);
+                    })
+                    .catch(error => {
+                        console.log('ServiceWorker registration failed: ', error);
+                    });
+            });
+        }
+    </script>
 </body>
 </html>

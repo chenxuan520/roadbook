@@ -88,6 +88,23 @@ class RoadbookApp {
 
         this.searchProviderOriginalTexts = new Map();
 
+        // PWA 安装提示相关
+        this.deferredPrompt = null;
+
+        // 监听 PWA 安装事件
+        window.addEventListener('beforeinstallprompt', (e) => {
+            // 阻止 Chrome 67 及更早版本自动显示安装提示
+            e.preventDefault();
+            // 保存事件以便稍后触发
+            this.deferredPrompt = e;
+            console.log('PWA 安装提示已拦截，等待用户操作');
+        });
+
+        window.addEventListener('appinstalled', () => {
+            console.log('PWA 已安装');
+            this.deferredPrompt = null;
+        });
+
         this.init();
     }
 
@@ -1356,6 +1373,7 @@ class RoadbookApp {
         const exportBtn = document.getElementById('exportBtn');
         const exportHtmlBtn = document.getElementById('exportHtmlBtn');
         const exportTxtBtn = document.getElementById('exportTxtBtn');
+        const exportIcsBtn = document.getElementById('exportIcsBtn');
 
 
         // 下拉按钮点击事件 - 显示/隐藏下拉菜单
@@ -1436,6 +1454,17 @@ class RoadbookApp {
                         }
                     }
                 });
+            });
+        }
+
+        // 点击导出ICS按钮
+        if (exportIcsBtn) {
+            exportIcsBtn.addEventListener('click', () => {
+                this.exportToIcs();
+                // 隐藏下拉菜单
+                if (exportDropdownContent) {
+                    exportDropdownContent.classList.remove('show');
+                }
             });
         }
 
@@ -5789,6 +5818,15 @@ class RoadbookApp {
                 console.error('清除本地缓存失败:', error);
                 this.showSwalAlert('错误', '清除本地缓存失败！', 'error');
             }
+        }
+    }
+
+    exportToIcs() {
+        if (window.htmlExporter) {
+            window.htmlExporter.exportToIcs();
+        } else {
+            console.error('HTML Exporter not found');
+            Swal.fire('错误', '导出模块未加载，请刷新页面重试。', 'error');
         }
     }
 

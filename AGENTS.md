@@ -205,3 +205,20 @@ Gin 内置了一个“允许来源列表 + 可选 null origin”逻辑：
   - **日志捕获**：Hook `console` 与 `window.onerror`，记录最近 200 条日志与 50 条错误（仅在 debug 模式下生效）。
   - **存储分析**：统计 `localStorage` 各 key 占用大小，帮助排查配额问题。
 - **交互**：调试窗口支持关键词过滤、JSON 导出下载、一键复制全部信息。
+
+## 11. PWA 与离线能力
+
+RoadbookMaker 实现了 Progressive Web App (PWA) 支持，提供类原生应用体验与离线访问能力。
+
+### 核心文件
+
+- **`static/manifest.json`**：Web App Manifest，定义应用名称、图标、主题色及显示模式（Standalone）。
+- **`static/sw.js`**：Service Worker 脚本，实现 Stale-While-Revalidate 缓存策略。
+  - 预缓存列表 (`CACHE_NAME`)：`index.html`, `style.css`, `script.js` 及所有核心 JS 模块。
+  - 外部资源缓存：包括 Leaflet CSS/JS 及图标文件。
+  - 更新机制：Service Worker 更新时会自动清理旧缓存（`activate` 事件）。
+
+### 交互逻辑
+
+- **安装提示**：在 `static/script.js` 中监听 `beforeinstallprompt` 事件，拦截默认提示，为自定义安装引导预留接口（当前实现为拦截后保存事件，等待后续扩展 UI 触发）。
+- **更新检测**：每次页面加载时会自动注册/更新 Service Worker。
