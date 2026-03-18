@@ -41,6 +41,26 @@ class RoadbookAIAssistant {
             console.log('AI Assistant: Login success event received, re-initializing...');
             this.init();
         });
+
+        // 监听登出事件，隐藏 UI 并重置状态
+        window.addEventListener('roadbook:logout', () => {
+            console.log('AI Assistant: Logout event received, destroying UI...');
+            this.destroyUI();
+            this.enabled = false;
+        });
+    }
+
+    destroyUI() {
+        if (this.container && this.container.parentNode) {
+            this.container.parentNode.removeChild(this.container);
+        }
+        if (this.chatWindow && this.chatWindow.parentNode) {
+            this.chatWindow.parentNode.removeChild(this.chatWindow);
+        }
+        this.container = null;
+        this.chatWindow = null;
+        this.isOpen = false;
+        this.messages = [];
     }
 
     registerCommands() {
@@ -683,8 +703,9 @@ Description: ${prompt}`;
             // Use formatMessageContent to render markdown
             contentDiv.innerHTML = this.formatMessageContent(msg.content);
         } else {
-            // For user messages, just display plain text to avoid formatting user input
-            contentDiv.innerText = msg.content;
+            // For user messages, prefer display content if available
+            // This allows showing a short summary while sending full context to AI
+            contentDiv.innerText = msg.display || msg.content;
         }
 
         msgDiv.appendChild(contentDiv);
@@ -1308,6 +1329,72 @@ DEFAULT NOTE FORMAT: If the user does not specify note content, you MUST create 
             return s.slice(0, maxLen) + '...';
         };
 
+        const normalizeTransportType = (t) => {
+            if (t === null || t === undefined) return null;
+            return String(t).trim().toLowerCase();
+        };
+
+        const allowedTransportTypes = new Set(['car', 'walk', 'train', 'plane', 'subway', 'bus', 'cruise']);
+
+        const normalizeId = (raw) => {
+            if (raw === null || raw === undefined) return null;
+            if (typeof raw === 'number') {
+                if (!Number.isFinite(raw)) return null;
+                if (!Number.isSafeInteger(raw)) return null;
+                return raw;
+            }
+            if (typeof raw === 'string') {
+                const s = raw.trim();
+                if (!s) return null;
+                // Only allow pure integer strings
+                if (!/^-?\d+$/.test(s)) return null;
+                const n = Number(s);
+                if (!Number.isFinite(n)) return null;
+                if (!Number.isSafeInteger(n)) return null;
+                return n;
+            }
+            return null;
+        };
+
+        const normalizeTitle = (raw, maxLen = 120) => {
+            if (raw === null || raw === undefined) return null;
+            if (typeof raw !== 'string') return null;
+            const s = raw.replace(/\u200b/g, '').trim();
+            if (!s) return null;
+            if (s.length > maxLen) return null;
+            return s;
+        };
+
+        const normalizeLatLng = (raw, kind) => {
+            let n = raw;
+            if (typeof raw === 'string') n = parseFloat(raw.trim());
+            if (typeof n !== 'number' || !Number.isFinite(n)) return null;
+            if (kind === 'lat') {
+                if (n < -90 || n > 90) return null;
+            } else if (kind === 'lng') {
+                if (n < -180 || n > 180) return null;
+            }
+            return n;
+        };
+
+        const normalizeRoadbookDateTime = (dt) => {
+            if (typeof dt !== 'string') return null;
+            const s = dt.trim();
+            if (!s) return null;
+
+            const dateOnly = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+            if (dateOnly) {
+                return `${dateOnly[1]}-${dateOnly[2]}-${dateOnly[3]} 00:00:00`;
+            }
+
+            const dateTimeFull = s.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})$/);
+            if (dateTimeFull) {
+                return `${dateTimeFull[1]}-${dateTimeFull[2]}-${dateTimeFull[3]} ${dateTimeFull[4]}:${dateTimeFull[5]}:${dateTimeFull[6]}`;
+            }
+
+            return null;
+        };
+
         // Step 4: Parse and execute each JSON object
         for (const jsonStr of jsonObjects) {
             try {
@@ -1321,6 +1408,19 @@ DEFAULT NOTE FORMAT: If the user does not specify note content, you MUST create 
 
                 if (this.app) {
                     if (actionData.action === 'add_marker') {
+                        // Validate title
+                        const title = normalizeTitle(actionData.title);
+                        if (!title) {
+                            this.appendActionStatus(containerElement, `❌ 添加失败: 标题无效（title=${summarize(actionData.title)}）`);
+                            const systemMsg = {
+                                role: 'user',
+                                content: `Action Failed: add_marker - invalid title. title=${summarize(actionData.title)}`
+                            };
+                            this.messages.push(systemMsg);
+                            hasExecutedSyncAction = true;
+                            continue;
+                        }
+
                         // Validate required params
                         if (actionData.lat === undefined || actionData.lng === undefined) {
                             console.error('AI Add Marker: Missing coordinates', actionData);
@@ -1334,9 +1434,71 @@ DEFAULT NOTE FORMAT: If the user does not specify note content, you MUST create 
                             continue;
                         }
 
+                        const lat = normalizeLatLng(actionData.lat, 'lat');
+                        const lng = normalizeLatLng(actionData.lng, 'lng');
+                        if (lat === null || lng === null) {
+                            this.appendActionStatus(containerElement, `❌ 添加失败: 坐标无效（lat=${summarize(actionData.lat)}，lng=${summarize(actionData.lng)}）`);
+                            const systemMsg = {
+                                role: 'user',
+                                content: `Action Failed: add_marker - invalid coordinates. title=${summarize(actionData.title)}, lat=${summarize(actionData.lat)}, lng=${summarize(actionData.lng)}`
+                            };
+                            this.messages.push(systemMsg);
+                            hasExecutedSyncAction = true;
+                            continue;
+                        }
+
+                        // Validate optional id
+                        let markerId = null;
+                        if (Object.prototype.hasOwnProperty.call(actionData, 'id') && actionData.id !== null && actionData.id !== undefined) {
+                            const normalizedId = normalizeId(actionData.id);
+                            if (normalizedId === null) {
+                                this.appendActionStatus(containerElement, `❌ 添加失败: id 无效（id=${summarize(actionData.id)}）`);
+                                const systemMsg = {
+                                    role: 'user',
+                                    content: `Action Failed: add_marker - invalid id. id=${summarize(actionData.id)}`
+                                };
+                                this.messages.push(systemMsg);
+                                hasExecutedSyncAction = true;
+                                continue;
+                            }
+                            markerId = normalizedId;
+                        }
+
+                        // Validate optional dateTime
+                        let normalizedMarkerDateTime = null;
+                        if (Object.prototype.hasOwnProperty.call(actionData, 'dateTime') && actionData.dateTime !== null && actionData.dateTime !== undefined && actionData.dateTime !== '') {
+                            const raw = actionData.dateTime;
+                            if (Array.isArray(raw)) {
+                                const normalized = raw.map(normalizeRoadbookDateTime);
+                                const badIndex = normalized.findIndex(v => !v);
+                                if (badIndex !== -1) {
+                                    this.appendActionStatus(containerElement, `❌ 添加失败: dateTime[${badIndex}] 格式错误`);
+                                    const systemMsg = {
+                                        role: 'user',
+                                        content: `Action Failed: add_marker - invalid dateTime at index ${badIndex}: ${JSON.stringify(raw[badIndex])}`
+                                    };
+                                    this.messages.push(systemMsg);
+                                    hasExecutedSyncAction = true;
+                                    continue;
+                                }
+                                normalizedMarkerDateTime = normalized;
+                            } else {
+                                const normalized = normalizeRoadbookDateTime(raw);
+                                if (!normalized) {
+                                    this.appendActionStatus(containerElement, `❌ 添加失败: dateTime 格式错误`);
+                                    const systemMsg = {
+                                        role: 'user',
+                                        content: `Action Failed: add_marker - invalid dateTime: ${JSON.stringify(raw)}`
+                                    };
+                                    this.messages.push(systemMsg);
+                                    hasExecutedSyncAction = true;
+                                    continue;
+                                }
+                                normalizedMarkerDateTime = normalized;
+                            }
+                        }
+
                         // Check for duplicates before adding
-                        const lat = parseFloat(actionData.lat);
-                        const lng = parseFloat(actionData.lng);
                         const existingMarker = this.app.markers.find(m =>
                             m.position[0].toFixed(5) === lat.toFixed(5) &&
                             m.position[1].toFixed(5) === lng.toFixed(5)
@@ -1355,7 +1517,7 @@ DEFAULT NOTE FORMAT: If the user does not specify note content, you MUST create 
 
 
                         if (this.app.aiAddMarker) {
-                            const marker = this.app.aiAddMarker(actionData.title, actionData.lat, actionData.lng, actionData.id, actionData.dateTime);
+                            const marker = this.app.aiAddMarker(title, lat, lng, markerId, normalizedMarkerDateTime);
                             if (marker) {
                                 this.appendActionStatus(containerElement, `✅ 已添加标记点: ${marker.title}`);
                                 lastAddedMarkerId = marker.id; // Record ID
@@ -1378,6 +1540,35 @@ DEFAULT NOTE FORMAT: If the user does not specify note content, you MUST create 
                         }
                     } else if (actionData.action === 'connect_markers') {
                         if (this.app.aiConnectMarkers) {
+                            const transport = normalizeTransportType(actionData.transport);
+                            if (transport && !allowedTransportTypes.has(transport)) {
+                                this.appendActionStatus(containerElement, `❌ 连接失败: 交通方式无效 (transport=${transport})`);
+                                const systemMsg = {
+                                    role: 'user',
+                                    content: `Action Failed: connect_markers - invalid transport. transport=${summarize(actionData.transport)}, allowed=${Array.from(allowedTransportTypes).join(',')}`
+                                };
+                                this.messages.push(systemMsg);
+                                hasExecutedSyncAction = true;
+                                continue;
+                            }
+
+                            // Validate optional dateTime
+                            let normalizedConnDateTime = null;
+                            if (Object.prototype.hasOwnProperty.call(actionData, 'dateTime') && actionData.dateTime !== null && actionData.dateTime !== undefined && actionData.dateTime !== '') {
+                                const normalized = normalizeRoadbookDateTime(actionData.dateTime);
+                                if (!normalized) {
+                                    this.appendActionStatus(containerElement, `❌ 连接失败: dateTime 格式错误`);
+                                    const systemMsg = {
+                                        role: 'user',
+                                        content: `Action Failed: connect_markers - invalid dateTime. dateTime=${summarize(actionData.dateTime)}`
+                                    };
+                                    this.messages.push(systemMsg);
+                                    hasExecutedSyncAction = true;
+                                    continue;
+                                }
+                                normalizedConnDateTime = normalized;
+                            }
+
                             // Support ID (preferred) or index (fallback)
                             let startId = actionData.start_id;
                             let endId = actionData.end_id;
@@ -1409,6 +1600,33 @@ DEFAULT NOTE FORMAT: If the user does not specify note content, you MUST create 
                             if (startId === 'latest' || startId === -1) startId = lastAddedMarkerId;
                             if (endId === 'latest' || endId === -1) endId = lastAddedMarkerId;
 
+                            // Normalize and validate IDs
+                            const normalizedStartId = normalizeId(startId);
+                            const normalizedEndId = normalizeId(endId);
+
+                            if (normalizedStartId === null || normalizedEndId === null) {
+                                console.error('AI Connect Markers: Invalid start or end ID', actionData);
+                                this.appendActionStatus(containerElement, `❌ 连接失败: 起点或终点ID无效`);
+                                const systemMsg = {
+                                    role: 'user',
+                                    content: `Action Failed: connect_markers - invalid id. start_id=${summarize(startId)}, end_id=${summarize(endId)}`
+                                };
+                                this.messages.push(systemMsg);
+                                hasExecutedSyncAction = true;
+                                continue;
+                            }
+
+                            if (normalizedStartId === normalizedEndId) {
+                                this.appendActionStatus(containerElement, `❌ 连接失败: 起点和终点不能相同 (id=${normalizedStartId})`);
+                                const systemMsg = {
+                                    role: 'user',
+                                    content: `Action Failed: connect_markers - start_id and end_id are the same. id=${normalizedStartId}`
+                                };
+                                this.messages.push(systemMsg);
+                                hasExecutedSyncAction = true;
+                                continue;
+                            }
+
                             if (startId === undefined || endId === undefined) {
                                 console.error('AI Connect Markers: Missing start or end ID', actionData);
                                 this.appendActionStatus(containerElement, `❌ 连接失败: 起点或终点未指定`);
@@ -1424,12 +1642,12 @@ DEFAULT NOTE FORMAT: If the user does not specify note content, you MUST create 
                             // De-dup: if the directed edge already exists, skip creating it.
                             // This prevents the model from repeatedly adding the same connection.
                             if (this.app.connections && Array.isArray(this.app.connections)) {
-                                const exists = this.app.connections.some(c => c && c.startId === startId && c.endId === endId);
+                                const exists = this.app.connections.some(c => c && c.startId === normalizedStartId && c.endId === normalizedEndId);
                                 if (exists) {
                                     this.appendActionStatus(containerElement, `ℹ️ 已存在连接，跳过重复连线`);
                                     const systemMsg = {
                                         role: 'user',
-                                        content: `Action Result: Connection already exists between ${startId} -> ${endId}. Skipped.`
+                                        content: `Action Result: Connection already exists between ${normalizedStartId} -> ${normalizedEndId}. Skipped.`
                                     };
                                     this.messages.push(systemMsg);
                                     hasExecutedSyncAction = true;
@@ -1437,20 +1655,20 @@ DEFAULT NOTE FORMAT: If the user does not specify note content, you MUST create 
                                 }
                             }
 
-                            const success = this.app.aiConnectMarkers(startId, endId, actionData.transport || 'car', actionData.dateTime);
+                            const success = this.app.aiConnectMarkers(normalizedStartId, normalizedEndId, transport || 'car', normalizedConnDateTime);
                             if (success) {
                                 this.appendActionStatus(containerElement, `✅ 已连接标记点`);
                                 const systemMsg = {
                                     role: 'user',
-                                    content: `Action Result: Connected markers ${startId} and ${endId}`
+                                    content: `Action Result: Connected markers ${normalizedStartId} and ${normalizedEndId}`
                                 };
                                 this.messages.push(systemMsg);
                                 hasExecutedSyncAction = true;
                             } else {
-                                this.appendActionStatus(containerElement, `❌ 连接失败: ID无效 (Start: ${startId}, End: ${endId})`);
+                                this.appendActionStatus(containerElement, `❌ 连接失败: ID无效 (Start: ${normalizedStartId}, End: ${normalizedEndId})`);
                                 const systemMsg = {
                                     role: 'user',
-                                    content: `Action Failed: Connect markers failed - ID invalid (Start: ${startId}, End: ${endId})`
+                                    content: `Action Failed: Connect markers failed - ID invalid (Start: ${normalizedStartId}, End: ${normalizedEndId})`
                                 };
                                 this.messages.push(systemMsg);
                                 hasExecutedSyncAction = true; // Still trigger response to let AI know it failed
@@ -1465,6 +1683,18 @@ DEFAULT NOTE FORMAT: If the user does not specify note content, you MUST create 
                                 if (m) id = m.id;
                             }
 
+                            const normalizedId = normalizeId(id);
+                            if (normalizedId === null) {
+                                this.appendActionStatus(containerElement, `❌ 删除失败: ID无效`);
+                                const systemMsg = {
+                                    role: 'user',
+                                    content: `Action Failed: remove_marker - invalid id. id=${summarize(id)}`
+                                };
+                                this.messages.push(systemMsg);
+                                hasExecutedSyncAction = true;
+                                continue;
+                            }
+
                             if (id === undefined) {
                                 this.appendActionStatus(containerElement, `❌ 删除失败: ID未指定`);
                                 const systemMsg = {
@@ -1476,12 +1706,12 @@ DEFAULT NOTE FORMAT: If the user does not specify note content, you MUST create 
                                 continue;
                             }
 
-                            const success = this.app.aiRemoveMarker(id);
+                            const success = this.app.aiRemoveMarker(normalizedId);
                             if (success) {
                                 this.appendActionStatus(containerElement, `✅ 已删除标记点`);
                                 const systemMsg = {
                                     role: 'user',
-                                    content: `Action Result: Removed marker with ID: ${id}`
+                                    content: `Action Result: Removed marker with ID: ${normalizedId}`
                                 };
                                 this.messages.push(systemMsg);
                                 hasExecutedSyncAction = true;
@@ -1489,7 +1719,7 @@ DEFAULT NOTE FORMAT: If the user does not specify note content, you MUST create 
                                 this.appendActionStatus(containerElement, `❌ 删除失败: ID无效`);
                                 const systemMsg = {
                                     role: 'user',
-                                    content: `Action Failed: Remove marker failed - ID invalid (${id})`
+                                    content: `Action Failed: Remove marker failed - ID invalid (${normalizedId})`
                                 };
                                 this.messages.push(systemMsg);
                                 hasExecutedSyncAction = true;
@@ -1504,6 +1734,18 @@ DEFAULT NOTE FORMAT: If the user does not specify note content, you MUST create 
                                 if (m) id = m.id;
                             }
 
+                            const normalizedId = normalizeId(id);
+                            if (normalizedId === null) {
+                                this.appendActionStatus(containerElement, `❌ 更新失败: ID无效`);
+                                const systemMsg = {
+                                    role: 'user',
+                                    content: `Action Failed: update_marker - invalid id. id=${summarize(id)}`
+                                };
+                                this.messages.push(systemMsg);
+                                hasExecutedSyncAction = true;
+                                continue;
+                            }
+
                             if (id === undefined) {
                                 this.appendActionStatus(containerElement, `❌ 更新失败: ID未指定`);
                                 const systemMsg = {
@@ -1513,6 +1755,57 @@ DEFAULT NOTE FORMAT: If the user does not specify note content, you MUST create 
                                 this.messages.push(systemMsg);
                                 hasExecutedSyncAction = true;
                                 continue;
+                            }
+
+                            // Validate optional title
+                            let normalizedTitle = undefined;
+                            if (Object.prototype.hasOwnProperty.call(actionData, 'title') && actionData.title !== null && actionData.title !== undefined) {
+                                const t = normalizeTitle(actionData.title);
+                                if (!t) {
+                                    this.appendActionStatus(containerElement, `❌ 更新失败: 标题无效（title=${summarize(actionData.title)}）`);
+                                    const systemMsg = {
+                                        role: 'user',
+                                        content: `Action Failed: update_marker - invalid title. title=${summarize(actionData.title)}`
+                                    };
+                                    this.messages.push(systemMsg);
+                                    hasExecutedSyncAction = true;
+                                    continue;
+                                }
+                                normalizedTitle = t;
+                            }
+
+                            // Validate optional lat/lng
+                            const hasLat = Object.prototype.hasOwnProperty.call(actionData, 'lat');
+                            const hasLng = Object.prototype.hasOwnProperty.call(actionData, 'lng');
+                            let normalizedLat = undefined;
+                            let normalizedLng = undefined;
+                            if (hasLat || hasLng) {
+                                if (!hasLat || !hasLng) {
+                                    this.appendActionStatus(containerElement, `❌ 更新失败: 坐标字段不完整（需要同时提供 lat 和 lng）`);
+                                    const systemMsg = {
+                                        role: 'user',
+                                        content: `Action Failed: update_marker - incomplete coordinates. lat=${summarize(actionData.lat)}, lng=${summarize(actionData.lng)}`
+                                    };
+                                    this.messages.push(systemMsg);
+                                    hasExecutedSyncAction = true;
+                                    continue;
+                                }
+
+                                const lat2 = normalizeLatLng(actionData.lat, 'lat');
+                                const lng2 = normalizeLatLng(actionData.lng, 'lng');
+                                if (lat2 === null || lng2 === null) {
+                                    this.appendActionStatus(containerElement, `❌ 更新失败: 坐标无效（lat=${summarize(actionData.lat)}，lng=${summarize(actionData.lng)}）`);
+                                    const systemMsg = {
+                                        role: 'user',
+                                        content: `Action Failed: update_marker - invalid coordinates. lat=${summarize(actionData.lat)}, lng=${summarize(actionData.lng)}`
+                                    };
+                                    this.messages.push(systemMsg);
+                                    hasExecutedSyncAction = true;
+                                    continue;
+                                }
+
+                                normalizedLat = lat2;
+                                normalizedLng = lng2;
                             }
 
                             // Validate and normalize dateTime if provided. This prevents wiping existing marker dates
@@ -1591,17 +1884,17 @@ DEFAULT NOTE FORMAT: If the user does not specify note content, you MUST create 
                             }
 
                             const success = this.app.aiUpdateMarker(
-                                id,
-                                actionData.title,
-                                actionData.lat,
-                                actionData.lng,
+                                normalizedId,
+                                normalizedTitle,
+                                normalizedLat,
+                                normalizedLng,
                                 (normalizedDateTime !== undefined ? normalizedDateTime : actionData.dateTime)
                             );
                             if (success) {
                                 this.appendActionStatus(containerElement, `✅ 已更新标记点`);
                                 const systemMsg = {
                                     role: 'user',
-                                    content: `Action Result: Updated marker with ID: ${id}`
+                                    content: `Action Result: Updated marker with ID: ${normalizedId}`
                                 };
                                 this.messages.push(systemMsg);
                                 hasExecutedSyncAction = true;
@@ -1609,7 +1902,7 @@ DEFAULT NOTE FORMAT: If the user does not specify note content, you MUST create 
                                 this.appendActionStatus(containerElement, `❌ 更新失败: ID无效`);
                                 const systemMsg = {
                                     role: 'user',
-                                    content: `Action Failed: Update marker failed - ID invalid (${id})`
+                                    content: `Action Failed: Update marker failed - ID invalid (${normalizedId})`
                                 };
                                 this.messages.push(systemMsg);
                                 hasExecutedSyncAction = true;
@@ -1624,6 +1917,18 @@ DEFAULT NOTE FORMAT: If the user does not specify note content, you MUST create 
                                 if (c) id = c.id;
                             }
 
+                            const normalizedId = normalizeId(id);
+                            if (normalizedId === null) {
+                                this.appendActionStatus(containerElement, `❌ 删除失败: ID无效`);
+                                const systemMsg = {
+                                    role: 'user',
+                                    content: `Action Failed: remove_connection - invalid id. id=${summarize(id)}`
+                                };
+                                this.messages.push(systemMsg);
+                                hasExecutedSyncAction = true;
+                                continue;
+                            }
+
                             if (id === undefined) {
                                 this.appendActionStatus(containerElement, `❌ 删除失败: ID未指定`);
                                 const systemMsg = {
@@ -1635,12 +1940,12 @@ DEFAULT NOTE FORMAT: If the user does not specify note content, you MUST create 
                                 continue;
                             }
 
-                            const success = this.app.aiRemoveConnection(id);
+                            const success = this.app.aiRemoveConnection(normalizedId);
                             if (success) {
                                 this.appendActionStatus(containerElement, `✅ 已删除连接线`);
                                 const systemMsg = {
                                     role: 'user',
-                                    content: `Action Result: Removed connection with ID: ${id}`
+                                    content: `Action Result: Removed connection with ID: ${normalizedId}`
                                 };
                                 this.messages.push(systemMsg);
                                 hasExecutedSyncAction = true;
@@ -1648,7 +1953,7 @@ DEFAULT NOTE FORMAT: If the user does not specify note content, you MUST create 
                                 this.appendActionStatus(containerElement, `❌ 删除失败: ID无效`);
                                 const systemMsg = {
                                     role: 'user',
-                                    content: `Action Failed: Remove connection failed - ID invalid (${id})`
+                                    content: `Action Failed: Remove connection failed - ID invalid (${normalizedId})`
                                 };
                                 this.messages.push(systemMsg);
                                 hasExecutedSyncAction = true;
@@ -1656,11 +1961,52 @@ DEFAULT NOTE FORMAT: If the user does not specify note content, you MUST create 
                         }
                     } else if (actionData.action === 'update_connection') {
                         if (this.app.aiUpdateConnection) {
+                            const transport = normalizeTransportType(actionData.transport);
+                            if (transport && !allowedTransportTypes.has(transport)) {
+                                this.appendActionStatus(containerElement, `❌ 更新失败: 交通方式无效 (transport=${transport})`);
+                                const systemMsg = {
+                                    role: 'user',
+                                    content: `Action Failed: update_connection - invalid transport. transport=${summarize(actionData.transport)}, allowed=${Array.from(allowedTransportTypes).join(',')}`
+                                };
+                                this.messages.push(systemMsg);
+                                hasExecutedSyncAction = true;
+                                continue;
+                            }
+
+                            // Validate optional dateTime
+                            let normalizedConnDateTime = null;
+                            if (Object.prototype.hasOwnProperty.call(actionData, 'dateTime') && actionData.dateTime !== null && actionData.dateTime !== undefined && actionData.dateTime !== '') {
+                                const normalized = normalizeRoadbookDateTime(actionData.dateTime);
+                                if (!normalized) {
+                                    this.appendActionStatus(containerElement, `❌ 更新失败: dateTime 格式错误`);
+                                    const systemMsg = {
+                                        role: 'user',
+                                        content: `Action Failed: update_connection - invalid dateTime. dateTime=${summarize(actionData.dateTime)}`
+                                    };
+                                    this.messages.push(systemMsg);
+                                    hasExecutedSyncAction = true;
+                                    continue;
+                                }
+                                normalizedConnDateTime = normalized;
+                            }
+
                             // Support ID (preferred) or index (fallback)
                             let id = actionData.id;
                             if (id === undefined && actionData.index !== undefined) {
                                 const c = this.app.connections[actionData.index];
                                 if (c) id = c.id;
+                            }
+
+                            const normalizedId = normalizeId(id);
+                            if (normalizedId === null) {
+                                this.appendActionStatus(containerElement, `❌ 更新失败: ID无效`);
+                                const systemMsg = {
+                                    role: 'user',
+                                    content: `Action Failed: update_connection - invalid id. id=${summarize(id)}`
+                                };
+                                this.messages.push(systemMsg);
+                                hasExecutedSyncAction = true;
+                                continue;
                             }
 
                             if (id === undefined) {
@@ -1674,12 +2020,12 @@ DEFAULT NOTE FORMAT: If the user does not specify note content, you MUST create 
                                 continue;
                             }
 
-                            const success = this.app.aiUpdateConnection(id, actionData.transport, actionData.dateTime);
+                            const success = this.app.aiUpdateConnection(normalizedId, transport, normalizedConnDateTime);
                             if (success) {
                                 this.appendActionStatus(containerElement, `✅ 已更新连接线`);
                                 const systemMsg = {
                                     role: 'user',
-                                    content: `Action Result: Updated connection with ID: ${id}`
+                                    content: `Action Result: Updated connection with ID: ${normalizedId}`
                                 };
                                 this.messages.push(systemMsg);
                                 hasExecutedSyncAction = true;
@@ -1687,7 +2033,7 @@ DEFAULT NOTE FORMAT: If the user does not specify note content, you MUST create 
                                 this.appendActionStatus(containerElement, `❌ 更新失败: ID无效`);
                                 const systemMsg = {
                                     role: 'user',
-                                    content: `Action Failed: Update connection failed - ID invalid (${id})`
+                                    content: `Action Failed: Update connection failed - ID invalid (${normalizedId})`
                                 };
                                 this.messages.push(systemMsg);
                                 hasExecutedSyncAction = true;
@@ -1736,7 +2082,7 @@ DEFAULT NOTE FORMAT: If the user does not specify note content, you MUST create 
                     } else if (actionData.action === 'search_location') {
                         if (this.app && this.app.aiSearchLocation) {
                             const query = actionData.query;
-                            if (!query) {
+                            if (typeof query !== 'string' || !query.trim()) {
                                 this.appendActionStatus(containerElement, `❌ 搜索失败: 未提供查询词（query=${summarize(actionData.query)}）`);
                                 const systemMsg = {
                                     role: 'user',
@@ -1788,6 +2134,20 @@ DEFAULT NOTE FORMAT: If the user does not specify note content, you MUST create 
                             const rawNote = actionData.note;
                             const date = normalizeDateKey(rawDate);
                             const note = rawNote;
+
+                            if (typeof rawNote !== 'string') {
+                                this.appendActionStatus(
+                                    containerElement,
+                                    `❌ 更新日期备注失败: note 必须为字符串（note=${summarize(rawNote)}）`
+                                );
+                                const systemMsg = {
+                                    role: 'user',
+                                    content: `Action Failed: update_date_note - invalid note type. date=${summarize(rawDate)}, normalizedDate=${summarize(date)}, noteType=${typeof rawNote}, notePreview=${summarize(rawNote)}`
+                                };
+                                this.messages.push(systemMsg);
+                                hasExecutedSyncAction = true;
+                                continue;
+                            }
 
                             if (!date || !note) {
                                 this.appendActionStatus(
@@ -1860,8 +2220,77 @@ DEFAULT NOTE FORMAT: If the user does not specify note content, you MUST create 
         this.scrollToBottom();
     }
 
+    // Add a context message (user role) that displays summary text but sends full content
+    // This does NOT trigger AI response automatically
+    addContextMessage(fullContent, summaryText) {
+        if (!this.isOpen) {
+            this.toggleChat();
+        }
+
+        const msg = {
+            role: 'user',
+            content: fullContent,
+            display: summaryText,
+            timestamp: Date.now()
+        };
+
+        this.messages.push(msg);
+        this.appendMessageElement(msg);
+        this.saveSession(this.messages);
+        
+        // Scroll to bottom to ensure visibility
+        this.scrollToBottom();
+    }
+
+    // New method: Ask about markers (moved from script.js)
+    askAboutMarkers(markers) {
+        if (!this.enabled) {
+             // Should verify enabled status before calling, but safe check here
+             console.warn('AI Assistant is not enabled.');
+             return;
+        }
+
+        // 1. Construct Detailed Context
+        const markerDetails = markers.map(m => ({
+            id: m.id,
+            title: m.title,
+            lat: parseFloat(m.position[0].toFixed(6)),
+            lng: parseFloat(m.position[1].toFixed(6)),
+            dateTime: m.dateTime,
+            notes: m.labels ? m.labels.join('; ') : ''
+        }));
+
+        const contextContent = `User has box-selected the following ${markers.length} markers on the map:\n` +
+            `\`\`\`json\n${JSON.stringify(markerDetails, null, 2)}\n\`\`\`\n` +
+            `Please wait for the user's specific question about these markers.`;
+
+        // 2. Construct Summary Display
+        const summaryText = `📦 已框选 ${markers.length} 个地点`;
+
+        // 3. Send Context Message
+        this.addContextMessage(contextContent, summaryText);
+        
+        // 4. Open Chat Window (addContextMessage already does this, but for clarity)
+        if (!this.isOpen) {
+             this.toggleChat();
+        }
+    }
+
     scrollToBottom() {
         this.messagesContainer.scrollTop = this.messagesContainer.scrollHeight;
+    }
+
+    // New method: Open chat and preset input text without sending
+    presetInput(text) {
+        if (!this.isOpen) {
+            this.toggleChat();
+        }
+        
+        if (this.inputElement) {
+            this.inputElement.value = text;
+            this.inputElement.focus();
+            this.inputElement.scrollTop = this.inputElement.scrollHeight;
+        }
     }
 }
 

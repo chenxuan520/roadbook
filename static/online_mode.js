@@ -17,6 +17,9 @@ class OnlineModeManager {
         this.lastRefreshAt = 0;
         this.isLoggingOut = false;
 
+        // 快捷键处理器（避免重复注册）
+        this.boundKeydownHandler = null;
+
         this.initialize();
         this.restoreState(); // 初始化后恢复状态
     }
@@ -25,10 +28,35 @@ class OnlineModeManager {
         // 创建在线模式选择下拉框
         this.createModeSelector();
 
+        // 注册保存快捷键（Ctrl/Cmd + S）
+        this.registerSaveShortcut();
+
         // 检查当前是否有有效token，如果有则更新UI状态
         if (this.token) {
             this.checkTokenValidity();
         }
+    }
+
+    registerSaveShortcut() {
+        if (this.boundKeydownHandler) return;
+
+        this.boundKeydownHandler = (e) => {
+            if (!e) return;
+            const key = (e.key || '').toLowerCase();
+            const isSave = key === 's' && (e.ctrlKey || e.metaKey) && !e.altKey;
+            if (!isSave) return;
+
+            // 仅在在线模式且已登录时触发云端保存
+            if (this.mode !== 'online' || !this.token || this.isLoggingOut) {
+                return;
+            }
+
+            e.preventDefault();
+            e.stopPropagation();
+            this.saveToCloud();
+        };
+
+        document.addEventListener('keydown', this.boundKeydownHandler);
     }
 
     // 解析JWT Token
@@ -219,6 +247,14 @@ class OnlineModeManager {
         if (mode === 'online' && !this.token) {
             // 如果切换到在线模式但没有token，显示登录弹窗
             this.showLoginModal();
+        } else if (mode === 'offline' && this.token) {
+            // 如果用户主动从在线模式切换到离线模式，视为退出登录
+            // 恢复选择器为 online，让 logout 的确认框决定是否真的切换
+            const modeSelector = document.getElementById('modeSelector');
+            if (modeSelector) {
+                modeSelector.value = 'online';
+            }
+            this.logout();
         } else {
             this.mode = mode;
             this.updateUIForMode(mode);
@@ -618,6 +654,9 @@ class OnlineModeManager {
 
         // 重新加载页面数据，可能需要清空当前应用数据
         this.app.loadFromLocalStorage(); // 重新加载本地数据
+
+        // 触发登出事件以通知其他组件（如 AI 助手）
+        window.dispatchEvent(new CustomEvent('roadbook:logout'));
 
         if (silent) {
             this.showSwalAlert('会话过期', '您的登录已过期，已自动切换到离线模式', 'warning');

@@ -2449,6 +2449,12 @@ class RoadbookApp {
             return null;
         }
 
+        // Range check (lat/lng)
+        if (parsedLat < -90 || parsedLat > 90 || parsedLng < -180 || parsedLng > 180) {
+            console.error('Out of range coordinates for aiAddMarker:', parsedLat, parsedLng);
+            return null;
+        }
+
         // Use provided ID or generate one
         let markerId = id;
         if (!markerId || this.markers.find(m => m.id === markerId)) {
@@ -2537,6 +2543,16 @@ class RoadbookApp {
     }
 
     aiConnectMarkers(startId, endId, transportType = 'car', dateTime = null) {
+        // 交通方式白名单校验（AI 可能生成非法值，如 taxi）
+        const allowedTransportTypes = new Set(['car', 'walk', 'train', 'plane', 'subway', 'bus', 'cruise']);
+        const normalizedTransport = (transportType === null || transportType === undefined)
+            ? 'car'
+            : String(transportType).trim().toLowerCase();
+        if (!allowedTransportTypes.has(normalizedTransport)) {
+            console.error('Invalid transport type for aiConnectMarkers:', transportType);
+            return false;
+        }
+
         // 禁止自己连接自己
         if (startId === endId) {
             console.error('Invalid marker IDs for aiConnectMarkers: Start ID and End ID are the same.', startId);
@@ -2561,7 +2577,7 @@ class RoadbookApp {
             return false;
         }
 
-        this.createConnection(startMarker, endMarker, transportType, dateTime);
+        this.createConnection(startMarker, endMarker, normalizedTransport, dateTime);
 
         // 如果提供了时间，自动添加到起始点和终点的 dateTimes 数组中
         if (dateTime) {
@@ -2681,7 +2697,8 @@ class RoadbookApp {
             parsedLng = parseFloat(lng.trim());
         }
 
-        if (!isNaN(parsedLat) && !isNaN(parsedLng) && typeof parsedLat === 'number' && typeof parsedLng === 'number') {
+        if (!isNaN(parsedLat) && !isNaN(parsedLng) && typeof parsedLat === 'number' && typeof parsedLng === 'number' &&
+            parsedLat >= -90 && parsedLat <= 90 && parsedLng >= -180 && parsedLng <= 180) {
             marker.position = [parsedLat, parsedLng];
             marker.marker.setLatLng([parsedLat, parsedLng]);
 
@@ -2722,14 +2739,24 @@ class RoadbookApp {
 
         let updated = false;
 
-        if (transportType && connection.transportType !== transportType) {
-            connection.transportType = transportType;
+        // 交通方式白名单校验（AI 可能生成非法值，如 taxi）
+        const allowedTransportTypes = new Set(['car', 'walk', 'train', 'plane', 'subway', 'bus', 'cruise']);
+        const normalizedTransport = (transportType === null || transportType === undefined)
+            ? null
+            : String(transportType).trim().toLowerCase();
+        if (normalizedTransport && !allowedTransportTypes.has(normalizedTransport)) {
+            console.error('Invalid transport type for aiUpdateConnection:', transportType);
+            return false;
+        }
+
+        if (normalizedTransport && connection.transportType !== normalizedTransport) {
+            connection.transportType = normalizedTransport;
 
             // Re-draw connection with new style
             // updateConnections() re-sets latlngs and arrow heads, but might not change color/style if polyline object is reused without style update
             // createConnection sets color on creation.
             // Let's update style manually here
-            const newColor = this.getTransportColor(transportType);
+            const newColor = this.getTransportColor(normalizedTransport);
             connection.polyline.setStyle({color: newColor});
 
             if (connection.endCircle) {
@@ -2738,7 +2765,7 @@ class RoadbookApp {
 
             // Icon marker update
             if (connection.iconMarker) {
-                const transportIcon = this.getTransportIcon(transportType);
+                const transportIcon = this.getTransportIcon(normalizedTransport);
                 const iconHtml = `<div style="background-color: white; border: 2px solid ${newColor}; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-size: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.3);">${transportIcon}</div>`;
                 const newIcon = L.divIcon({
                     className: 'transport-icon',
@@ -6710,17 +6737,50 @@ class RoadbookApp {
     }
 
     showBatchOperationModal(selectedMarkers) {
-        Swal.fire({
+        const isAIEnabled = window.aiAssistant && window.aiAssistant.enabled;
+
+        // Base configuration
+        let swalConfig = {
             title: '批量操作',
             text: `已选中 ${selectedMarkers.length} 个标记点，请选择操作`,
             icon: 'question',
             showCancelButton: true,
-            confirmButtonText: '🗑️ 删除',
-            confirmButtonColor: '#d33',
-            cancelButtonText: '取消'
-        }).then((result) => {
-            if (result.isConfirmed) {
-                this.deleteMarkers(selectedMarkers);
+            cancelButtonText: '取消',
+            reverseButtons: true
+        };
+
+        if (isAIEnabled) {
+            // AI Enabled: Show AI button as primary, Delete as secondary (deny)
+            Object.assign(swalConfig, {
+                showDenyButton: true,
+                confirmButtonText: '🦄 问问 AI',
+                denyButtonText: '🗑️ 删除',
+                confirmButtonColor: '#667eea',
+                denyButtonColor: '#d33'
+            });
+        } else {
+            // AI Disabled: Show Delete button as primary
+            Object.assign(swalConfig, {
+                showDenyButton: false,
+                confirmButtonText: '🗑️ 删除',
+                confirmButtonColor: '#d33'
+            });
+        }
+
+        Swal.fire(swalConfig).then((result) => {
+            if (isAIEnabled) {
+                if (result.isConfirmed) {
+                    // Clicked "Ask AI"
+                    window.aiAssistant.askAboutMarkers(selectedMarkers);
+                } else if (result.isDenied) {
+                    // Clicked "Delete"
+                    this.deleteMarkers(selectedMarkers);
+                }
+            } else {
+                if (result.isConfirmed) {
+                    // Clicked "Delete" (when AI is disabled, confirm is delete)
+                    this.deleteMarkers(selectedMarkers);
+                }
             }
         });
     }
