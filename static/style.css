@@ -1865,6 +1865,7 @@ input[type="color"] {
     transition: background-color 0.2s ease;
     font-size: 0.9rem;
     border-radius: 0;
+    white-space: nowrap;
 }
 
 .dropdown-item:hover {
