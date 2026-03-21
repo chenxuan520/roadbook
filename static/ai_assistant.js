@@ -99,6 +99,74 @@ Description: ${prompt}`;
             return true;
         });
 
+        this.registerCommand('xiaohongshu', '将当前行程导出为小红书文案（可选提示词）', async (args) => {
+            // 1) 基础校验
+            const markerCount = (this.app && Array.isArray(this.app.markers)) ? this.app.markers.length : 0;
+            if (markerCount === 0) {
+                this.appendMessageElement({ role: 'system', content: '⚠️ 当前没有行程数据（0 个地点），先在地图上添加地点再试试：/xiaohongshu' });
+                return true;
+            }
+
+            if (!window.htmlExporter || typeof window.htmlExporter.exportToTxt !== 'function') {
+                this.appendMessageElement({ role: 'system', content: '❌ 导出模块未加载，无法读取当前行程（html_export.js）。请刷新页面后重试。' });
+                return true;
+            }
+
+            // 2) 读取行程（复用 TXT 导出结构），避免把超长内容塞进会话
+            let itineraryTxt = '';
+            try {
+                itineraryTxt = window.htmlExporter.exportToTxt(true) || '';
+            } catch (e) {
+                console.error('AI Assistant: Failed to export TXT for /xiaohongshu', e);
+                this.appendMessageElement({ role: 'system', content: `❌ 读取行程失败: ${e && e.message ? e.message : e}` });
+                return true;
+            }
+
+            if (!itineraryTxt.trim()) {
+                this.appendMessageElement({ role: 'system', content: '⚠️ 当前行程导出为空，先添加地点或日期备注再试试：/xiaohongshu' });
+                return true;
+            }
+
+            const MAX_CONTEXT_CHARS = 15000;
+            const truncated = itineraryTxt.length > MAX_CONTEXT_CHARS;
+            const itineraryForAI = truncated
+                ? (itineraryTxt.slice(0, MAX_CONTEXT_CHARS) + '\n\n[...内容过长已截断，后续请精简行程或分段生成...]')
+                : itineraryTxt;
+
+            const summaryText = truncated
+                ? `📒 已读取当前行程（${markerCount} 个地点，内容已截断）`
+                : `📒 已读取当前行程（${markerCount} 个地点）`;
+
+            // 把“行程文本”作为上下文注入：展示摘要，但给模型完整内容
+            this.addContextMessage(
+                `以下是用户当前行程（TXT 导出内容）：\n\n\`\`\`text\n${itineraryForAI}\n\`\`\`\n`,
+                summaryText
+            );
+
+            // 3) 生成“小红书口吻”文案
+            const hint = (args && args.length > 0) ? args.join(' ').trim() : '';
+            const promptLines = [
+                '请基于我上面提供的「行程 TXT 导出内容」，生成一篇可以直接复制发布的小红书旅行笔记文案。',
+                '',
+                '写作要求：',
+                '1) 口语化、偏小红书种草风，短句分段；可以适度用表情符号，但不要过度。',
+                '2) 结构固定输出：',
+                '   - 标题（1 行，尽量吸引人）',
+                '   - 正文（按天/按路线写，突出亮点与体验感）',
+                '   - 旅行信息卡（目的地/天数/交通/预算；缺失信息写“按实际/待补充”）',
+                '   - 5 条实用 tips（预约/避坑/交通/时间规划/拍照点）',
+                '   - 8~15 个 #话题 标签',
+                '3) 只输出文案本身，不要任何 JSON、不要代码块、不要解释。',
+                '4) 不要编造明显不存在的地点/餐厅/价格；不确定就写“按实际/待补充”。'
+            ];
+            if (hint) {
+                promptLines.push(`5) 额外偏好/提示词：${hint}`);
+            }
+
+            await this.sendMessage(promptLines.join('\n'));
+            return true;
+        });
+
         this.registerCommand('help', '显示可用命令', () => {
             let helpText = '### 可用命令\n\n';
             Object.entries(this.commands).forEach(([name, cmd]) => {
