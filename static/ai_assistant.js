@@ -33,6 +33,10 @@ class RoadbookAIAssistant {
         this.activeSuggestionIndex = -1;
         this.filteredCommands = [];
 
+        // Message context menu state (for assistant replies)
+        this.messageContextMenu = null;
+        this.contextMenuTargetMessage = null;
+
         this.registerCommands();
         this.init();
 
@@ -61,6 +65,12 @@ class RoadbookAIAssistant {
         this.chatWindow = null;
         this.isOpen = false;
         this.messages = [];
+
+        if (this.messageContextMenu && this.messageContextMenu.parentNode) {
+            this.messageContextMenu.parentNode.removeChild(this.messageContextMenu);
+        }
+        this.messageContextMenu = null;
+        this.contextMenuTargetMessage = null;
     }
 
     registerCommands() {
@@ -460,6 +470,8 @@ Description: ${prompt}`;
         document.body.appendChild(this.container);
         document.body.appendChild(this.chatWindow);
 
+        this.ensureMessageContextMenu();
+
         // Set initial position to bottom-right of map container
         const mapContainer = document.getElementById('mapContainer');
         if (mapContainer) {
@@ -475,6 +487,211 @@ Description: ${prompt}`;
             this.container.style.right = 'auto';
             this.container.style.bottom = 'auto';
         }
+    }
+
+    ensureMessageContextMenu() {
+        if (this.messageContextMenu) return;
+
+        const menu = document.createElement('div');
+        menu.className = 'ai-message-context-menu';
+        menu.style.display = 'none';
+        menu.innerHTML = `
+            <div class="ai-menu-item" data-action="copy_markdown">复制 Markdown</div>
+            <div class="ai-menu-item" data-action="copy_text">复制纯文本</div>
+            <div class="ai-menu-item" data-action="regenerate">重新生成</div>
+            <div class="ai-menu-item danger" data-action="delete">删除</div>
+        `;
+        document.body.appendChild(menu);
+        this.messageContextMenu = menu;
+
+        menu.addEventListener('click', async (e) => {
+            const item = e.target.closest('.ai-menu-item');
+            if (!item) return;
+            if (item.classList.contains('disabled')) return;
+            const action = item.dataset.action;
+            const msg = this.contextMenuTargetMessage;
+            this.hideMessageContextMenu();
+            if (!msg) return;
+
+            if (action === 'copy_markdown') {
+                const md = (msg.role === 'user') ? (msg.display || msg.content || '') : (msg.content || '');
+                await this.copyToClipboard(md);
+                this.appendMessageElement({ role: 'system', content: '✅ 已复制 Markdown' });
+                return;
+            }
+
+            if (action === 'copy_text') {
+                const plain = (msg.role === 'assistant')
+                    ? this.stripMarkdown(msg.content || '')
+                    : String(msg.display || msg.content || '').trim();
+                await this.copyToClipboard(plain);
+                this.appendMessageElement({ role: 'system', content: '✅ 已复制纯文本' });
+                return;
+            }
+
+            if (action === 'regenerate') {
+                if (msg.role !== 'assistant') return;
+                if (this.isStreaming) return;
+                await this.regenerateFromAssistantMessage(msg);
+                return;
+            }
+
+            if (action === 'delete') {
+                if (this.isStreaming && msg.role === 'assistant') return;
+                const idx = this.messages.indexOf(msg);
+                if (idx >= 0) {
+                    this.messages.splice(idx, 1);
+                    this.renderMessages();
+                    await this.saveSession(this.messages);
+                    this.appendMessageElement({ role: 'system', content: '🗑 已删除该回答' });
+                }
+            }
+        });
+
+        const hideIfClickOutside = (e) => {
+            if (!this.messageContextMenu || this.messageContextMenu.style.display === 'none') return;
+            if (this.messageContextMenu.contains(e.target)) return;
+            this.hideMessageContextMenu();
+        };
+        document.addEventListener('click', hideIfClickOutside);
+        window.addEventListener('blur', () => this.hideMessageContextMenu());
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') this.hideMessageContextMenu();
+        });
+    }
+
+    showMessageContextMenu(x, y, msg) {
+        this.ensureMessageContextMenu();
+        this.contextMenuTargetMessage = msg;
+
+        const menu = this.messageContextMenu;
+        if (!menu) return;
+
+        const isAssistant = !!(msg && msg.role === 'assistant');
+        const isBusy = !!this.isStreaming;
+
+        // Only assistant messages can regenerate; block during streaming
+        const regenItem = menu.querySelector('.ai-menu-item[data-action="regenerate"]');
+        if (regenItem) {
+            regenItem.style.display = isAssistant ? 'block' : 'none';
+            regenItem.classList.toggle('disabled', isBusy);
+            regenItem.title = (isBusy && isAssistant) ? 'AI 正在生成中，暂时不能重新生成' : '';
+        }
+
+        // Prevent deleting assistant messages while streaming to avoid state corruption
+        const delItem = menu.querySelector('.ai-menu-item[data-action="delete"]');
+        if (delItem) {
+            const disableDelete = isBusy && isAssistant;
+            delItem.classList.toggle('disabled', disableDelete);
+            delItem.title = disableDelete ? 'AI 正在生成中，暂时不能删除该回答' : '';
+        }
+
+        menu.style.display = 'block';
+
+        // Clamp inside viewport
+        const rect = menu.getBoundingClientRect();
+        const padding = 8;
+        const maxX = window.innerWidth - rect.width - padding;
+        const maxY = window.innerHeight - rect.height - padding;
+        const left = Math.max(padding, Math.min(x, maxX));
+        const top = Math.max(padding, Math.min(y, maxY));
+
+        menu.style.left = `${left}px`;
+        menu.style.top = `${top}px`;
+    }
+
+    hideMessageContextMenu() {
+        if (!this.messageContextMenu) return;
+        this.messageContextMenu.style.display = 'none';
+        this.contextMenuTargetMessage = null;
+    }
+
+    async regenerateFromAssistantMessage(assistantMsg) {
+        const idx = this.messages.indexOf(assistantMsg);
+        if (idx < 0) return;
+
+        // Find the user message immediately before this assistant message
+        let userIdx = -1;
+        for (let i = idx - 1; i >= 0; i--) {
+            if (this.messages[i]?.role === 'user') {
+                userIdx = i;
+                break;
+            }
+        }
+        if (userIdx < 0) return;
+
+        // Regenerate semantics: truncate conversation to that user message
+        this.messages = this.messages.slice(0, userIdx + 1);
+        this.renderMessages();
+        await this.saveSession(this.messages);
+        await this.generateAIResponse();
+    }
+
+    async copyToClipboard(text) {
+        try {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                await navigator.clipboard.writeText(text);
+                return;
+            }
+        } catch (_) {
+            // fallback below
+        }
+
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.left = '-9999px';
+        ta.style.top = '0';
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        try {
+            const docAny = /** @type {any} */ (document);
+            docAny.execCommand('copy');
+        } finally {
+            document.body.removeChild(ta);
+        }
+    }
+
+    stripMarkdown(md) {
+        let text = String(md || '');
+
+        // Remove fenced code blocks
+        text = text.replace(/```[\s\S]*?```/g, (block) => {
+            // Keep code content without fences
+            return block
+                .replace(/^```[^\n]*\n?/g, '')
+                .replace(/```\s*$/g, '')
+                .trim();
+        });
+
+        // Inline code
+        text = text.replace(/`([^`]+)`/g, '$1');
+
+        // Links: [text](url) -> text
+        text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$1');
+
+        // Images: ![alt](url) -> alt
+        text = text.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '$1');
+
+        // Basic formatting markers
+        text = text.replace(/\*\*([^*]+)\*\*/g, '$1');
+        text = text.replace(/__([^_]+)__/g, '$1');
+        text = text.replace(/\*([^*]+)\*/g, '$1');
+        text = text.replace(/_([^_]+)_/g, '$1');
+
+        // Headings / blockquote
+        text = text.replace(/^\s{0,3}#{1,6}\s+/gm, '');
+        text = text.replace(/^\s{0,3}>\s?/gm, '');
+
+        // List markers
+        text = text.replace(/^\s*[-*+]\s+/gm, '');
+        text = text.replace(/^\s*\d+\.\s+/gm, '');
+
+        // Collapse extra blank lines
+        text = text.replace(/\n{3,}/g, '\n\n');
+
+        return text.trim();
     }
 
     setupDraggable(handle, target, onDragStart, onDrag, onDragEnd) {
@@ -778,6 +995,14 @@ Description: ${prompt}`;
 
         msgDiv.appendChild(contentDiv);
         this.messagesContainer.appendChild(msgDiv);
+
+        if (msg.role === 'assistant' || msg.role === 'user') {
+            msgDiv.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                this.showMessageContextMenu(e.clientX, e.clientY, msg);
+            });
+        }
         this.scrollToBottom();
     }
 

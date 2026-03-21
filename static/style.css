@@ -3431,6 +3431,61 @@ body.dark-mode .ai-input-area textarea:focus {
     display: none;
 }
 
+/* AI message context menu (right-click on assistant replies) */
+.ai-message-context-menu {
+    position: fixed;
+    z-index: 100000;
+    min-width: 140px;
+    background: var(--bg-secondary, #ffffff);
+    border: 1px solid rgba(0, 0, 0, 0.12);
+    border-radius: 10px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+    padding: 6px;
+    user-select: none;
+}
+
+.ai-message-context-menu .ai-menu-item {
+    padding: 8px 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--text-primary, #333);
+}
+
+.ai-message-context-menu .ai-menu-item:hover {
+    background: rgba(102, 126, 234, 0.12);
+}
+
+.ai-message-context-menu .ai-menu-item.disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.ai-message-context-menu .ai-menu-item.disabled:hover {
+    background: transparent;
+}
+
+.ai-message-context-menu .ai-menu-item.danger {
+    color: #d92d20;
+}
+
+.ai-message-context-menu .ai-menu-item[data-action="regenerate"] {
+    color: var(--text-primary, #333);
+}
+
+.ai-message-context-menu .ai-menu-item.danger:hover {
+    background: rgba(217, 45, 32, 0.12);
+}
+
+body.dark-mode .ai-message-context-menu {
+    background: #2d2d2d;
+    border-color: #444;
+}
+
+body.dark-mode .ai-message-context-menu .ai-menu-item {
+    color: #e0e0e0;
+}
+
 .ai-command-suggestions.active {
     display: block;
 }
