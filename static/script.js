@@ -1648,42 +1648,48 @@ class RoadbookApp {
         if (dateNotesInputForSave) dateNotesInputForSave.addEventListener('input', realtimeSaveHandler);
         // --- 全局实时保存事件绑定结束 ---
 
-        // 连接线详情面板中的交通方式按钮事件
-        document.querySelectorAll('.transport-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                // 只有在连接线详情面板中才处理交通方式切换
-                if (this.currentConnection) {
-                    document.querySelectorAll('.transport-btn').forEach(b => b.classList.remove('active'));
+        // 连接线详情面板中的交通方式按钮事件（仅作用于连接线详情面板，避免影响连接弹窗）
+        const connectionDetailPanel = document.getElementById('connectionDetailPanel');
+        if (connectionDetailPanel) {
+            connectionDetailPanel.querySelectorAll('.transport-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    if (!this.currentConnection) return;
+
+                    connectionDetailPanel.querySelectorAll('.transport-btn').forEach(b => b.classList.remove('active'));
                     btn.classList.add('active');
 
-                    // 更新当前连接线的交通方式
                     const transportType = btn.dataset.transport;
                     this.updateConnectionTransport(this.currentConnection, transportType);
-                    // 实时保存
                     this.saveConnectionDetail();
-                }
+                });
             });
-        });
+        }
 
-        // 图标选项点击事件
-        document.querySelectorAll('.icon-option').forEach(option => {
-            option.addEventListener('click', () => {
-                document.querySelectorAll('.icon-option').forEach(opt => opt.classList.remove('selected'));
-                option.classList.add('selected');
+        // 图标选项点击事件（仅作用于图标选择弹窗）
+        const iconModal = document.getElementById('iconModal');
+        if (iconModal) {
+            iconModal.querySelectorAll('.icon-option').forEach(option => {
+                option.addEventListener('click', () => {
+                    iconModal.querySelectorAll('.icon-option').forEach(opt => opt.classList.remove('selected'));
+                    option.classList.add('selected');
+                });
             });
-        });
+        }
 
-        // 交通方式按钮点击事件
-        document.querySelectorAll('.transport-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                document.querySelectorAll('.transport-btn').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
+        // 连接弹窗中的交通方式按钮点击事件（仅作用于连接弹窗）
+        const connectModal = document.getElementById('connectModal');
+        if (connectModal) {
+            connectModal.querySelectorAll('.transport-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    connectModal.querySelectorAll('.transport-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
 
-                // 更新隐藏的select值
-                const transportType = btn.dataset.transport;
-                document.getElementById('transportType').value = transportType;
+                    const transportType = btn.dataset.transport;
+                    const transportTypeInput = document.getElementById('transportType');
+                    if (transportTypeInput) transportTypeInput.value = transportType;
+                });
             });
-        });
+        }
 
         // 模态框事件
         const closeBtn = document.querySelector('.close');
@@ -1710,25 +1716,7 @@ class RoadbookApp {
         }
 
 
-        // 图标选项点击事件
-        document.querySelectorAll('.icon-option').forEach(option => {
-            option.addEventListener('click', () => {
-                document.querySelectorAll('.icon-option').forEach(opt => opt.classList.remove('selected'));
-                option.classList.add('selected');
-            });
-        });
-
-        // 交通方式按钮点击事件
-        document.querySelectorAll('.transport-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                document.querySelectorAll('.transport-btn').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-
-                // 更新隐藏的select值
-                const transportType = btn.dataset.transport;
-                document.getElementById('transportType').value = transportType;
-            });
-        });
+        // NOTE: 已将 icon-option / transport-btn 的事件监听做了作用域拆分与去重，避免重复绑定与互相干扰
 
         // 详情面板事件
         const closeDetailBtn = document.getElementById('closeDetailBtn');
@@ -2074,6 +2062,7 @@ class RoadbookApp {
         if (expenseRemarkInput) {
             expenseRemarkInput.addEventListener('keydown', handleExpenseEnter);
         }
+
     }
 
     // 移动端功能初始化
@@ -2918,9 +2907,12 @@ class RoadbookApp {
     }
 
     showIconModal() {
-        document.getElementById('iconModal').style.display = 'block';
-        // 重置选择状态
-        document.querySelectorAll('.icon-option').forEach(opt => opt.classList.remove('selected'));
+        const iconModal = document.getElementById('iconModal');
+        if (iconModal) iconModal.style.display = 'block';
+        // 重置选择状态（限定在弹窗内，避免误伤其它区域同类元素）
+        if (iconModal) {
+            iconModal.querySelectorAll('.icon-option').forEach(opt => opt.classList.remove('selected'));
+        }
         document.getElementById('customIcon').value = '';
         document.getElementById('iconColor').value = '#667eea';
     }
@@ -2934,7 +2926,8 @@ class RoadbookApp {
     }
 
     confirmIconSelection() {
-        const selectedOption = document.querySelector('.icon-option.selected');
+        const iconModal = document.getElementById('iconModal');
+        const selectedOption = iconModal ? iconModal.querySelector('.icon-option.selected') : null;
         const customIcon = document.getElementById('customIcon').value.trim();
         const iconColor = document.getElementById('iconColor').value;
 
@@ -2976,11 +2969,11 @@ class RoadbookApp {
             // 更新预览
             this.updateCurrentIconPreview(newIconConfig);
 
-            console.log(`标记点"${this.currentMarker.title}"图标已更新:`, newIconConfig);
+            this.debugLog(`标记点"${this.currentMarker.title}"图标已更新:`, newIconConfig);
         } else {
             // 如果没有当前标记点，设置为默认图标（用于新标记点）
             this.currentIcon = newIconConfig;
-            console.log('默认图标已设置:', newIconConfig);
+            this.debugLog('默认图标已设置:', newIconConfig);
         }
 
         this.closeModals();
@@ -3853,49 +3846,9 @@ class RoadbookApp {
         this.hideLogoPreview();
     }
 
-    // 显示Logo预览
-    showLogoPreview(logoUrl, latlng) {
-        if (!logoUrl) {
-            this.hideLogoPreview();
-            return;
-        }
-
-        const logoPreview = document.getElementById('logoPreview');
-        const logoPreviewImg = document.getElementById('logoPreviewImg');
-
-        if (!logoPreview || !logoPreviewImg) {
-            return;
-        }
-
-        // 设置预览图片的源
-        logoPreviewImg.src = logoUrl;
-
-        // 图片加载完成后显示预览
-        logoPreviewImg.onload = () => {
-            // 将Leaflet的地理坐标转换为像素坐标
-            const pos = this.map.latLngToLayerPoint(latlng);
-
-            // 设置预览位置，相对于地图容器（在鼠标附近）
-            logoPreview.style.display = 'block';
-            logoPreview.style.left = (pos.x + 15) + 'px';  // 偏移一些避免遮挡
-            logoPreview.style.top = (pos.y - 30) + 'px';   // 稍微往上，避免遮挡
-
-            // 添加淡入效果
-            logoPreview.style.opacity = '0';
-            setTimeout(() => {
-                logoPreview.style.opacity = '1';
-            }, 10);
-        };
-
-        // 图片加载失败处理
-        logoPreviewImg.onerror = () => {
-            logoPreview.style.display = 'none';
-        };
-    }
-
-    // 显示logo预览 - 与tooltip同步
-    showLogoPreview(logoUrl, event) {
-        if (!logoUrl || !event) {
+    // 显示logo预览（与 tooltip 同步；兼容 event 或 latlng）
+    showLogoPreview(logoUrl, eventOrLatlng) {
+        if (!logoUrl || !eventOrLatlng) {
             this.hideLogoPreview();
             return;
         }
@@ -3911,14 +3864,22 @@ class RoadbookApp {
         logoPreviewImg.src = logoUrl;
 
         logoPreviewImg.onload = () => {
-            // 使用事件对象获取鼠标位置
-            logoPreview.style.position = 'fixed';
-            logoPreview.style.left = event.originalEvent.clientX + 'px';
-            logoPreview.style.top = (event.originalEvent.clientY + 15) + 'px';  // 鼠标下方15px
+            // 优先使用事件对象获取鼠标位置（Leaflet 事件：event.originalEvent）
+            const oe = eventOrLatlng && eventOrLatlng.originalEvent;
+            if (oe && typeof oe.clientX === 'number' && typeof oe.clientY === 'number') {
+                logoPreview.style.position = 'fixed';
+                logoPreview.style.left = oe.clientX + 'px';
+                logoPreview.style.top = (oe.clientY + 15) + 'px'; // 鼠标下方 15px
+            } else if (this.map && typeof this.map.latLngToLayerPoint === 'function') {
+                // 回退：传入的是 latlng
+                const pos = this.map.latLngToLayerPoint(eventOrLatlng);
+                logoPreview.style.position = 'absolute';
+                logoPreview.style.left = (pos.x + 15) + 'px';
+                logoPreview.style.top = (pos.y - 30) + 'px';
+            }
 
             logoPreview.style.display = 'block';
             logoPreview.style.opacity = '0';
-
             setTimeout(() => {
                 logoPreview.style.opacity = '1';
             }, 10);
@@ -5238,11 +5199,6 @@ class RoadbookApp {
 
             localStorage.setItem('roadbookData', JSON.stringify(data));
             // console.log('路书数据已保存到本地存储');
-
-            // 验证保存的数据
-            const savedData = localStorage.getItem('roadbookData');
-            const parsedData = JSON.parse(savedData);
-            console.log('验证保存的数据:', parsedData);
         } catch (error) {
             console.error('保存到本地存储失败:', error);
         }
@@ -5254,8 +5210,8 @@ class RoadbookApp {
             const savedData = localStorage.getItem('roadbookData');
             if (savedData) {
                 const data = JSON.parse(savedData);
-                console.log('从本地存储加载路书数据');
-                console.log('本地存储数据:', data);
+                this.debugLog('从本地存储加载路书数据');
+                this.debugLog('本地存储数据:', data);
 
                 // 检查标记点位置数据
                 // if (data.markers && data.markers.length > 0) {
@@ -5306,7 +5262,7 @@ class RoadbookApp {
                     this.autoFitMapView();
                 }, 500);
             } else {
-                console.log('没有找到本地缓存数据');
+                this.debugLog('没有找到本地缓存数据');
 
                 // 确保UI下拉框显示默认值
                 this.updateUISelectsNoEvent(this.currentLayer, this.currentSearchMethod);
@@ -7113,7 +7069,7 @@ class RoadbookApp {
         // 保存到本地存储
         this.saveToLocalStorage();
 
-        console.log(`标记点"${this.currentMarker.title}"时间点${index + 1}已更新: ${newDateTime}`);
+        this.debugLog(`标记点"${this.currentMarker.title}"时间点${index + 1}已更新: ${newDateTime}`);
     }
 
     // 删除标记点时间
@@ -7135,7 +7091,7 @@ class RoadbookApp {
             // 保存到本地存储
             this.saveToLocalStorage();
 
-            console.log(`标记点"${this.currentMarker.title}"时间点已删除，剩余${this.currentMarker.dateTimes.length}个时间点`);
+            this.debugLog(`标记点"${this.currentMarker.title}"时间点已删除，剩余${this.currentMarker.dateTimes.length}个时间点`);
         }
     }
 
@@ -7176,7 +7132,7 @@ class RoadbookApp {
         // 保存到本地存储
         this.saveToLocalStorage();
 
-        console.log(`标记点"${this.currentMarker.title}"添加新时间点: ${newDateTime}`);
+        this.debugLog(`标记点"${this.currentMarker.title}"添加新时间点: ${newDateTime}`);
     }
 
     hideConnectionDetail() {
@@ -7197,7 +7153,7 @@ class RoadbookApp {
         // 更新地图上的连接线
         this.updateConnectionVisual(connection);
 
-        console.log(`连接线交通方式已更新: ${transportType}`);
+        this.debugLog(`连接线交通方式已更新: ${transportType}`);
     }
 
     updateConnectionVisual(connection) {
@@ -7295,8 +7251,11 @@ class RoadbookApp {
             this.currentConnection.dateTime = dateTimeInput.value;
         }
 
-        // 获取当前选中的交通方式
-        const activeTransportBtn = document.querySelector('.transport-btn.active');
+        // 获取当前选中的交通方式（限定在连接线详情面板，避免与连接弹窗互相干扰）
+        const connectionDetailPanel = document.getElementById('connectionDetailPanel');
+        const activeTransportBtn = connectionDetailPanel
+            ? connectionDetailPanel.querySelector('.transport-btn.active')
+            : null;
         if (activeTransportBtn) {
             this.currentConnection.transportType = activeTransportBtn.dataset.transport;
         }
@@ -7344,7 +7303,7 @@ class RoadbookApp {
                 // 更新连接线在地图上的显示
                 this.updateConnectionVisual(this.currentConnection);
 
-                console.log(`连接线更新: ${oldStartTitle} → ${oldEndTitle} 改为 ${newStartMarker.title} → ${newEndMarker.title}`);
+                this.debugLog(`连接线更新: ${oldStartTitle} → ${oldEndTitle} 改为 ${newStartMarker.title} → ${newEndMarker.title}`);
             }
         }
 
@@ -7371,7 +7330,7 @@ class RoadbookApp {
         // 更新连接线列表
         this.updateMarkerList();
 
-        console.log('连接线详情已保存:', this.currentConnection);
+        this.debugLog('连接线详情已保存:', this.currentConnection);
 
         // 关闭详情面板
         // this.hideConnectionDetail(); // 为实时保存而移除
@@ -7805,6 +7764,12 @@ class RoadbookApp {
         // 如果当前处于筛选模式，则退出筛选模式
         if (this.filterMode) {
             this.exitFilterMode();
+        }
+    }
+
+    debugLog(...args) {
+        if (this.debugMode) {
+            console.log(...args);
         }
     }
 
