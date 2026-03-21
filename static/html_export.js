@@ -184,6 +184,1101 @@ class RoadbookHtmlExporter {
         URL.revokeObjectURL(url);
     }
 
+    async exportToImage() {
+        if (this.app.markers.length === 0) {
+            if (typeof Swal !== 'undefined') {
+                Swal.fire('提示', '当前没有可导出的数据。', 'info');
+            } else {
+                alert('当前没有可导出的数据。');
+            }
+            return;
+        }
+
+        // Show loading state
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                title: '正在生成长图',
+                text: '请稍候，这可能需要几秒钟...',
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+        }
+
+        // 1. Create a container for the image generation
+        const container = document.createElement('div');
+        container.className = 'export-image-container';
+
+        // Temporarily append to body to ensure styles are computed correctly
+        // but hide it far off-screen
+        container.style.position = 'absolute';
+        container.style.left = '-9999px';
+        container.style.top = '0';
+        container.style.width = '600px'; // Set a fixed width suitable for mobile viewing
+        container.style.backgroundColor = '#f8f9fa';
+        container.style.padding = '20px';
+        container.style.fontFamily = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
+        container.style.color = '#333';
+        document.body.appendChild(container);
+
+        const escapeHtml = (str) => {
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        };
+
+        const exportPageUrl = (window.location && window.location.protocol === 'file:')
+            ? ''
+            : (window.location ? window.location.href : '');
+        const githubRepoUrl = 'https://github.com/chenxuan520/roadbook';
+
+        const isDarkMode = (this.app && typeof this.app.isDarkMode === 'boolean')
+            ? this.app.isDarkMode
+            : document.body.classList.contains('dark-mode');
+
+        const exportTheme = isDarkMode ? {
+            pageBg: '#0f1115',
+            cardBg: '#1f232b',
+            textPrimary: '#e9ecef',
+            textSecondary: '#adb5bd',
+            border: '#2b3038',
+            shadow: 'rgba(0,0,0,0.55)',
+            badgeAllBg: '#6a4190',
+            badgeInfoBg: '#3498db',
+            accent: '#5a6fd8',
+            overviewBg: '#171a20',
+            chipBg: '#2b3038',
+            chipText: '#cbd3da',
+            timelineLine: '#3a404a',
+            noteBg: '#2a2416',
+            noteBorder: '#d6a500',
+            expenseBg: '#1e2a22',
+            expenseBorder: '#2ecc71'
+        } : {
+            pageBg: '#f8f9fa',
+            cardBg: '#ffffff',
+            textPrimary: '#2c3e50',
+            textSecondary: '#7f8c8d',
+            border: '#e9ecef',
+            shadow: 'rgba(0,0,0,0.10)',
+            badgeAllBg: '#667eea',
+            badgeInfoBg: '#4a90e2',
+            accent: '#667eea',
+            overviewBg: '#f8f9fa',
+            chipBg: '#f1f3f5',
+            chipText: '#666',
+            timelineLine: '#e0e0e0',
+            noteBg: '#fff8e1',
+            noteBorder: '#ffc107',
+            expenseBg: '#e8f5e9',
+            expenseBorder: '#4caf50'
+        };
+
+        container.style.backgroundColor = exportTheme.pageBg;
+        container.style.color = exportTheme.textPrimary;
+
+        const getDateKeyFromDateTime = (dt) => {
+            // 与主应用保持一致（本地时区）
+            if (this.app && typeof this.app.getDateKey === 'function') {
+                return this.app.getDateKey(dt);
+            }
+            if (!dt) return '未知日期';
+            try {
+                const d = new Date(dt);
+                if (isNaN(d.getTime())) return '未知日期';
+                const yyyy = d.getFullYear();
+                const mm = String(d.getMonth() + 1).padStart(2, '0');
+                const dd = String(d.getDate()).padStart(2, '0');
+                return `${yyyy}-${mm}-${dd}`;
+            } catch {
+                return '未知日期';
+            }
+        };
+
+        // 获取地图标题 +（在线模式下）云端“计划总览”
+        let planTitle = '我的行程路书';
+        let cloudPlanOverview = null;
+        if (window.onlineModeManager && window.onlineModeManager.mode === 'online') {
+            if (window.onlineModeManager.currentPlanName) {
+                planTitle = window.onlineModeManager.currentPlanName;
+            }
+
+            // 尝试从云端拉取计划详情，用于显示“计划总览”（description）
+            try {
+                const planId = window.onlineModeManager.currentPlanId;
+                if (planId && typeof window.onlineModeManager.makeApiRequest === 'function') {
+                    const resp = await window.onlineModeManager.makeApiRequest(`/plans/${planId}`, 'GET');
+                    if (resp && resp.plan) {
+                        if (!window.onlineModeManager.currentPlanName && resp.plan.name) {
+                            planTitle = resp.plan.name;
+                        }
+                        if (resp.plan.description && typeof resp.plan.description === 'string') {
+                            const overview = resp.plan.description.trim();
+                            if (overview) cloudPlanOverview = overview;
+                        }
+                    }
+                }
+            } catch (e) {
+                console.warn('导出图片：拉取云端计划详情失败，将跳过“计划总览”。', e);
+            }
+        }
+
+        // 2. Build the DOM structure
+        const data = this.prepareExportData();
+        const dates = this.app.getAllDatesFromMarkers();
+        const markersByDate = this.app.groupMarkersByDate();
+        const connections = data.connections || [];
+        const dateNotes = data.dateNotes || {};
+
+        let html = `
+            <div style="background: ${exportTheme.cardBg}; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px ${exportTheme.shadow}; padding: 30px;">
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <h1 style="margin: 0 0 10px 0; color: ${exportTheme.textPrimary}; font-size: 28px;">${planTitle}</h1>
+                    <p style="margin: 0; color: ${exportTheme.textSecondary}; font-size: 14px;">由 RoadbookMaker 生成</p>
+                </div>
+
+                ${cloudPlanOverview ? `
+                <!-- 云端计划总览 -->
+                <div style="margin-bottom: 30px;">
+                    <div style="display: flex; align-items: baseline; gap: 10px; margin-bottom: 12px; border-bottom: 2px solid ${exportTheme.border}; padding-bottom: 10px;">
+                        <span style="background: ${exportTheme.badgeInfoBg}; color: white; padding: 4px 10px; border-radius: 999px; font-weight: 700; font-size: 13px; letter-spacing: 0.3px;">INFO</span>
+                        <h2 style="margin: 0; font-size: 20px; color: ${exportTheme.textPrimary};">计划总览</h2>
+                    </div>
+                    <div style="background: ${exportTheme.overviewBg}; border-left: 4px solid ${exportTheme.accent}; padding: 12px; border-radius: 0 8px 8px 0; font-size: 14px; color: ${exportTheme.textPrimary}; white-space: pre-wrap;">${escapeHtml(cloudPlanOverview)}</div>
+                </div>
+                ` : ''}
+
+                <!-- 总体行程概览地图 -->
+                <div style="margin-bottom: 30px;">
+                    <div style="display: flex; align-items: baseline; gap: 10px; margin-bottom: 15px; border-bottom: 2px solid ${exportTheme.border}; padding-bottom: 10px;">
+                        <span style="background: ${exportTheme.badgeAllBg}; color: white; padding: 4px 10px; border-radius: 999px; font-weight: 700; font-size: 13px; letter-spacing: 0.3px;">ALL</span>
+                        <h2 style="margin: 0; font-size: 20px; color: ${exportTheme.textPrimary};">行程总览</h2>
+                    </div>
+                    <div id="export-map-overview" style="width: 100%; height: 250px; border-radius: 8px; background: ${exportTheme.overviewBg}; overflow: hidden; position: relative; z-index: 1;"></div>
+                </div>
+        `;
+
+        // 点位图片（logo）全局只展示一次：即使同一个点跨多天出现，也只在首次出现时渲染图片。
+        const shownLogoMarkerIds = new Set();
+
+        dates.forEach((dateStr, index) => {
+            const markers = markersByDate[dateStr] || [];
+            if (markers.length === 0) return;
+
+            // Sort markers by time
+            const sortedMarkers = [...markers].sort((a, b) => {
+                const aTimes = this.app.getMarkerTimesForDate(a, dateStr);
+                const bTimes = this.app.getMarkerTimesForDate(b, dateStr);
+                if (aTimes.length === 0) return 1;
+                if (bTimes.length === 0) return -1;
+                return new Date(aTimes[0]) - new Date(bTimes[0]);
+            });
+
+            // Parse date for display
+            let displayDate = dateStr;
+            let displayDay = "";
+            if (dateStr !== '未知日期') {
+                try {
+                    const d = new Date(dateStr);
+                    displayDate = `${d.getMonth() + 1}月${d.getDate()}日`;
+                    displayDay = this.app.getWeekdayName(d.getDay());
+                } catch(e) {}
+            }
+
+            html += `
+                <div style="margin-bottom: 30px;">
+                    <div style="display: flex; align-items: baseline; gap: 10px; margin-bottom: 15px; border-bottom: 2px solid ${exportTheme.border}; padding-bottom: 10px;">
+                        <span style="background: #667eea; color: white; padding: 4px 10px; border-radius: 6px; font-weight: bold; font-size: 14px;">D${index + 1}</span>
+                        <h2 style="margin: 0; font-size: 20px; color: ${exportTheme.textPrimary};">${displayDate} <span style="font-size: 14px; color: ${exportTheme.textSecondary}; font-weight: normal;">${displayDay}</span></h2>
+                    </div>
+            `;
+
+            // Add date notes if any
+            if (dateNotes[dateStr]) {
+                const noteObj = dateNotes[dateStr];
+                const noteText = typeof noteObj === 'string' ? noteObj : noteObj.notes;
+
+                if (noteText) {
+                    html += `
+                        <div style="background: ${exportTheme.noteBg}; border-left: 4px solid ${exportTheme.noteBorder}; padding: 12px; margin-bottom: 20px; border-radius: 0 8px 8px 0; font-size: 14px; color: ${exportTheme.textSecondary}; white-space: pre-wrap;">${noteText}</div>
+                    `;
+                }
+
+                // Add expenses if any
+                if (noteObj && noteObj.expenses && noteObj.expenses.length > 0) {
+                    const totalExpense = noteObj.expenses.reduce((sum, exp) => sum + (Number(exp.cost) || 0), 0);
+                    html += `
+                        <div style="background: ${exportTheme.expenseBg}; padding: 10px 15px; margin-bottom: 20px; border-radius: 8px; font-size: 14px; color: ${exportTheme.textPrimary};">
+                            <strong style="color: ${exportTheme.expenseBorder};">💰 今日预算: ￥${totalExpense}</strong>
+                            <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px;">
+                                ${noteObj.expenses.map(exp => `<span style="background: ${exportTheme.cardBg}; padding: 2px 8px; border-radius: 999px; border: 1px solid ${exportTheme.border}; color: ${exportTheme.textSecondary};">${exp.remark}: ￥${exp.cost}</span>`).join('')}
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+
+            // Create a map container for this day
+            html += `<div id="export-map-${index}" style="width: 100%; height: 200px; border-radius: 8px; margin-bottom: 20px; background: ${exportTheme.overviewBg}; overflow: hidden; position: relative; z-index: 1;"></div>`;
+
+            // Render timeline
+            // 规则：
+            // - 顺序必须由连接线拓扑决定（时间相同也不能乱序）
+            // - 每条连线必须满足：上面是起点、下面是终点
+            // - 没有连线的点不要被时间轴连起来
+
+            // 外层容器：用于与后续 `</div></div>` 结构匹配
+            html += `<div>`;
+
+            const markerById = new Map(sortedMarkers.map(m => [m.id, m]));
+            const markerIdSet = new Set(markerById.keys());
+
+            const getMarkerPrimaryTime = (m) => {
+                try {
+                    const times = this.app.getMarkerTimesForDate(m, dateStr);
+                    return (times && times.length > 0) ? times[0] : (m.dateTime || null);
+                } catch {
+                    return m.dateTime || null;
+                }
+            };
+
+            const getDisplayTime = (dt) => {
+                if (!dt) return '';
+                try {
+                    return this.app.formatTime(dt);
+                } catch {
+                    return '';
+                }
+            };
+
+            const renderMarkerRow = (marker, { showDot = true, dotColor = null } = {}) => {
+                if (!marker) return '';
+                const t = getMarkerPrimaryTime(marker);
+                const timeDisplay = getDisplayTime(t);
+                const iconDisplay = (marker.icon && marker.icon.icon) ? marker.icon.icon : '📍';
+                const markerColor = dotColor || ((marker.icon && marker.icon.color) ? marker.icon.color : exportTheme.accent);
+                const logoUrl = marker.logo ? String(marker.logo).trim() : '';
+                const markerId = marker.id != null ? String(marker.id) : '';
+                const hasLogo = /^https?:\/\//i.test(logoUrl) && markerId && !shownLogoMarkerIds.has(markerId);
+                if (hasLogo) shownLogoMarkerIds.add(markerId);
+
+                return `
+                    <div style="position: relative; margin-bottom: 18px; z-index: 2;">
+                        ${showDot ? `<div style=\"position: absolute; left: -21px; top: 4px; width: 14px; height: 14px; background: ${exportTheme.cardBg}; border: 3px solid ${markerColor}; border-radius: 50%; z-index: 3;\"></div>` : ''}
+                        <div style="display: flex; flex-direction: column;">
+                            <div style="display: flex; align-items: baseline; gap: 10px;">
+                                <span style=\"color: ${timeDisplay ? exportTheme.accent : exportTheme.textSecondary}; font-weight: ${timeDisplay ? 700 : 600}; font-size: 15px; min-width: 50px;\">${timeDisplay || ''}</span>
+                                <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 8px;">
+                                    <span style="font-size: 18px; font-weight: 650; color: ${exportTheme.textPrimary};">${iconDisplay} ${escapeHtml(marker.title)}</span>
+                                    ${marker.labels && marker.labels.length > 0 ? marker.labels.map(label => `<span style=\"font-size: 12px; color: ${exportTheme.chipText}; background: ${exportTheme.chipBg}; padding: 2px 8px; border-radius: 999px; border: 1px solid ${exportTheme.border};\">${escapeHtml(label)}</span>`).join('') : ''}
+                                </div>
+                            </div>
+                            ${hasLogo ? `
+                                <div style="margin-top: 10px; padding-left: 60px;">
+                                    <img src="${escapeHtml(logoUrl)}" crossorigin="anonymous" referrerpolicy="no-referrer" style="max-width: 100%; max-height: 220px; border-radius: 10px; border: 1px solid ${exportTheme.border}; display: block; object-fit: cover; background: ${exportTheme.pageBg};" />
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+            };
+
+            const renderConnectionRow = (conn, startMarker, endMarker) => {
+                if (!conn) return '';
+                const transportIcon = this.app.getTransportIcon ? this.app.getTransportIcon(conn.transportType) : '';
+                const transportColor = this.app.getTransportColor ? this.app.getTransportColor(conn.transportType) : exportTheme.accent;
+                const connTime = getDisplayTime(conn.dateTime);
+                const startTitle = startMarker ? startMarker.title : (conn.startTitle || '起点');
+                const endTitle = endMarker ? endMarker.title : (conn.endTitle || '终点');
+
+                return `
+                    <div style="position: relative; margin: 6px 0 18px 0; display: flex; align-items: flex-start; gap: 10px; z-index: 2;">
+                        <div style="position: absolute; left: -21px; top: 3px; width: 14px; height: 14px; background: ${exportTheme.cardBg}; border: 2px solid ${transportColor}; border-radius: 50%; z-index: 3; display: flex; align-items: center; justify-content: center; font-size: 8px;">${transportIcon}</div>
+                        <span style=\"color: ${exportTheme.textSecondary}; font-weight: 600; font-size: 13px; min-width: 50px;\">${connTime || ''}</span>
+                        <div>
+                            <div style="font-size: 13px; color: ${transportColor}; font-weight: 650; display: inline-flex; align-items: center; gap: 6px;">
+                                <span>${this.getTransportTypeName(conn.transportType)}</span>
+                                ${conn.duration ? `<span style=\\\"color:${exportTheme.textSecondary}; font-weight:600;\\\">• ⏱️ ${conn.duration}h</span>` : ''}
+                            </div>
+                            <div style="font-size: 12px; color: ${exportTheme.textSecondary}; margin-top: 2px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px;">
+                                <span>${escapeHtml(startTitle)} → ${escapeHtml(endTitle)}</span>
+                                ${conn.label ? `<span style="padding: 1px 8px; border-radius: 999px; border: 1px solid ${exportTheme.border}; background: ${exportTheme.cardBg}; color: ${exportTheme.textSecondary};">${escapeHtml(conn.label)}</span>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            };
+
+            const dayConnections = (connections || []).filter(c => {
+                if (!c) return false;
+                if (getDateKeyFromDateTime(c.dateTime) !== dateStr) return false;
+                return markerIdSet.has(c.startId) && markerIdSet.has(c.endId);
+            });
+
+            const connSortKey = (c) => {
+                const t = c && c.dateTime ? new Date(c.dateTime).getTime() : Number.POSITIVE_INFINITY;
+                return {
+                    t,
+                    s: String(c && c.startId || ''),
+                    e: String(c && c.endId || ''),
+                    tt: String(c && c.transportType || '')
+                };
+            };
+            const sortedConnections = [...dayConnections].sort((a, b) => {
+                const ka = connSortKey(a);
+                const kb = connSortKey(b);
+                if (ka.t !== kb.t) return ka.t - kb.t;
+                return `${ka.s}|${ka.e}|${ka.tt}`.localeCompare(`${kb.s}|${kb.e}|${kb.tt}`);
+            });
+
+            // 拓扑建链
+            const outMap = new Map();
+            const inDeg = new Map();
+            const connectedMarkerIdSet = new Set();
+            sortedConnections.forEach(c => {
+                connectedMarkerIdSet.add(c.startId);
+                connectedMarkerIdSet.add(c.endId);
+                const list = outMap.get(c.startId) || [];
+                list.push(c);
+                outMap.set(c.startId, list);
+                inDeg.set(c.endId, (inDeg.get(c.endId) || 0) + 1);
+                if (!inDeg.has(c.startId)) inDeg.set(c.startId, inDeg.get(c.startId) || 0);
+            });
+            outMap.forEach(list => {
+                list.sort((a, b) => {
+                    const ka = connSortKey(a);
+                    const kb = connSortKey(b);
+                    if (ka.t !== kb.t) return ka.t - kb.t;
+                    return `${ka.s}|${ka.e}|${ka.tt}`.localeCompare(`${kb.s}|${kb.e}|${kb.tt}`);
+                });
+            });
+
+            // 岔路/合流视为“多人行程”：同一条后续连线需要出现在多条路径中（例如 A->B, B->C, D->B => A->B->C 与 D->B->C）
+            // 因此这里不能用全局 visitedEdges 把边“消费掉”，而是对每个起点枚举所有可达路径。
+            const paths = [];
+            const startCandidates = Array.from(outMap.keys()).filter(id => (outMap.get(id) || []).length > 0 && (inDeg.get(id) || 0) === 0);
+
+            const startSortKey = (id) => {
+                const m = markerById.get(id);
+                const t = m ? getMarkerPrimaryTime(m) : null;
+                const ms = t ? new Date(t).getTime() : Number.POSITIVE_INFINITY;
+                return { ms: isNaN(ms) ? Number.POSITIVE_INFINITY : ms, id: String(id) };
+            };
+
+            const sortedStarts = (startCandidates.length > 0 ? startCandidates : Array.from(outMap.keys()))
+                .filter(id => (outMap.get(id) || []).length > 0)
+                .sort((a, b) => {
+                    const ka = startSortKey(a);
+                    const kb = startSortKey(b);
+                    if (ka.ms !== kb.ms) return ka.ms - kb.ms;
+                    return ka.id.localeCompare(kb.id);
+                });
+
+            const dfsBuildPaths = (startId, currentId, steps, visitedNodes) => {
+                // 防环
+                if (visitedNodes.has(currentId)) return;
+                const nextVisited = new Set(visitedNodes);
+                nextVisited.add(currentId);
+
+                const outs = outMap.get(currentId) || [];
+                if (outs.length === 0) {
+                    if (steps.length > 0) paths.push({ startId, steps });
+                    return;
+                }
+
+                let progressed = false;
+                for (const conn of outs) {
+                    const nextId = conn.endId;
+                    if (nextVisited.has(nextId)) continue;
+                    progressed = true;
+                    dfsBuildPaths(startId, nextId, steps.concat([{ conn, endId: nextId }]), nextVisited);
+                }
+
+                if (!progressed && steps.length > 0) {
+                    paths.push({ startId, steps });
+                }
+            };
+
+            // 对每个起点生成完整路径集合
+            sortedStarts.forEach(startId => {
+                dfsBuildPaths(startId, startId, [], new Set());
+            });
+
+            // 输出：每条链单独一根竖线；链内严格 start → connection → end
+            paths.forEach((p, pathIndex) => {
+                if (paths.length > 1) {
+                    html += `
+                        <div style="margin: 12px 0 10px 0; padding-left: 20px; display: flex; align-items: center; gap: 10px;">
+                            <span style="font-size: 12px; font-weight: 700; color: ${exportTheme.textSecondary}; background: ${exportTheme.chipBg}; border: 1px solid ${exportTheme.border}; padding: 2px 8px; border-radius: 999px;">行程 ${pathIndex + 1}</span>
+                            <div style="flex: 1; border-top: 1px dashed ${exportTheme.border};"></div>
+                        </div>
+                    `;
+                }
+                html += `<div style="position: relative; padding-left: 20px; margin-bottom: 10px;">`;
+                html += `<div style="position: absolute; left: 6px; top: 15px; bottom: 0; width: 2px; background: ${exportTheme.timelineLine}; z-index: 1;"></div>`;
+                html += renderMarkerRow(markerById.get(p.startId), { showDot: true });
+                let cur = p.startId;
+                p.steps.forEach(step => {
+                    const startM = markerById.get(cur);
+                    const endM = markerById.get(step.endId);
+                    html += renderConnectionRow(step.conn, startM, endM);
+                    html += renderMarkerRow(endM, { showDot: true });
+                    cur = step.endId;
+                });
+                html += `</div>`;
+            });
+
+            // 未连接点：只展示点，不画竖线
+            const unlinkedMarkers = sortedMarkers.filter(m => !connectedMarkerIdSet.has(m.id));
+            unlinkedMarkers.forEach(m => {
+                html += `<div style="position: relative; padding-left: 20px; margin-bottom: 10px;">`;
+                html += renderMarkerRow(m, { showDot: true, dotColor: exportTheme.border });
+                html += `</div>`;
+            });
+
+            html += `</div></div>`; // End timeline and date block
+        });
+
+        // Footer
+        html += `
+            <div style="margin-top: 18px; padding-top: 14px; border-top: 1px dashed ${exportTheme.border}; text-align: center;">
+                <div style="font-size: 12px; color: ${exportTheme.textSecondary}; line-height: 1.6; word-break: break-all;">
+                    <div>Powered by GitHub: ${githubRepoUrl}</div>
+                    ${exportPageUrl ? `<div>Export by: ${escapeHtml(exportPageUrl)}</div>` : ''}
+                    <div style="margin-top: 6px;">提示：此图片可直接导入到原网页中继续编辑</div>
+                </div>
+            </div>
+        `;
+
+        html += `</div>`; // End container
+        container.innerHTML = html;
+
+        // 预处理导出 DOM 中的外链图片（例如点位 logo）：
+        // - html2canvas 在 useCORS=true 且 allowTaint=false 时，任何图片加载失败都可能直接 reject。
+        // - 因此这里先等待图片加载；失败的用占位块替换，保证导出流程稳定。
+        const TRANSPARENT_PX = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==';
+
+        // 点位图片（logo）加载失败：不放占位符，直接替换为透明像素，并在导出后提示。
+        const sanitizeNonTileImages = async (rootEl, timeoutMs = 8000) => {
+            const imgs = Array.from(rootEl.querySelectorAll('img')).filter(img => !img.classList.contains('leaflet-tile'));
+            if (imgs.length === 0) return { failedCount: 0 };
+
+            const results = await Promise.all(imgs.map(img => new Promise((resolve) => {
+                let done = false;
+                const finish = (ok, reason) => {
+                    if (done) return;
+                    done = true;
+                    clearTimeout(timer);
+                    resolve({ img, ok, reason });
+                };
+                const timer = setTimeout(() => finish(false, 'timeout'), timeoutMs);
+
+                if (img.complete) {
+                    // complete 但 naturalWidth=0 也算失败
+                    if (img.naturalWidth > 0) finish(true, 'already_loaded');
+                    else finish(false, 'complete_but_empty');
+                    return;
+                }
+
+                img.addEventListener('load', () => finish(true, 'load'), { once: true });
+                img.addEventListener('error', () => finish(false, 'error'), { once: true });
+            })));
+
+            let failedCount = 0;
+            results.forEach(r => {
+                if (r.ok) return;
+                failedCount += 1;
+                try {
+                    r.img.removeAttribute('srcset');
+                    r.img.src = TRANSPARENT_PX;
+                } catch (_) {}
+            });
+
+            return { failedCount };
+        };
+
+        // 导出地图暗黑模式：与主界面一致使用 CSS filter（见 static/style.css:2457）。
+        // 注意：html2canvas 默认渲染路径对 `filter` 支持有限；暗黑模式下启用 foreignObjectRendering 以尽量保持一致。
+        if (isDarkMode) {
+            const darkStyle = document.createElement('style');
+            darkStyle.textContent = `
+                .export-image-container .leaflet-tile {
+                    filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%);
+                }
+            `;
+            container.appendChild(darkStyle);
+        }
+
+        // Leaflet in an absolute off-screen container notoriously fails to calculate tile/marker offsets correctly.
+        // Instead of trying to render real Leaflet instances off-screen, we will generate static map image URLs
+        // using a public Static Map API (like Geoapify or similar open OSM static map services).
+        // If we want to keep it simple and dependency-free without external API keys,
+        // we can temporarily render the maps on-screen (hidden behind a z-index), screenshot them, then hide.
+
+        // We will move the container to be visible but visually hidden
+        container.style.position = 'fixed';
+        container.style.left = '0';
+        container.style.top = '0';
+        container.style.zIndex = '-9999';
+        container.style.opacity = '1';
+
+        const mapInstances = [];
+        const tileLayersToWait = [];
+
+        const createExportTileLayer = () => {
+            try {
+                const layerKey = this.app && this.app.currentLayer ? this.app.currentLayer : null;
+                const baseLayer = layerKey && this.app && this.app.mapLayers ? this.app.mapLayers[layerKey] : null;
+
+                if (baseLayer && baseLayer._url) {
+                    // 与主界面保持完全一致：不修改瓦片 URL 模板/域名/子域名/参数。
+                    const opts = Object.assign({}, baseLayer.options || {});
+
+                    // 其它瓦片：使用 CORS 方式加载，保证可导出 PNG
+                    opts.crossOrigin = 'anonymous';
+
+                    // 导出时瓦片加载失败不应中断：让 Leaflet 用透明像素替换错误瓦片，避免 img.onerror 让 html2canvas 直接失败。
+                    // 仅影响导出用的临时地图，不影响主地图。
+                    opts.errorTileUrl = TRANSPARENT_PX;
+
+                    return L.tileLayer(baseLayer._url, opts);
+                }
+            } catch (e) {
+                console.warn('导出图片：复用当前地图源失败，将回退到 OSM。', e);
+            }
+
+            // 回退底图：明亮模式用 OSM
+            return L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 });
+        };
+
+        const waitForTileLayerLoad = (tileLayer, timeoutMs = 15000) => {
+            return new Promise((resolve) => {
+                if (!tileLayer) return resolve({ ok: false, reason: 'no_tile_layer' });
+
+                // 如果已经加载过（例如很快的网络/缓存命中），直接通过
+                try {
+                    if (tileLayer._loading === false && tileLayer._tiles && Object.keys(tileLayer._tiles).length > 0) {
+                        return resolve({ ok: true, reason: 'already_loaded' });
+                    }
+                } catch (_) {}
+
+                let finished = false;
+                const done = (ok, reason) => {
+                    if (finished) return;
+                    finished = true;
+                    clearTimeout(timer);
+                    resolve({ ok, reason });
+                };
+
+                const timer = setTimeout(() => done(false, 'timeout'), timeoutMs);
+                // Leaflet TileLayer: 'load' 表示当前视窗所需瓦片全部加载完成
+                tileLayer.once('load', () => done(true, 'load'));
+                // 注意：瓦片失败不阻塞导出（用户要求导出继续），这里仅记录失败原因
+                tileLayer.once('tileerror', () => done(false, 'tileerror'));
+            });
+        };
+
+        // --- 渲染总体预览地图 ---
+        if (data.markers && data.markers.length > 0) {
+            const overviewMapContainer = document.getElementById('export-map-overview');
+            if (overviewMapContainer) {
+                overviewMapContainer.style.width = '560px';
+                overviewMapContainer.style.height = '250px';
+
+                const overviewMap = L.map('export-map-overview', {
+                    zoomControl: false,
+                    attributionControl: false,
+                    dragging: false,
+                    boxZoom: false,
+                    doubleClickZoom: false,
+                    keyboard: false,
+                    scrollWheelZoom: false,
+                    touchZoom: false,
+                    zoomAnimation: false,
+                    fadeAnimation: false,
+                    markerZoomAnimation: false,
+                    preferCanvas: true
+                });
+                mapInstances.push(overviewMap);
+
+                const overviewTileLayer = createExportTileLayer().addTo(overviewMap);
+                tileLayersToWait.push(overviewTileLayer);
+
+                const overviewFeatureGroupLayers = [];
+
+                // 绘制所有连接线
+                data.connections.forEach(conn => {
+                    const startMarker = data.markers.find(m => m.id === conn.startId);
+                    const endMarker = data.markers.find(m => m.id === conn.endId);
+                    if (startMarker && endMarker) {
+                        const polyline = L.polyline([
+                            [startMarker.position[0], startMarker.position[1]],
+                            [endMarker.position[0], endMarker.position[1]]
+                        ], {
+                            color: this.app.getTransportColor ? this.app.getTransportColor(conn.transportType) : '#667eea',
+                            weight: 3,
+                            opacity: 0.8
+                        }).addTo(overviewMap);
+                        overviewFeatureGroupLayers.push(polyline);
+
+                        // Calculate midpoint for icon
+                        const midLat = (startMarker.position[0] + endMarker.position[0]) / 2;
+                        const midLng = (startMarker.position[1] + endMarker.position[1]) / 2;
+                        const transportIconStr = this.app.getTransportIcon ? this.app.getTransportIcon(conn.transportType) : '•';
+                        const iconColor = this.app.getTransportColor ? this.app.getTransportColor(conn.transportType) : '#667eea';
+
+                        L.marker([midLat, midLng], {
+                            icon: L.divIcon({
+                                className: 'transport-icon-static-overview',
+                                html: `<div style="background-color: white; border: 2px solid ${iconColor}; border-radius: 50%; width: 16px; height: 16px; display: flex; align-items: center; justify-content: center; font-size: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.3);">${transportIconStr}</div>`,
+                                iconSize: [16, 16],
+                                iconAnchor: [8, 8]
+                            })
+                        }).addTo(overviewMap);
+
+                        // Add Arrow head
+                        const deltaLat = endMarker.position[0] - startMarker.position[0];
+                        const deltaLng = endMarker.position[1] - startMarker.position[1];
+                        let angle = Math.atan2(deltaLng, deltaLat) * 180 / Math.PI;
+                        const ratio = 0.75;
+                        const arrowLat = startMarker.position[0] + deltaLat * ratio;
+                        const arrowLng = startMarker.position[1] + deltaLng * ratio;
+
+                        const arrowIcon = L.divIcon({
+                            className: 'arrow-icon-static-overview',
+                            html: `
+                                <div style="position: relative; width: 12px; height: 12px; transform: rotate(${angle}deg); transform-origin: center;">
+                                    <div style="position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 4px solid transparent; border-right: 4px solid transparent; border-bottom: 8px solid ${iconColor};"></div>
+                                </div>
+                            `,
+                            iconSize: [12, 12],
+                            iconAnchor: [6, 6]
+                        });
+
+                        L.marker([arrowLat, arrowLng], { icon: arrowIcon }).addTo(overviewMap);
+                    }
+                });
+
+                // 绘制所有标记点（图标与原地图一致）
+                data.markers.forEach((marker) => {
+                    const iconText = marker.icon && marker.icon.icon ? marker.icon.icon : '📍';
+                    const iconColor = marker.icon && marker.icon.color ? marker.icon.color : '#667eea';
+                    const numIcon = L.divIcon({
+                        className: 'export-map-marker-overview',
+                        html: `<div style="background-color: ${iconColor}; width: 30px; height: 30px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 10px rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 14px;">${iconText}</div>`,
+                        iconSize: [30, 30],
+                        iconAnchor: [15, 15]
+                    });
+
+                    const leafletMarker = L.marker([marker.position[0], marker.position[1]], { icon: numIcon }).addTo(overviewMap);
+                    overviewFeatureGroupLayers.push(leafletMarker);
+                });
+
+                if (overviewFeatureGroupLayers.length > 0) {
+                    const group = new L.featureGroup(overviewFeatureGroupLayers);
+                    overviewMap.fitBounds(group.getBounds().pad(0.1), { animate: false });
+                }
+            }
+        }
+
+        // --- 渲染每天的详细地图 ---
+        dates.forEach((dateStr, index) => {
+            const markers = markersByDate[dateStr] || [];
+            if (markers.length === 0) return;
+
+            const mapContainerId = `export-map-${index}`;
+            const mapContainer = document.getElementById(mapContainerId);
+            if (!mapContainer) return;
+
+            // Give it explicit dimensions inline just to be absolutely sure
+            mapContainer.style.width = '560px';
+            mapContainer.style.height = '200px';
+
+            const tempMap = L.map(mapContainerId, {
+                zoomControl: false,
+                attributionControl: false,
+                dragging: false,
+                boxZoom: false,
+                doubleClickZoom: false,
+                keyboard: false,
+                scrollWheelZoom: false,
+                touchZoom: false,
+                zoomAnimation: false,
+                fadeAnimation: false,
+                markerZoomAnimation: false,
+                preferCanvas: true // Use canvas for rendering paths, works MUCH better with html2canvas!
+            });
+            mapInstances.push(tempMap);
+
+            const dayTileLayer = createExportTileLayer().addTo(tempMap);
+            tileLayersToWait.push(dayTileLayer);
+
+            const featureGroupLayers = [];
+
+            const sortedMarkers = [...markers].sort((a, b) => {
+                const aTimes = this.app.getMarkerTimesForDate(a, dateStr);
+                const bTimes = this.app.getMarkerTimesForDate(b, dateStr);
+                if (aTimes.length === 0) return 1;
+                if (bTimes.length === 0) return -1;
+                return new Date(aTimes[0]) - new Date(bTimes[0]);
+            });
+
+            // 同一天存在多条连接线时，不依赖“相邻点”顺序，直接按连接数据绘制
+            const markerById = new Map(sortedMarkers.map(m => [m.id, m]));
+            const markerIdSet = new Set(markerById.keys());
+
+            const dayConnections = (data.connections || []).filter(conn => {
+                if (!conn) return false;
+                // 跟主应用筛选逻辑一致：只认 connection.dateTime 所属日期
+                if (getDateKeyFromDateTime(conn.dateTime) !== dateStr) return false;
+                return markerIdSet.has(conn.startId) && markerIdSet.has(conn.endId);
+            });
+
+            dayConnections.forEach(conn => {
+                const startMarker = markerById.get(conn.startId);
+                const endMarker = markerById.get(conn.endId);
+                if (!startMarker || !endMarker) return;
+
+                const iconColor = this.app.getTransportColor ? this.app.getTransportColor(conn.transportType) : '#667eea';
+                const transportIconStr = this.app.getTransportIcon ? this.app.getTransportIcon(conn.transportType) : '•';
+
+                const polyline = L.polyline([
+                    [startMarker.position[0], startMarker.position[1]],
+                    [endMarker.position[0], endMarker.position[1]]
+                ], {
+                    color: iconColor,
+                    weight: 4,
+                    opacity: 0.85
+                }).addTo(tempMap);
+                featureGroupLayers.push(polyline);
+
+                // Calculate midpoint for icon
+                const midLat = (startMarker.position[0] + endMarker.position[0]) / 2;
+                const midLng = (startMarker.position[1] + endMarker.position[1]) / 2;
+                const iconMarker = L.marker([midLat, midLng], {
+                    icon: L.divIcon({
+                        className: 'transport-icon-static',
+                        html: `<div style="background-color: white; border: 2px solid ${iconColor}; border-radius: 50%; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; font-size: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.3);">${transportIconStr}</div>`,
+                        iconSize: [20, 20],
+                        iconAnchor: [10, 10]
+                    })
+                }).addTo(tempMap);
+                featureGroupLayers.push(iconMarker);
+
+                // Add small circle at end
+                const endCircle = L.circleMarker([endMarker.position[0], endMarker.position[1]], {
+                    radius: 4,
+                    fillColor: iconColor,
+                    color: '#fff',
+                    weight: 1.5,
+                    opacity: 1,
+                    fillOpacity: 1
+                }).addTo(tempMap);
+                featureGroupLayers.push(endCircle);
+
+                // Add Arrow head
+                const deltaLat = endMarker.position[0] - startMarker.position[0];
+                const deltaLng = endMarker.position[1] - startMarker.position[1];
+                let angle = Math.atan2(deltaLng, deltaLat) * 180 / Math.PI;
+                const ratio = 0.75;
+                const arrowLat = startMarker.position[0] + deltaLat * ratio;
+                const arrowLng = startMarker.position[1] + deltaLng * ratio;
+
+                const arrowIcon = L.divIcon({
+                    className: 'arrow-icon-static',
+                    html: `
+                        <div style="position: relative; width: 16px; height: 16px; transform: rotate(${angle}deg); transform-origin: center;">
+                            <div style="position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-bottom: 12px solid ${iconColor};"></div>
+                        </div>
+                    `,
+                    iconSize: [16, 16],
+                    iconAnchor: [8, 8]
+                });
+
+                const arrowMarker = L.marker([arrowLat, arrowLng], { icon: arrowIcon }).addTo(tempMap);
+                featureGroupLayers.push(arrowMarker);
+            });
+
+            sortedMarkers.forEach((marker) => {
+                const iconText = marker.icon && marker.icon.icon ? marker.icon.icon : '📍';
+                const iconColor = marker.icon && marker.icon.color ? marker.icon.color : '#667eea';
+                const numIcon = L.divIcon({
+                    className: 'export-map-marker',
+                    html: `<div style="background-color: ${iconColor}; width: 30px; height: 30px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 10px rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 14px;">${iconText}</div>`,
+                    iconSize: [30, 30],
+                    iconAnchor: [15, 15]
+                });
+
+                const leafletMarker = L.marker([marker.position[0], marker.position[1]], { icon: numIcon }).addTo(tempMap);
+                featureGroupLayers.push(leafletMarker);
+            });
+
+            if (featureGroupLayers.length > 0) {
+                const group = new L.featureGroup(featureGroupLayers);
+                tempMap.fitBounds(group.getBounds().pad(0.2), { animate: false });
+            }
+        });
+
+        // 等待地图瓦片加载完成再截图（避免慢网/空白图）
+        try {
+            // Force redraw immediately before capture
+            mapInstances.forEach(map => {
+                map.invalidateSize(false);
+            });
+
+            // 给浏览器一次渲染机会，再开始等待瓦片加载
+            await new Promise(r => setTimeout(r, 80));
+
+            const tileWaitResults = await Promise.all(tileLayersToWait.map(tl => waitForTileLayerLoad(tl)));
+            const tileFailures = tileWaitResults.filter(r => !r || r.ok !== true);
+
+            const imgFailures = await sanitizeNonTileImages(container, 8000);
+
+            if (typeof html2canvas === 'undefined') {
+                if (typeof Swal !== 'undefined') Swal.close();
+                alert('缺少 html2canvas 库，无法导出图片。');
+                // Cleanup maps
+                mapInstances.forEach(m => m.remove());
+                document.body.removeChild(container);
+                return;
+            }
+
+            const canvas = await html2canvas(container, {
+                scale: 2, // Higher resolution
+                // 需要可导出 PNG（toDataURL/toBlob），必须避免 canvas tainted：
+                // - useCORS=true：让 html2canvas 以 CORS 方式加载图片
+                // - allowTaint=false：禁止跨域污染 canvas
+                useCORS: true,
+                allowTaint: false,
+                // 注意：foreignObjectRendering 会通过 `data:image/svg+xml` 间接渲染 DOM，
+                // 在 file:// 或部分浏览器下容易触发 Image.onerror，导致“永远导出失败”。
+                // 为了保证稳定导出，这里强制关闭。
+                foreignObjectRendering: false,
+                imageTimeout: 15000,
+                backgroundColor: exportTheme.pageBg
+            });
+
+            // Embed JSON data into the PNG using steganography（canvas 必须未被跨域污染）
+            try {
+                const ctx = canvas.getContext('2d', { willReadFrequently: true });
+                const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const pixelData = imgData.data;
+
+                // Prepare the JSON payload
+                const exportData = this.prepareExportData();
+                const jsonString = JSON.stringify(exportData);
+
+                // Convert string to bytes
+                const encoder = new TextEncoder();
+                const jsonBytes = encoder.encode(jsonString);
+                const dataLength = jsonBytes.length;
+
+                // Check capacity (4 channels * 8 bits = 32 bits for length, then 8 bits per byte)
+                const maxBytes = (pixelData.length - 32) / 8;
+                if (dataLength > maxBytes) {
+                    console.error('Data too large to embed in image:', dataLength, 'max:', maxBytes);
+                    this.downloadCanvas(canvas, mapInstances, container);
+                    return;
+                }
+
+                // Encode length (32 bits)
+                let lengthBits = dataLength.toString(2).padStart(32, '0');
+                for (let i = 0; i < 32; i++) {
+                    pixelData[i * 4] = (pixelData[i * 4] & 254) | parseInt(lengthBits[i], 10);
+                }
+
+                // Encode data
+                let pixelIndex = 32 * 4;
+                for (let i = 0; i < dataLength; i++) {
+                    let byteBits = jsonBytes[i].toString(2).padStart(8, '0');
+                    for (let j = 0; j < 8; j++) {
+                        pixelData[pixelIndex] = (pixelData[pixelIndex] & 254) | parseInt(byteBits[j], 10);
+                        pixelIndex += 4;
+                    }
+                }
+
+                ctx.putImageData(imgData, 0, 0);
+            } catch (e) {
+                console.warn('导出图片：canvas 可能被跨域资源污染，跳过 PNG 数据嵌入。', e);
+            }
+
+            const ok = this.downloadCanvas(canvas, mapInstances, container);
+
+            // 导出后提示瓦片加载问题（不影响导出结果）
+            const tileFailedCount = tileFailures.length;
+            if (ok && tileFailedCount > 0 && typeof Swal !== 'undefined') {
+                setTimeout(() => {
+                    Swal.fire('已导出，但地图可能不完整', `有 ${tileFailedCount} 处瓦片在 15 秒内未加载成功，导出图可能出现空白区域。`, 'warning');
+                }, 0);
+            }
+
+            // 点位图片（logo）加载失败提示（不影响导出结果，不放占位符）
+            if (ok && imgFailures && imgFailures.failedCount > 0 && typeof Swal !== 'undefined') {
+                setTimeout(() => {
+                    Swal.fire('提示', `有 ${imgFailures.failedCount} 张点位图片在导出时加载失败，已跳过显示。`, 'info');
+                }, 0);
+            }
+
+        } catch (err) {
+            console.error('Error generating image:', err);
+            mapInstances.forEach(m => m.remove());
+            document.body.removeChild(container);
+            if (typeof Swal !== 'undefined') {
+                // html2canvas 可能直接抛出图片加载失败的 Event
+                let msg = (err && err.message) ? err.message : '';
+                if (!msg && err && err.type === 'error' && err.target && err.target.tagName === 'IMG') {
+                    const src = err.target.currentSrc || err.target.src || '';
+                    if (src.startsWith('data:image/svg+xml')) {
+                        msg = '导出失败：html2canvas 的 SVG 渲染路径触发了图片加载错误（常见于 file:// 打开页面）。请用 http(s) 方式打开页面再导出。';
+                    } else {
+                        msg = `存在无法加载的图片资源：${src ? src : '未知图片'}（可能是网络/CORS/被墙导致）。`;
+                    }
+                }
+                if (!msg && err && err.type === 'error') {
+                    msg = '存在无法加载的图片资源（可能是地图瓦片/点位图片跨域或网络问题）。';
+                }
+                if (!msg) msg = '生成图片时发生错误。';
+                Swal.fire('导出失败', msg, 'error');
+            }
+        }
+    }
+
+    downloadCanvas(canvas, mapInstances, container) {
+        let image;
+        try {
+            image = canvas.toDataURL("image/png");
+        } catch (e) {
+            // 典型错误：Tainted canvases may not be exported.
+            console.error('导出图片失败：canvas 无法导出（可能是跨域瓦片/CORS 导致）', e);
+            if (mapInstances) mapInstances.forEach(m => m.remove());
+            if (container && container.parentNode) document.body.removeChild(container);
+            if (typeof Swal !== 'undefined') {
+                Swal.fire('导出失败', '导出图片被浏览器拦截（跨域瓦片导致 canvas 被污染）。请切换到支持 CORS 的地图源或使用同源瓦片代理。', 'error');
+            } else {
+                alert('导出失败：跨域瓦片导致无法生成 PNG（canvas 被污染）。');
+            }
+            return false;
+        }
+        const a = document.createElement("a");
+        a.href = image;
+        a.download = `roadbook_${this.#getLocalDateString(new Date())}.png`;
+        a.click();
+
+        // Cleanup
+        if (mapInstances) mapInstances.forEach(m => m.remove());
+        if (container && container.parentNode) document.body.removeChild(container);
+
+        if (typeof Swal !== 'undefined') {
+            Swal.close();
+            Swal.fire({
+                title: '导出成功',
+                text: '行程长图已保存到您的设备（此图片支持重新导入）',
+                icon: 'success',
+                timer: 2000,
+                showConfirmButton: false
+            });
+        }
+
+        return true;
+    }
+
+    // 从带有隐写术的 PNG 中提取 JSON 数据
+    importFromPng(file) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d', { willReadFrequently: true });
+                canvas.width = img.width;
+                canvas.height = img.height;
+                ctx.drawImage(img, 0, 0);
+
+                const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const data = imgData.data;
+
+                // 提取最低有效位 (LSB)
+                let binaryStr = '';
+                // 首先读取前 32 位（4 字节）获取数据长度
+                for (let i = 0; i < 32; i++) {
+                    binaryStr += (data[i * 4] & 1).toString();
+                }
+                const dataLength = parseInt(binaryStr, 2);
+
+                if (dataLength <= 0 || dataLength > data.length / 4 / 8) {
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire('错误', '该图片不包含有效的路书数据或数据已损坏！', 'error');
+                    } else {
+                        alert('错误: 该图片不包含有效的路书数据或数据已损坏！');
+                    }
+                    return;
+                }
+
+                binaryStr = '';
+                // 从第 32 位之后开始读取实际数据
+                const totalBitsToRead = 32 + (dataLength * 8);
+                for (let i = 32; i < totalBitsToRead; i++) {
+                    binaryStr += (data[i * 4] & 1).toString();
+                }
+
+                // 将二进制转换为字符串
+                try {
+                    const bytes = new Uint8Array(dataLength);
+                    for (let i = 0; i < dataLength; i++) {
+                        const byteStr = binaryStr.substring(i * 8, (i + 1) * 8);
+                        bytes[i] = parseInt(byteStr, 2);
+                    }
+
+                    const decoder = new TextDecoder('utf-8');
+                    const jsonString = decoder.decode(bytes);
+                    const roadbookData = JSON.parse(jsonString);
+
+                    if (roadbookData && roadbookData.markers) {
+                        // 如果我们在 script.js 的 app 实例中，调用 processImportedData
+                        if (this.app && typeof this.app.processImportedData === 'function') {
+                            this.app.processImportedData(roadbookData);
+                        } else if (this.app && typeof this.app.loadRoadbook === 'function') {
+                            this.app.loadRoadbook(roadbookData, true);
+
+                            setTimeout(() => {
+                                if (roadbookData.currentLayer) {
+                                    this.app.switchMapSource(roadbookData.currentLayer);
+                                    const mapSourceSelect = document.getElementById('mapSourceSelect');
+                                    if (mapSourceSelect) {
+                                        mapSourceSelect.value = roadbookData.currentLayer;
+                                    }
+                                }
+
+                                if (roadbookData.currentSearchMethod) {
+                                    this.app.currentSearchMethod = roadbookData.currentSearchMethod;
+                                    const searchMethodSelect = document.getElementById('searchMethodSelect');
+                                    if (searchMethodSelect) {
+                                        searchMethodSelect.value = roadbookData.currentSearchMethod;
+                                    }
+                                }
+                            }, 100);
+                        }
+                    } else {
+                        throw new Error("Invalid format");
+                    }
+                } catch (error) {
+                    console.error('解析图片内置数据失败:', error);
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire('错误', '图片中的数据格式错误，可能是图片被压缩导致数据丢失。', 'error');
+                    } else {
+                        alert('错误: 图片中的数据格式错误，可能是图片被压缩导致数据丢失。');
+                    }
+                }
+            };
+            img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    }
+
     generateTxtContent(data) {
         let content = "行程安排\n\n";
         const markersById = new Map(data.markers.map(m => [m.id, m]));

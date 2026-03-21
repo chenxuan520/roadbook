@@ -1374,6 +1374,7 @@ class RoadbookApp {
         const exportHtmlBtn = document.getElementById('exportHtmlBtn');
         const exportTxtBtn = document.getElementById('exportTxtBtn');
         const exportIcsBtn = document.getElementById('exportIcsBtn');
+        const exportImgBtn = document.getElementById('exportImgBtn');
 
 
         // 下拉按钮点击事件 - 显示/隐藏下拉菜单
@@ -1461,6 +1462,21 @@ class RoadbookApp {
         if (exportIcsBtn) {
             exportIcsBtn.addEventListener('click', () => {
                 this.exportToIcs();
+                // 隐藏下拉菜单
+                if (exportDropdownContent) {
+                    exportDropdownContent.classList.remove('show');
+                }
+            });
+        }
+
+        // 点击导出图片按钮
+        if (exportImgBtn) {
+            exportImgBtn.addEventListener('click', () => {
+                if (window.htmlExporter) {
+                    window.htmlExporter.exportToImage();
+                } else {
+                    console.error('HTML Exporter not found');
+                }
                 // 隐藏下拉菜单
                 if (exportDropdownContent) {
                     exportDropdownContent.classList.remove('show');
@@ -5926,6 +5942,16 @@ class RoadbookApp {
             return;
         }
 
+        // 检查是否是PNG图片文件 (隐写术提取 JSON)
+        if (file.name.toLowerCase().endsWith('.png')) {
+            if (typeof RoadbookHtmlExporter !== 'undefined' && window.htmlExporter) {
+                window.htmlExporter.importFromPng(file);
+            } else {
+                this.showSwalAlert('错误', '导出模块未加载，无法从 PNG 导入！', 'error');
+            }
+            return;
+        }
+
         const reader = new FileReader();
         reader.onload = (e) => {
             try {
@@ -6026,6 +6052,7 @@ class RoadbookApp {
             }
         }, 100); // 稍微延时以确保数据加载完成
     }
+
 
     /**
      * 比较两个版本号的大小

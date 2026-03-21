@@ -130,6 +130,36 @@ test('导出 TXT：选择“导出文件”会触发下载', async ({ page }) =>
   expect(txt).toContain('TXT 下载测试');
 });
 
+test('导出图片：等待地图瓦片后触发 PNG 下载（使用 mock tile 避免网络波动）', async ({ page }) => {
+  await prepareApp(page);
+
+  // 覆盖 helpers.mjs 的通配 abort（后注册优先），给高德瓦片一个稳定的 1x1 PNG
+  const onePxPng = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMB/7T4n2sAAAAASUVORK5CYII=',
+    'base64'
+  );
+  await page.route(/https:\/\/webrd0\d\.is\.autonavi\.com\/appmaptile\?.*/i, async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'image/png',
+      body: onePxPng
+    });
+  });
+
+  await addMarker(page, 0.5, 0.5);
+  await page.fill('#markerNameInput', 'PNG 测试点');
+
+  const downloadPromise = page.waitForEvent('download');
+  await page.click('#exportDropdownBtn');
+  await page.click('#exportImgBtn');
+  const download = await downloadPromise;
+
+  const p = await download.path();
+  expect(p).toBeTruthy();
+  const stat = await fs.stat(p);
+  expect(stat.size).toBeGreaterThan(1024);
+});
+
 test('导入 HTML：导出 HTML 后再导入，能恢复标记点', async ({ page }) => {
   await prepareApp(page);
   await addMarker(page, 0.5, 0.5);

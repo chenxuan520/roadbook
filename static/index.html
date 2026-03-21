@@ -9,7 +9,15 @@
     <meta property="og:type" content="website" />
     <meta property="og:image" content="https://map.chenxuanweb.top/favicon.png" />
     <link rel="icon" type="image/png" href="favicon.png">
-    <link rel="manifest" href="manifest.json">
+    <script>
+        // 只有非 file:// 协议才加载 PWA manifest
+        if (window.location.protocol !== 'file:') {
+            const manifestLink = document.createElement('link');
+            manifestLink.rel = 'manifest';
+            manifestLink.href = 'manifest.json';
+            document.head.appendChild(manifestLink);
+        }
+    </script>
     <meta name="theme-color" content="#667eea">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="style.css">
@@ -57,6 +65,7 @@
                             <button id="exportHtmlBtn" class="dropdown-item">🌐 导出 HTML</button>
                             <button id="exportTxtBtn" class="dropdown-item">📝 导出 TXT</button>
                             <button id="exportIcsBtn" class="dropdown-item">📅 导出 ICS</button>
+                            <button id="exportImgBtn" class="dropdown-item">🖼️ 导出图片</button>
                         </div>
                     </div>
                     <button id="importBtn" class="btn">📥 导入</button>
@@ -71,7 +80,7 @@
                         <option value="google_satellite">Google卫星图</option>
                         <option value="tencent">腾讯地图</option>
                     </select>
-                    <input type="file" id="importFile" accept=".json,.html" style="display: none;">
+                    <input type="file" id="importFile" accept=".json,.html,.png" style="display: none;">
                 </div>
             </div>
         </header>
@@ -734,6 +743,7 @@
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/sweetalert2@11/dist/sweetalert2.all.min.js"></script>
+    <script src="https://unpkg.com/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
     <script src="debug.js"></script>
     <script src="script.js"></script>
     <script src="html_export.js"></script>
@@ -760,7 +770,7 @@
 
     <!-- PWA Service Worker 注册 -->
     <script>
-        if ('serviceWorker' in navigator) {
+        if ('serviceWorker' in navigator && window.location.protocol !== 'file:') {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('sw.js')
                     .then(registration => {
