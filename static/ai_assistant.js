@@ -13,6 +13,7 @@ class RoadbookAIAssistant {
         this.messagesContainer = null;
         this.inputElement = null;
         this.sendBtn = null;
+        this.stopBtn = null;
         this.toggleBtn = null;
 
         // State
@@ -21,6 +22,9 @@ class RoadbookAIAssistant {
         this.dragOffset = { x: 0, y: 0 };
         this.messages = [];
         this.isStreaming = false;
+        this.stopRequested = false;
+        this.currentAbortController = null;
+        this.currentStreamReader = null;
 
         // How many recent chat messages to include in each AI request.
         // Tool/action results generated after the last assistant message are always included,
@@ -458,8 +462,15 @@ Description: ${prompt}`;
         this.sendBtn.innerHTML = '➤';
         this.sendBtn.onclick = () => this.sendMessage();
 
+        this.stopBtn = document.createElement('button');
+        this.stopBtn.className = 'ai-stop-btn';
+        this.stopBtn.innerHTML = '⏹';
+        this.stopBtn.onclick = () => this.stopStreaming();
+        this.stopBtn.style.display = 'none';
+
         inputArea.appendChild(this.inputElement);
         inputArea.appendChild(this.sendBtn);
+        inputArea.appendChild(this.stopBtn);
 
         this.chatWindow.appendChild(header);
         this.chatWindow.appendChild(this.messagesContainer);
@@ -1293,6 +1304,9 @@ DEFAULT NOTE FORMAT: If the user does not specify note content, you MUST create 
 
         this.isStreaming = true;
         this.sendBtn.disabled = true;
+        if (this.stopBtn) this.stopBtn.style.display = 'flex';
+        if (this.sendBtn) this.sendBtn.style.display = 'none';
+        this.stopRequested = false;
 
         // Add thinking message
         const thinkingMsgId = 'ai-thinking-message';
@@ -1328,6 +1342,8 @@ DEFAULT NOTE FORMAT: If the user does not specify note content, you MUST create 
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s total timeout for connection
 
+        this.currentAbortController = controller;
+
         try {
             const token = localStorage.getItem('online_token');
             const headers = { 'Content-Type': 'application/json' };
@@ -1351,6 +1367,8 @@ DEFAULT NOTE FORMAT: If the user does not specify note content, you MUST create 
             // Handle streaming response
             const reader = response.body.getReader();
             const decoder = new TextDecoder();
+
+            this.currentStreamReader = reader;
 
             // Remove thinking message once stream starts
             const thinkingMsgEl = document.getElementById(thinkingMsgId);
@@ -1414,18 +1432,22 @@ DEFAULT NOTE FORMAT: If the user does not specify note content, you MUST create 
                     }
                 }
             } catch (streamError) {
-                console.error('Stream reading error:', streamError);
-                // If it was just a stall, we might want to keep the partial message
-                if (assistantMsg.content.length === 0) {
-                    throw streamError; // Rethrow if we got nothing
+                if (this.stopRequested) {
+                    // 用户主动终止，保留已生成的部分内容，不提示“传输中断”
+                } else {
+                    console.error('Stream reading error:', streamError);
+                    // If it was just a stall, we might want to keep the partial message
+                    if (assistantMsg.content.length === 0) {
+                        throw streamError; // Rethrow if we got nothing
+                    }
+                    this.appendMessageElement({ role: 'system', content: '⚠️ 回复传输中断，已显示部分内容' });
                 }
-                this.appendMessageElement({ role: 'system', content: '⚠️ 回复传输中断，已显示部分内容' });
             } finally {
                 if (activityTimeoutId) clearTimeout(activityTimeoutId);
             }
 
             // Parse and execute actions after message is complete (or interrupted)
-            if (assistantMsg.content.length > 0) {
+            if (assistantMsg.content.length > 0 && !this.stopRequested) {
                 // Use setTimeout to allow the finally block to execute first and reset isStreaming
                 setTimeout(() => {
                     this.parseAndExecuteAction(assistantMsg.content, contentDiv);
@@ -1435,11 +1457,16 @@ DEFAULT NOTE FORMAT: If the user does not specify note content, you MUST create 
         } catch (error) {
             console.error('Chat error:', error);
             if (error.name === 'AbortError') {
-                this.appendMessageElement({ role: 'system', content: '❌ 请求超时，请检查网络或稍后重试' });
+                if (this.stopRequested) {
+                    this.appendMessageElement({ role: 'system', content: '⏹ 已终止生成' });
+                } else {
+                    this.appendMessageElement({ role: 'system', content: '❌ 请求超时，请检查网络或稍后重试' });
+                }
             } else {
                 this.appendMessageElement({ role: 'system', content: '❌ 发送失败，请稍后重试' });
             }
         } finally {
+            clearTimeout(timeoutId);
             // Ensure thinking message is removed
             const thinkingMsgEl = document.getElementById(thinkingMsgId);
             if (thinkingMsgEl) {
@@ -1447,7 +1474,31 @@ DEFAULT NOTE FORMAT: If the user does not specify note content, you MUST create 
             }
             this.isStreaming = false;
             this.sendBtn.disabled = false;
+            if (this.stopBtn) this.stopBtn.style.display = 'none';
+            if (this.sendBtn) this.sendBtn.style.display = 'flex';
+            this.currentAbortController = null;
+            this.currentStreamReader = null;
+            this.stopRequested = false;
             this.scrollToBottom();
+        }
+    }
+
+    stopStreaming() {
+        if (!this.isStreaming) return;
+        this.stopRequested = true;
+        try {
+            if (this.currentStreamReader) {
+                this.currentStreamReader.cancel();
+            }
+        } catch (_) {
+            // ignore
+        }
+        try {
+            if (this.currentAbortController) {
+                this.currentAbortController.abort();
+            }
+        } catch (_) {
+            // ignore
         }
     }
 

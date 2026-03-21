@@ -3353,6 +3353,15 @@ body.dark-mode .leaflet-tile {
     box-shadow: none;
 }
 
+.ai-input-area button.ai-stop-btn {
+    background: linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%);
+    box-shadow: 0 2px 8px rgba(255, 107, 107, 0.35);
+}
+
+.ai-input-area button.ai-stop-btn:hover {
+    box-shadow: 0 4px 12px rgba(255, 107, 107, 0.45);
+}
+
 .ai-map-action {
     font-size: 13px;
     color: #2e7d32;
