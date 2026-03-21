@@ -810,10 +810,53 @@ class RoadbookHtmlExporter {
 
                 const overviewFeatureGroupLayers = [];
 
+                // 如果主界面存在“聚焦日期范围”（fitView 的 lastDateRange），总览图优先按该范围展示。
+                // 其它内容（每天详情、文案等）保持不变。
+                const rawFocus = this.app && this.app.lastDateRange ? this.app.lastDateRange : null;
+                const focusStart = rawFocus && rawFocus.start ? String(rawFocus.start) : '';
+                const focusEnd = rawFocus && rawFocus.end ? String(rawFocus.end) : '';
+                const hasFocusRange = !!(focusStart && focusEnd);
+
+                const normalizeRange = (a, b) => (a <= b ? [a, b] : [b, a]);
+                const [focusMin, focusMax] = hasFocusRange ? normalizeRange(focusStart, focusEnd) : ['', ''];
+                const isDateKeyInFocus = (dateKey) => {
+                    if (!hasFocusRange) return true;
+                    if (!dateKey || dateKey === '未知日期') return false;
+                    return dateKey >= focusMin && dateKey <= focusMax;
+                };
+
+                const markerInFocus = (m) => {
+                    if (!hasFocusRange) return true;
+                    if (!m) return false;
+                    const dateTimes = m.dateTimes || (m.dateTime ? [m.dateTime] : []);
+                    if (!Array.isArray(dateTimes) || dateTimes.length === 0) return false;
+                    return dateTimes.some(dt => isDateKeyInFocus(getDateKeyFromDateTime(dt)));
+                };
+
+                let overviewMarkers = data.markers || [];
+                let overviewConnections = data.connections || [];
+
+                if (hasFocusRange) {
+                    const filteredMarkers = overviewMarkers.filter(markerInFocus);
+                    // 如果聚焦范围筛不到任何点，则回退为全量（避免导出空白总览）
+                    if (filteredMarkers.length > 0) {
+                        const idSet = new Set(filteredMarkers.map(m => m.id));
+                        overviewMarkers = filteredMarkers;
+                        overviewConnections = overviewConnections.filter(conn => {
+                            if (!conn) return false;
+                            if (!conn.dateTime) return false;
+                            if (!isDateKeyInFocus(getDateKeyFromDateTime(conn.dateTime))) return false;
+                            return idSet.has(conn.startId) && idSet.has(conn.endId);
+                        });
+                    }
+                }
+
+                const overviewMarkerById = new Map(overviewMarkers.map(m => [m.id, m]));
+
                 // 绘制所有连接线
-                data.connections.forEach(conn => {
-                    const startMarker = data.markers.find(m => m.id === conn.startId);
-                    const endMarker = data.markers.find(m => m.id === conn.endId);
+                overviewConnections.forEach(conn => {
+                    const startMarker = overviewMarkerById.get(conn.startId);
+                    const endMarker = overviewMarkerById.get(conn.endId);
                     if (startMarker && endMarker) {
                         const polyline = L.polyline([
                             [startMarker.position[0], startMarker.position[1]],
@@ -864,7 +907,7 @@ class RoadbookHtmlExporter {
                 });
 
                 // 绘制所有标记点（图标与原地图一致）
-                data.markers.forEach((marker) => {
+                overviewMarkers.forEach((marker) => {
                     const iconText = marker.icon && marker.icon.icon ? marker.icon.icon : '📍';
                     const iconColor = marker.icon && marker.icon.color ? marker.icon.color : '#667eea';
                     const numIcon = L.divIcon({

@@ -32,11 +32,19 @@ type AIChatRequest struct {
 type Message struct {
 	Role    string `json:"role"`
 	Content string `json:"content"`
+	Display string `json:"display,omitempty"`
+}
+
+// OpenAIMessage is the upstream provider schema.
+// Keep it strict to avoid sending UI-only fields like `display`.
+type OpenAIMessage struct {
+	Role    string `json:"role"`
+	Content string `json:"content"`
 }
 
 type OpenAIRequest struct {
 	Model    string    `json:"model"`
-	Messages []Message `json:"messages"`
+	Messages []OpenAIMessage `json:"messages"`
 	Stream   bool      `json:"stream"`
 }
 
@@ -144,9 +152,13 @@ func AIChat(cfg *config.Config) gin.HandlerFunc {
 		}
 
 		// Prepare request to OpenAI
+		providerMessages := make([]OpenAIMessage, 0, len(req.Messages))
+		for _, m := range req.Messages {
+			providerMessages = append(providerMessages, OpenAIMessage{Role: m.Role, Content: m.Content})
+		}
 		openAIReq := OpenAIRequest{
 			Model:    cfg.AI.Model,
-			Messages: req.Messages,
+			Messages: providerMessages,
 			Stream:   true,
 		}
 

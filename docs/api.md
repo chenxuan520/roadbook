@@ -666,12 +666,18 @@ AI 助手相关的所有端点都需要 JWT 认证。
     },
     {
       "role": "user",
-      "content": "帮我在北京故宫添加一个标记"
+      "content": "帮我在北京故宫添加一个标记",
+      "display": "帮我在北京故宫添加一个标记"
     }
   ]
 }
 ```
-- `messages` (array): 对话历史，遵循 OpenAI 的消息格式。
+- `messages` (array): 对话历史。
+  - `role` (string): 角色，取值 `system` / `user` / `assistant`。
+  - `content` (string): 发送给模型/后端的完整内容。
+  - `display` (string, optional): UI 展示用的摘要文本；用于“上下文注入”（例如 `/xiaohongshu` 导出文案时把整段行程作为上下文）时，避免刷新后历史里展示超长内容。
+
+> 注意：服务端在调用大模型提供商时只会使用 `{role, content}`，`display` 不会被透传给模型。
 
 #### 响应体 (成功): Stream (流式响应)
 响应是一个 `text/event-stream` 流。每一条消息都是一个 `data:` 事件，内容是 AI 模型返回的 JSON 块。最后以 `data: [DONE]` 结束。
@@ -699,7 +705,8 @@ data: [DONE]
   "messages": [
     {
       "role": "user",
-      "content": "帮我在北京故宫添加一个标记"
+      "content": "帮我在北京故宫添加一个标记",
+      "display": "帮我在北京故宫添加一个标记"
     },
     {
       "role": "assistant",
@@ -723,7 +730,8 @@ data: [DONE]
   "messages": [
     {
       "role": "user",
-      "content": "帮我在北京故宫添加一个标记"
+      "content": "帮我在北京故宫添加一个标记",
+      "display": "帮我在北京故宫添加一个标记"
     },
     {
       "role": "assistant",

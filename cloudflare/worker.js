@@ -346,6 +346,11 @@ export default {
             const messages = body.messages;
             if (!messages || !Array.isArray(messages)) return err("Invalid messages");
 
+            // Providers only accept {role, content}. Strip UI-only fields like display.
+            const providerMessages = messages
+                .filter(m => m && typeof m.role === 'string' && typeof m.content === 'string')
+                .map(m => ({ role: m.role, content: m.content }));
+
             // Prepare OpenAI Request
             let streamResponse;
 
@@ -353,7 +358,7 @@ export default {
                  // Use Cloudflare Workers AI
                  try {
                      const response = await env.AI.run(cfAiModel, {
-                         messages: messages,
+                         messages: providerMessages,
                          stream: true
                      });
                      streamResponse = response;
@@ -364,7 +369,7 @@ export default {
                  // Use OpenAI Compatible API
                  const openAIReq = {
                      model: aiModel,
-                     messages: messages,
+                     messages: providerMessages,
                      stream: true
                  };
 
