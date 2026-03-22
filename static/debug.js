@@ -512,11 +512,48 @@
 
             const applyFilter = () => {
                 const q = String(filterInput.value || '').trim().toLowerCase();
-                const items = groupsContainer.querySelectorAll('.debug-sub-group');
-                items.forEach((el) => {
-                    const titleEl = el.querySelector('.debug-sub-group-title');
-                    const t = titleEl ? String(titleEl.textContent || '').toLowerCase() : '';
-                    el.style.display = !q || t.includes(q) ? '' : 'none';
+
+                // 规则：
+                // 1) 先按“子项标题”过滤；
+                // 2) 如果某个大分组下没有任何命中，则隐藏整个大分组，避免用户不知道命中在哪个模块；
+                // 3) 如果搜索词命中“大分组标题”，则显示该分组并展开显示全部子项。
+
+                const groups = groupsContainer.querySelectorAll('.debug-group');
+                groups.forEach((group) => {
+                    const groupTitleEl = group.querySelector('.debug-group-title');
+                    const groupTitle = groupTitleEl ? String(groupTitleEl.textContent || '').toLowerCase() : '';
+                    const groupMatched = !!q && groupTitle.includes(q);
+
+                    const items = group.querySelectorAll('.debug-sub-group');
+                    let visibleCount = 0;
+
+                    items.forEach((el) => {
+                        if (!q) {
+                            el.style.display = '';
+                            visibleCount++;
+                            return;
+                        }
+
+                        if (groupMatched) {
+                            // 命中大分组标题：不再过滤子项，全部展示
+                            el.style.display = '';
+                            visibleCount++;
+                            return;
+                        }
+
+                        const titleEl = el.querySelector('.debug-sub-group-title');
+                        const t = titleEl ? String(titleEl.textContent || '').toLowerCase() : '';
+                        const show = t.includes(q);
+                        el.style.display = show ? '' : 'none';
+                        if (show) visibleCount++;
+                    });
+
+                    // 隐藏空大分组（仅在有搜索词且不命中分组标题时）
+                    if (q && !groupMatched && visibleCount === 0) {
+                        group.style.display = 'none';
+                    } else {
+                        group.style.display = '';
+                    }
                 });
             };
 

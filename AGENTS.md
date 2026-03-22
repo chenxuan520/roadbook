@@ -10,6 +10,7 @@ RoadbookMaker 是一个基于网页的地图标记与行程规划工具：
   - `static/index.html`：入口 HTML。
   - `static/style.css`：样式定义（含 CSS 变量实现的明亮/暗色模式）。
   - `static/script.js`：核心地图逻辑、交互与状态管理。
+  - `static/help_tour.js`：新手引导（罩子高亮 + tooltip + 自动演示点/线/日程编辑）。
   - `static/online_mode.js`：在线模式 API 交互。
   - `static/ai_assistant.js`：AI 助手功能，实现自然语言驱动的地图操作。
   - `static/debug.js`：调试模块，提供应用状态快照、日志捕获与环境信息查看（见第 10 节）。
@@ -57,6 +58,7 @@ RoadbookMaker 是一个基于网页的地图标记与行程规划工具：
 ### 前端（`static/`）
 
 - 无框架：主要逻辑集中在 `static/script.js`（地图、标记点、连接线、费用记录 `dateNotes`、导入导出等）、`static/online_mode.js`（在线模式/云端保存/登录）与 `static/ai_assistant.js`（AI 助手）。
+- 新手引导：`static/help_tour.js`（罩子高亮 + 步骤引导；入口在帮助面板 `❓` 内）
 - 调试逻辑独立于 `static/debug.js`，通过 `DebugModule` 类实现，仅在需要时被调用。
 - 在线 token 存储：`localStorage` 的 key 为 `online_token`（见 `static/online_mode.js:6`）。
 - 在线模式快捷键：在在线模式且已登录时，`Ctrl/Cmd+S` 触发 `saveToCloud()` 云端保存（见 `static/online_mode.js:41`）。

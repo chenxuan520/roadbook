@@ -182,7 +182,27 @@ Description: ${prompt}`;
         });
 
         this.registerCommand('help', '显示可用命令', () => {
-            let helpText = '### 可用命令\n\n';
+            let helpText = '';
+
+            helpText += '### AI 小助手能做什么\n\n';
+            helpText += '- **生成行程图**：把你的需求变成地图上的“点 + 线 + 时间”，并补全每天的日程备注。\n';
+            helpText += '- **调整已有行程**：你可以直接用自然语言描述要改什么（例如改顺序、补充一天、换交通方式），我会尝试在图上执行。\n';
+            helpText += '- **导出内容**：基于当前行程生成适合分享的文字（例如小红书文案）。\n';
+            helpText += '- **解释/答疑**：问我怎么用某个功能、快捷键、怎么删除点/线、日程怎么写等。\n\n';
+
+            helpText += '### 常用示例\n\n';
+            helpText += '- `/generate 上海 2 天游：外滩-豫园-武康路，安排时间并连线`\n';
+            helpText += '- `/generate 日本关西 5 天游（大阪→京都→奈良→神户），每天给个注意事项`\n';
+            helpText += '- `/xiaohongshu 主打美食和拍照点，语气更种草一点`\n';
+            helpText += '- 直接对话：`把“XX景点”改到下午 3 点；从 A 到 B 改成地铁；补一天自由活动`\n\n';
+
+            helpText += '### 注意事项\n\n';
+            helpText += '- **需要在线模式登录**：未登录/未开启 AI 时不会出现入口（取决于后端配置）。\n';
+            helpText += `- **上下文记忆有限**：为性能考虑，AI 只会携带最近 **${this.HISTORY_LIMIT}** 条消息作为上下文；更早内容可能会忘记。\n`;
+            helpText += '- **建议写清楚时间范围**：例如“2026-05-01 ~ 2026-05-03 / 每天上午-下午-晚上”。\n';
+            helpText += '- **地图操作以结果为准**：生成/修改后请检查地图与日程列表，需要的话我可以继续微调。\n\n';
+
+            helpText += '### 可用命令\n\n';
             Object.entries(this.commands).forEach(([name, cmd]) => {
                 helpText += `- \`/${name}\`: ${cmd.description}\n`;
             });

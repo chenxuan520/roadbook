@@ -25,6 +25,20 @@ function looksLikeMapTile(url) {
 
 export async function prepareApp(page, options = {}) {
   const entryPath = options.entryPath || '/static/index.html';
+
+  const skipHelpTour = options.skipHelpTour !== false;
+
+  // 0) 默认关闭新手引导，避免引导遮罩影响用例（仍可在特定用例里覆盖）
+  if (skipHelpTour) {
+    await page.addInitScript(() => {
+      try {
+        localStorage.setItem('roadbook_help_tour_v1', 'done');
+      } catch {
+        // ignore
+      }
+    });
+  }
+
   // 0) 避免 geolocation 弹窗/超时影响测试
   await page.addInitScript(() => {
     try {

@@ -1964,6 +1964,23 @@ class RoadbookApp {
             });
         }
 
+        // 帮助面板：新手引导按钮
+        const startHelpTourFromHelpModalBtn = document.getElementById('startHelpTourFromHelpModalBtn');
+        if (startHelpTourFromHelpModalBtn) {
+            startHelpTourFromHelpModalBtn.addEventListener('click', () => {
+                // 先关帮助面板，避免遮挡
+                this.closeHelpModal();
+                // 延迟一下，确保模态关闭后再启动引导
+                setTimeout(() => {
+                    if (typeof window.startRoadbookHelpTour === 'function') {
+                        window.startRoadbookHelpTour();
+                    } else {
+                        console.warn('startRoadbookHelpTour 未就绪，请确认 help_tour.js 已加载');
+                    }
+                }, 120);
+            });
+        }
+
         // 日期详情面板事件
         const closeDateDetailBtn = document.getElementById('closeDateDetailBtn');
         if (closeDateDetailBtn) {

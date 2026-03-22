@@ -128,3 +128,51 @@ test('帮助与快捷键：H 打开帮助，/ 聚焦搜索框', async ({ page })
   await page.keyboard.press('/');
   await expect(page.locator('#searchInput')).toBeFocused();
 });
+
+test('新手引导：首次打开会自动弹出，可跳过', async ({ page }) => {
+  // 确保“首次打开”判定成立（help_tour.js 加载时 localStorage 为空）
+  await page.addInitScript(() => {
+    try {
+      localStorage.clear();
+    } catch {
+      // ignore
+    }
+  });
+
+  await prepareApp(page, { skipHelpTour: false });
+
+  const overlay = page.locator('#rb-help-tour-overlay');
+  await expect(overlay).toBeVisible();
+  await expect(overlay.locator('.rb-tour-title')).toContainText('欢迎');
+
+  // 点击“跳过”
+  await overlay.locator('[data-action="skip"]').click();
+  await expect(overlay).toHaveCount(0);
+  await expect.poll(async () => page.evaluate(() => localStorage.getItem('roadbook_help_tour_v1'))).toBe('skipped');
+});
+
+test('新手引导：help=false 不弹出；help=true 强制弹出', async ({ page }) => {
+  // help=false：即使 localStorage 为空也不弹
+  await page.addInitScript(() => {
+    try {
+      localStorage.clear();
+    } catch {
+      // ignore
+    }
+  });
+  await prepareApp(page, { entryPath: '/static/index.html?help=false', skipHelpTour: false });
+  await page.waitForFunction(() => !!window.app);
+  await page.waitForTimeout(800);
+  await expect(page.locator('#rb-help-tour-overlay')).toHaveCount(0);
+
+  // help=true：即使 localStorage 里已有设置也强制弹
+  await page.addInitScript(() => {
+    try {
+      localStorage.setItem('roadbook-theme', 'dark');
+    } catch {
+      // ignore
+    }
+  });
+  await prepareApp(page, { entryPath: '/static/index.html?help=true', skipHelpTour: false });
+  await expect(page.locator('#rb-help-tour-overlay')).toBeVisible();
+});
