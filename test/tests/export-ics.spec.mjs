@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { prepareApp, addMarker } from './helpers.mjs';
+import { prepareApp, addMarker, confirmSwal } from './helpers.mjs';
 
 test('导出 ICS 功能可用，下载内容包含日程事件', async ({ page }) => {
     // 使用 prepareApp 进行初始化，包含 mock 和等待加载
