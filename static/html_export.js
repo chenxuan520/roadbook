@@ -1,6 +1,392 @@
+function getExportThemeColors(themeName = 'default', isDarkMode = false) {
+    const light_default = {
+        pageBg: '#f8f9fa',
+        cardBg: '#ffffff',
+        textPrimary: '#2c3e50',
+        textSecondary: '#7f8c8d',
+        border: '#e9ecef',
+        shadow: 'rgba(0,0,0,0.10)',
+        badgeAllBg: '#667eea',
+        badgeInfoBg: '#4a90e2',
+        accent: '#667eea',
+        overviewBg: '#f8f9fa',
+        chipBg: '#f1f3f5',
+        chipText: '#666',
+        timelineLine: '#e0e0e0',
+        noteBg: '#fff8e1',
+        noteBorder: '#ffc107',
+        expenseBg: '#e8f5e9',
+        expenseBorder: '#4caf50'
+    };
+
+    const dark_default = {
+        pageBg: '#0f1115',
+        cardBg: '#1f232b',
+        textPrimary: '#e9ecef',
+        textSecondary: '#adb5bd',
+        border: '#2b3038',
+        shadow: 'rgba(0,0,0,0.55)',
+        badgeAllBg: '#6a4190',
+        badgeInfoBg: '#3498db',
+        accent: '#5a6fd8',
+        overviewBg: '#171a20',
+        chipBg: '#2b3038',
+        chipText: '#cbd3da',
+        timelineLine: '#3a404a',
+        noteBg: '#2a2416',
+        noteBorder: '#d6a500',
+        expenseBg: '#1e2a22',
+        expenseBorder: '#2ecc71'
+    };
+
+    switch (themeName) {
+        case 'minimalist':
+            return {
+                pageBg: '#f5f7fa',
+                cardBg: '#ffffff',
+                textPrimary: '#1a1a1a',
+                textSecondary: '#6b7280',
+                border: '#e5e7eb',
+                shadow: 'rgba(0,0,0,0.08)',
+                badgeAllBg: '#4f46e5',
+                badgeInfoBg: '#3b82f6',
+                accent: '#4f46e5',
+                overviewBg: '#f5f7fa',
+                chipBg: '#e5e7eb',
+                chipText: '#4b5563',
+                timelineLine: '#d1d5db',
+                noteBg: '#fef3c7',
+                noteBorder: '#f59e0b',
+                expenseBg: '#d1fae5',
+                expenseBorder: '#10b981'
+            };
+        case 'scrapbook':
+            return {
+                pageBg: '#fdf6e3',
+                cardBg: '#faebd7',
+                textPrimary: '#583e23',
+                textSecondary: '#8b7e66',
+                border: '#dcd2c4',
+                shadow: 'rgba(88, 62, 35, 0.15)',
+                badgeAllBg: '#b5835a',
+                badgeInfoBg: '#6d9c94',
+                accent: '#b5835a',
+                overviewBg: '#fdf6e3',
+                chipBg: '#eaddc7',
+                chipText: '#583e23',
+                timelineLine: '#c9bba7',
+                noteBg: '#f5f0e6',
+                noteBorder: '#b5835a',
+                expenseBg: '#e8f0e8',
+                expenseBorder: '#6d9c94'
+            };
+        case 'cyberpunk':
+            return {
+                pageBg: '#0d0221',
+                cardBg: 'rgba(26, 1, 56, 0.7)',
+                textPrimary: '#f0f',
+                textSecondary: '#0ff',
+                border: '#ff00ff',
+                shadow: 'rgba(255, 0, 255, 0.3)',
+                badgeAllBg: '#00f5d4',
+                badgeInfoBg: '#f0f',
+                accent: '#00f5d4',
+                overviewBg: 'rgba(13, 2, 33, 0.9)',
+                chipBg: 'rgba(0, 245, 212, 0.2)',
+                chipText: '#0ff',
+                timelineLine: '#ff00ff',
+                noteBg: 'rgba(240, 240, 0, 0.1)',
+                noteBorder: '#ff0',
+                expenseBg: 'rgba(0, 255, 0, 0.1)',
+                expenseBorder: '#0f0'
+            };
+        case 'girly':
+            return {
+                pageBg: '#fff0f5',
+                cardBg: '#ffffff',
+                textPrimary: '#c72c6b',
+                textSecondary: '#db7093',
+                border: '#ffc0cb',
+                shadow: 'rgba(219, 112, 147, 0.1)',
+                badgeAllBg: '#ff69b4',
+                badgeInfoBg: '#ff85a2',
+                accent: '#ff69b4',
+                overviewBg: '#fff5f7',
+                chipBg: '#ffe4e1',
+                chipText: '#db7093',
+                timelineLine: '#ffc0cb',
+                noteBg: '#fff9e6',
+                noteBorder: '#ffb6c1',
+                expenseBg: '#f0fff0',
+                expenseBorder: '#98fb98'
+            };
+        case 'fresh':
+            return {
+                pageBg: '#e6f4ea',
+                cardBg: '#ffffff',
+                textPrimary: '#3a5f4c',
+                textSecondary: '#7a9d96',
+                border: '#d1e5d9',
+                shadow: 'rgba(58, 95, 76, 0.1)',
+                badgeAllBg: '#34a853',
+                badgeInfoBg: '#5e97f6',
+                accent: '#34a853',
+                overviewBg: '#e6f4ea',
+                chipBg: '#d1e5d9',
+                chipText: '#3a5f4c',
+                timelineLine: '#cdd9d6',
+                noteBg: '#fefce8',
+                noteBorder: '#facc15',
+                expenseBg: '#dcfce7',
+                expenseBorder: '#34a853'
+            };
+        case 'default':
+        default:
+            return isDarkMode ? dark_default : light_default;
+    }
+}
+
 class RoadbookHtmlExporter {
     constructor(app) {
         this.app = app;
+    }
+
+    showExportThemeSelector() {
+        // 如果已存在，先移除
+        const existingModal = document.getElementById('exportThemeModal');
+        if (existingModal) {
+            existingModal.parentNode.removeChild(existingModal);
+        }
+
+        const modal = document.createElement('div');
+        modal.id = 'exportThemeModal';
+        modal.className = 'modal';
+        modal.style.display = 'block';
+        // 确保新弹窗在最前
+        modal.style.zIndex = '2000';
+
+        const modalContent = document.createElement('div');
+        modalContent.className = 'modal-content';
+        modalContent.style.maxWidth = '600px';
+
+        const closeBtn = document.createElement('span');
+        closeBtn.className = 'close';
+        closeBtn.innerHTML = '&times;';
+        closeBtn.onclick = () => {
+            modal.style.display = 'none';
+            if (modal.parentNode) {
+                modal.parentNode.removeChild(modal);
+            }
+        };
+
+        const title = document.createElement('h3');
+        title.textContent = '选择导出图片风格';
+        title.style.marginTop = '0';
+        title.style.color = 'var(--text-primary)';
+        title.style.marginBottom = '20px'; // 增加标题和选项之间的间距
+
+
+        const themeContainer = document.createElement('div');
+        themeContainer.style.display = 'grid';
+        themeContainer.style.gridTemplateColumns = 'repeat(auto-fill, minmax(150px, 1fr))';
+        themeContainer.style.gap = '15px';
+
+        const themes = [
+            { id: 'default', name: '默认主题', colors: { bg: this.app.isDarkMode ? '#0f1115' : '#f8f9fa', accent: this.app.isDarkMode ? '#5a6fd8' : '#667eea' } },
+            { id: 'minimalist', name: '简约风', colors: { bg: '#f5f7fa', accent: '#4f46e5' } },
+            { id: 'scrapbook', name: '手帐风', colors: { bg: '#fdf6e3', accent: '#b5835a' } },
+            { id: 'cyberpunk', name: '赛博朋克', colors: { bg: '#0d0221', accent: '#00f5d4' } },
+            { id: 'girly', name: '少女风', colors: { bg: '#fff0f5', accent: '#ff69b4' } },
+            { id: 'fresh', name: '清新风', colors: { bg: '#e6f4ea', accent: '#34a853' } }
+        ];
+
+        themes.forEach(theme => {
+            const themeOption = document.createElement('div');
+            themeOption.className = 'theme-option';
+            themeOption.style.border = '1px solid var(--border-color)';
+            themeOption.style.backgroundColor = 'var(--bg-secondary)';
+            themeOption.style.color = 'var(--text-primary)';
+            themeOption.style.borderRadius = '8px';
+            themeOption.style.padding = '10px';
+            themeOption.style.textAlign = 'center';
+            themeOption.style.cursor = 'pointer';
+            themeOption.style.transition = 'transform 0.2s, box-shadow 0.2s';
+
+            const preview = document.createElement('div');
+            preview.style.width = '100%';
+            preview.style.height = '60px';
+            preview.style.backgroundColor = theme.colors.bg;
+            preview.style.border = '1px solid #ccc';
+            preview.style.borderRadius = '4px';
+            preview.style.marginBottom = '10px';
+            preview.style.display = 'flex';
+            preview.style.alignItems = 'center';
+            preview.style.justifyContent = 'center';
+            preview.style.overflow = 'hidden';
+
+            const accentPreview = document.createElement('div');
+            accentPreview.style.width = '20px';
+            accentPreview.style.height = '20px';
+            accentPreview.style.backgroundColor = theme.colors.accent;
+            accentPreview.style.borderRadius = '50%';
+
+            preview.appendChild(accentPreview);
+
+            const name = document.createElement('span');
+            name.textContent = theme.name;
+
+            themeOption.appendChild(preview);
+            themeOption.appendChild(name);
+
+            themeOption.addEventListener('click', () => {
+                this.exportToImage(theme.id);
+                closeBtn.onclick(); // 关闭模态框
+            });
+
+            themeOption.addEventListener('mouseover', () => {
+                themeOption.style.transform = 'translateY(-3px)';
+                themeOption.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
+            });
+            themeOption.addEventListener('mouseout', () => {
+                themeOption.style.transform = 'none';
+                themeOption.style.boxShadow = 'none';
+            });
+
+
+            themeContainer.appendChild(themeOption);
+        });
+
+        modalContent.appendChild(closeBtn);
+        modalContent.appendChild(title);
+        modalContent.appendChild(themeContainer);
+        modal.appendChild(modalContent);
+        document.body.appendChild(modal);
+
+        // 点击模态框外部关闭
+        window.addEventListener('click', (event) => {
+            if (event.target === modal) {
+                closeBtn.onclick();
+            }
+        });
+    }
+
+    showExportThemeSelector() {
+        // 如果已存在，先移除
+        const existingModal = document.getElementById('exportThemeModal');
+        if (existingModal) {
+            existingModal.parentNode.removeChild(existingModal);
+        }
+
+        const modal = document.createElement('div');
+        modal.id = 'exportThemeModal';
+        modal.className = 'modal';
+        modal.style.display = 'block';
+        // 确保新弹窗在最前
+        modal.style.zIndex = '2000';
+
+        const modalContent = document.createElement('div');
+        modalContent.className = 'modal-content';
+        modalContent.style.maxWidth = '600px';
+
+        const closeBtn = document.createElement('span');
+        closeBtn.className = 'close';
+        closeBtn.innerHTML = '&times;';
+        closeBtn.onclick = () => {
+            modal.style.display = 'none';
+            if (modal.parentNode) {
+                modal.parentNode.removeChild(modal);
+            }
+        };
+
+        const title = document.createElement('h3');
+        title.textContent = '选择导出图片风格';
+        title.style.marginTop = '0';
+        title.style.color = 'var(--text-primary)';
+        title.style.marginBottom = '20px'; // 增加标题和选项之间的间距
+
+
+        const themeContainer = document.createElement('div');
+        themeContainer.style.display = 'grid';
+        themeContainer.style.gridTemplateColumns = 'repeat(auto-fill, minmax(150px, 1fr))';
+        themeContainer.style.gap = '15px';
+
+        const themes = [
+            { id: 'default', name: '默认主题', colors: { bg: this.app.isDarkMode ? '#0f1115' : '#f8f9fa', accent: this.app.isDarkMode ? '#5a6fd8' : '#667eea' } },
+            { id: 'minimalist', name: '简约风', colors: { bg: '#f5f7fa', accent: '#4f46e5' } },
+            { id: 'scrapbook', name: '手帐风', colors: { bg: '#fdf6e3', accent: '#b5835a' } },
+            { id: 'cyberpunk', name: '赛博朋克', colors: { bg: '#0d0221', accent: '#00f5d4' } },
+            { id: 'girly', name: '少女风', colors: { bg: '#fff0f5', accent: '#ff69b4' } },
+            { id: 'fresh', name: '清新风', colors: { bg: '#e6f4ea', accent: '#34a853' } }
+        ];
+
+        themes.forEach(theme => {
+            const themeOption = document.createElement('div');
+            themeOption.className = 'theme-option';
+            themeOption.style.border = '1px solid var(--border-color)';
+            themeOption.style.backgroundColor = 'var(--bg-secondary)';
+            themeOption.style.color = 'var(--text-primary)';
+            themeOption.style.borderRadius = '8px';
+            themeOption.style.padding = '10px';
+            themeOption.style.textAlign = 'center';
+            themeOption.style.cursor = 'pointer';
+            themeOption.style.transition = 'transform 0.2s, box-shadow 0.2s';
+
+            const preview = document.createElement('div');
+            preview.style.width = '100%';
+            preview.style.height = '60px';
+            preview.style.backgroundColor = theme.colors.bg;
+            preview.style.border = '1px solid #ccc';
+            preview.style.borderRadius = '4px';
+            preview.style.marginBottom = '10px';
+            preview.style.display = 'flex';
+            preview.style.alignItems = 'center';
+            preview.style.justifyContent = 'center';
+            preview.style.overflow = 'hidden';
+
+            const accentPreview = document.createElement('div');
+            accentPreview.style.width = '20px';
+            accentPreview.style.height = '20px';
+            accentPreview.style.backgroundColor = theme.colors.accent;
+            accentPreview.style.borderRadius = '50%';
+
+            preview.appendChild(accentPreview);
+
+            const name = document.createElement('span');
+            name.textContent = theme.name;
+
+            themeOption.appendChild(preview);
+            themeOption.appendChild(name);
+
+            themeOption.addEventListener('click', () => {
+                this.exportToImage(theme.id);
+                closeBtn.onclick(); // 关闭模态框
+            });
+
+            themeOption.addEventListener('mouseover', () => {
+                themeOption.style.transform = 'translateY(-3px)';
+                themeOption.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
+            });
+            themeOption.addEventListener('mouseout', () => {
+                themeOption.style.transform = 'none';
+                themeOption.style.boxShadow = 'none';
+            });
+
+
+            themeContainer.appendChild(themeOption);
+        });
+
+        modalContent.appendChild(closeBtn);
+        modalContent.appendChild(title);
+        modalContent.appendChild(themeContainer);
+        modal.appendChild(modalContent);
+        document.body.appendChild(modal);
+
+        // 点击模态框外部关闭
+        window.addEventListener('click', (event) => {
+            if (event.target === modal) {
+                closeBtn.onclick();
+            }
+        });
     }
 
     #getLocalDateString(date) {
@@ -46,145 +432,159 @@ class RoadbookHtmlExporter {
     }
 
     exportToIcs() {
-        if (this.app.markers.length === 0) {
-            // 这里假设 Swal 是全局可用的，或者通过 this.app 访问（如果 app 有封装的话）
-            // script.js 中 Swal 是全局的
-            if (typeof Swal !== 'undefined') {
-                Swal.fire('提示', '当前没有可导出的标记点。', 'info');
-            } else {
-                alert('当前没有可导出的标记点。');
-            }
+        if (typeof Swal === 'undefined') {
+            alert('核心组件缺失，无法导出。');
             return;
         }
 
-        let icsContent = [
-            'BEGIN:VCALENDAR',
-            'VERSION:2.0',
-            'PRODID:-//RoadbookMaker//EN',
-            'CALSCALE:GREGORIAN'
-        ];
+        Swal.fire({
+            title: '导出为日历文件',
+            html: `ICS 文件用于导入到系统日历 (如 Google Calendar, Outlook)，<br><b>它无法被 RoadbookMaker 重新导入</b>。<br><br>确定要继续导出吗？`,
+            icon: 'info',
+            showCancelButton: true,
+            confirmButtonText: '继续导出',
+            cancelButtonText: '取消',
+            confirmButtonColor: '#3085d6',
+            cancelButtonColor: '#d33',
+        }).then((result) => {
+            if (result.isConfirmed) {
+                // 这里假设 Swal 是全局可用的，或者通过 this.app 访问（如果 app 有封装的话）
+                // script.js 中 Swal 是全局的
+                if (this.app.markers.length === 0) {
+                    Swal.fire('提示', '当前没有可导出的标记点。', 'info');
+                    return;
+                }
 
-        // 格式化时间为 YYYYMMDDTHHMMSSZ
-        const formatDateForIcs = (dateStr) => {
-            if (!dateStr) return null;
-            try {
-                // 处理 "2024-05-01 10:00:00" 这种格式，将其视为本地时间
-                // 但 ICS 需要 UTC 时间或者本地时间。这里我们将其转换为 UTC 格式
-                const date = new Date(dateStr);
-                if (isNaN(date.getTime())) return null;
+                let icsContent = [
+                    'BEGIN:VCALENDAR',
+                    'VERSION:2.0',
+                    'PRODID:-//RoadbookMaker//EN',
+                    'CALSCALE:GREGORIAN'
+                ];
 
-                // 将本地时间转换为 UTC 字符串
-                const year = date.getUTCFullYear();
-                const month = String(date.getUTCMonth() + 1).padStart(2, '0');
-                const day = String(date.getUTCDate()).padStart(2, '0');
-                const hours = String(date.getUTCHours()).padStart(2, '0');
-                const minutes = String(date.getUTCMinutes()).padStart(2, '0');
-                const seconds = String(date.getUTCSeconds()).padStart(2, '0');
+                // 格式化时间为 YYYYMMDDTHHMMSSZ
+                const formatDateForIcs = (dateStr) => {
+                    if (!dateStr) return null;
+                    try {
+                        // 处理 "2024-05-01 10:00:00" 这种格式，将其视为本地时间
+                        // 但 ICS 需要 UTC 时间或者本地时间。这里我们将其转换为 UTC 格式
+                        const date = new Date(dateStr);
+                        if (isNaN(date.getTime())) return null;
 
-                return `${year}${month}${day}T${hours}${minutes}${seconds}Z`;
-            } catch (e) {
-                return null;
+                        // 将本地时间转换为 UTC 字符串
+                        const year = date.getUTCFullYear();
+                        const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+                        const day = String(date.getUTCDate()).padStart(2, '0');
+                        const hours = String(date.getUTCHours()).padStart(2, '0');
+                        const minutes = String(date.getUTCMinutes()).padStart(2, '0');
+                        const seconds = String(date.getUTCSeconds()).padStart(2, '0');
+
+                        return `${year}${month}${day}T${hours}${minutes}${seconds}Z`;
+                    } catch (e) {
+                        return null;
+                    }
+                };
+
+                const getUid = () => {
+                    return Date.now().toString(36) + Math.random().toString(36).substring(2) + '@roadbookmaker.com';
+                };
+
+                // 为每个标记点的每个时间生成一个事件
+                this.app.markers.forEach(marker => {
+                    const times = marker.dateTimes && marker.dateTimes.length > 0 ? marker.dateTimes : [marker.dateTime];
+
+                    times.forEach((timeStr) => {
+                        const icsTime = formatDateForIcs(timeStr);
+                        if (!icsTime) return; // 如果没有有效时间则跳过
+
+                        // 结束时间默认设置为开始时间后1小时
+                        const dateObj = new Date(timeStr);
+                        dateObj.setHours(dateObj.getHours() + 1);
+                        // 这里也需要格式化为 UTC
+                        const icsEndTime = formatDateForIcs(dateObj.toISOString());
+
+                        icsContent.push('BEGIN:VEVENT');
+                        icsContent.push(`UID:${getUid()}`);
+                        icsContent.push(`DTSTAMP:${formatDateForIcs(new Date().toISOString())}`);
+                        icsContent.push(`DTSTART:${icsTime}`);
+                        if (icsEndTime) {
+                            icsContent.push(`DTEND:${icsEndTime}`);
+                        }
+
+                        // 处理标题和描述，转义特殊字符
+                        const summary = marker.title ? marker.title.replace(/[,;]/g, '\\$&').replace(/\n/g, '\\n') : '未命名地点';
+
+                        // 组合备注信息
+                        let description = '';
+                        if (marker.labels && marker.labels.length > 0) {
+                            description += `标签: ${marker.labels.join(', ')}\\n`;
+                        }
+
+                        // 尝试获取当天的日期备注
+                        const dateOnlyStr = timeStr.split(' ')[0]; // 获取 YYYY-MM-DD
+                        if (this.app.dateNotes && this.app.dateNotes[dateOnlyStr]) {
+                            // dateNotes 可能是字符串或对象，这里做一下兼容
+                            const noteEntry = this.app.dateNotes[dateOnlyStr];
+                            let noteText = '';
+                            if (typeof noteEntry === 'string') {
+                                noteText = noteEntry;
+                            } else if (noteEntry && typeof noteEntry === 'object') {
+                                noteText = noteEntry.notes || '';
+                            }
+
+                            if (noteText) {
+                                description += `📅 今日备注: ${noteText.replace(/[,;]/g, '\\$&').replace(/\n/g, '\\n')}\\n`;
+                            }
+                        }
+
+                        // 交通方式连接信息（如果有从该点出发的连接）
+                        const outgoingConnections = this.app.connections.filter(c => c.startId === marker.id);
+                        if (outgoingConnections.length > 0) {
+                             description += `\\n🔜 下一站:`;
+                             outgoingConnections.forEach(conn => {
+                                 const endMarker = this.app.markers.find(m => m.id === conn.endId);
+                                 const endTitle = endMarker ? endMarker.title : '未知地点';
+                                 description += `\\n- 前往 ${endTitle} (${this.getTransportTypeName(conn.transportType)}${conn.duration ? ', ' + conn.duration + 'h' : ''})`;
+                             });
+                             description += `\\n`;
+                        }
+
+                        // 处理经纬度
+                        if (marker.position && marker.position.lat !== undefined && marker.position.lng !== undefined) {
+                            icsContent.push(`GEO:${marker.position.lat};${marker.position.lng}`);
+                            // 某些日历应用可能不显示GEO，所以在描述里也加一下
+                            // Google Maps link
+                            description += `\\n📍 导航: https://www.google.com/maps/search/?api=1&query=${marker.position.lat},${marker.position.lng}`;
+                        } else if (marker.position && Array.isArray(marker.position)) { // 兼容数组格式 [lat, lng]
+                             icsContent.push(`GEO:${marker.position[0]};${marker.position[1]}`);
+                             description += `\\n📍 导航: https://www.google.com/maps/search/?api=1&query=${marker.position[0]},${marker.position[1]}`;
+                        }
+
+                        icsContent.push(`SUMMARY:${summary}`);
+                        if (description) {
+                            icsContent.push(`DESCRIPTION:${description}`);
+                        }
+                        icsContent.push('END:VEVENT');
+                    });
+                });
+
+                icsContent.push('END:VCALENDAR');
+
+                const icsString = icsContent.join('\r\n');
+                const blob = new Blob([icsString], { type: 'text/calendar;charset=utf-8' });
+                const url = URL.createObjectURL(blob);
+
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `roadbook_${this.#getLocalDateString(new Date())}.ics`;
+                a.click();
+
+                URL.revokeObjectURL(url);
             }
-        };
-
-        const getUid = () => {
-            return Date.now().toString(36) + Math.random().toString(36).substring(2) + '@roadbookmaker.com';
-        };
-
-        // 为每个标记点的每个时间生成一个事件
-        this.app.markers.forEach(marker => {
-            const times = marker.dateTimes && marker.dateTimes.length > 0 ? marker.dateTimes : [marker.dateTime];
-
-            times.forEach((timeStr) => {
-                const icsTime = formatDateForIcs(timeStr);
-                if (!icsTime) return; // 如果没有有效时间则跳过
-
-                // 结束时间默认设置为开始时间后1小时
-                const dateObj = new Date(timeStr);
-                dateObj.setHours(dateObj.getHours() + 1);
-                // 这里也需要格式化为 UTC
-                const icsEndTime = formatDateForIcs(dateObj.toISOString());
-
-                icsContent.push('BEGIN:VEVENT');
-                icsContent.push(`UID:${getUid()}`);
-                icsContent.push(`DTSTAMP:${formatDateForIcs(new Date().toISOString())}`);
-                icsContent.push(`DTSTART:${icsTime}`);
-                if (icsEndTime) {
-                    icsContent.push(`DTEND:${icsEndTime}`);
-                }
-
-                // 处理标题和描述，转义特殊字符
-                const summary = marker.title ? marker.title.replace(/[,;]/g, '\\$&').replace(/\n/g, '\\n') : '未命名地点';
-
-                // 组合备注信息
-                let description = '';
-                if (marker.labels && marker.labels.length > 0) {
-                    description += `标签: ${marker.labels.join(', ')}\\n`;
-                }
-
-                // 尝试获取当天的日期备注
-                const dateOnlyStr = timeStr.split(' ')[0]; // 获取 YYYY-MM-DD
-                if (this.app.dateNotes && this.app.dateNotes[dateOnlyStr]) {
-                    // dateNotes 可能是字符串或对象，这里做一下兼容
-                    const noteEntry = this.app.dateNotes[dateOnlyStr];
-                    let noteText = '';
-                    if (typeof noteEntry === 'string') {
-                        noteText = noteEntry;
-                    } else if (noteEntry && typeof noteEntry === 'object') {
-                        noteText = noteEntry.notes || '';
-                    }
-
-                    if (noteText) {
-                        description += `📅 今日备注: ${noteText.replace(/[,;]/g, '\\$&').replace(/\n/g, '\\n')}\\n`;
-                    }
-                }
-
-                // 交通方式连接信息（如果有从该点出发的连接）
-                const outgoingConnections = this.app.connections.filter(c => c.startId === marker.id);
-                if (outgoingConnections.length > 0) {
-                     description += `\\n🔜 下一站:`;
-                     outgoingConnections.forEach(conn => {
-                         const endMarker = this.app.markers.find(m => m.id === conn.endId);
-                         const endTitle = endMarker ? endMarker.title : '未知地点';
-                         description += `\\n- 前往 ${endTitle} (${this.getTransportTypeName(conn.transportType)}${conn.duration ? ', ' + conn.duration + 'h' : ''})`;
-                     });
-                     description += `\\n`;
-                }
-
-                // 处理经纬度
-                if (marker.position && marker.position.lat !== undefined && marker.position.lng !== undefined) {
-                    icsContent.push(`GEO:${marker.position.lat};${marker.position.lng}`);
-                    // 某些日历应用可能不显示GEO，所以在描述里也加一下
-                    // Google Maps link
-                    description += `\\n📍 导航: https://www.google.com/maps/search/?api=1&query=${marker.position.lat},${marker.position.lng}`;
-                } else if (marker.position && Array.isArray(marker.position)) { // 兼容数组格式 [lat, lng]
-                     icsContent.push(`GEO:${marker.position[0]};${marker.position[1]}`);
-                     description += `\\n📍 导航: https://www.google.com/maps/search/?api=1&query=${marker.position[0]},${marker.position[1]}`;
-                }
-
-                icsContent.push(`SUMMARY:${summary}`);
-                if (description) {
-                    icsContent.push(`DESCRIPTION:${description}`);
-                }
-                icsContent.push('END:VEVENT');
-            });
         });
-
-        icsContent.push('END:VCALENDAR');
-
-        const icsString = icsContent.join('\r\n');
-        const blob = new Blob([icsString], { type: 'text/calendar;charset=utf-8' });
-        const url = URL.createObjectURL(blob);
-
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `roadbook_${this.#getLocalDateString(new Date())}.ics`;
-        a.click();
-
-        URL.revokeObjectURL(url);
     }
 
-    async exportToImage() {
+    async exportToImage(theme = 'default') {
         if (this.app.markers.length === 0) {
             if (typeof Swal !== 'undefined') {
                 Swal.fire('提示', '当前没有可导出的数据。', 'info');
@@ -216,10 +616,8 @@ class RoadbookHtmlExporter {
         container.style.left = '-9999px';
         container.style.top = '0';
         container.style.width = '600px'; // Set a fixed width suitable for mobile viewing
-        container.style.backgroundColor = '#f8f9fa';
         container.style.padding = '20px';
         container.style.fontFamily = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
-        container.style.color = '#333';
         document.body.appendChild(container);
 
         const escapeHtml = (str) => {
@@ -240,43 +638,7 @@ class RoadbookHtmlExporter {
             ? this.app.isDarkMode
             : document.body.classList.contains('dark-mode');
 
-        const exportTheme = isDarkMode ? {
-            pageBg: '#0f1115',
-            cardBg: '#1f232b',
-            textPrimary: '#e9ecef',
-            textSecondary: '#adb5bd',
-            border: '#2b3038',
-            shadow: 'rgba(0,0,0,0.55)',
-            badgeAllBg: '#6a4190',
-            badgeInfoBg: '#3498db',
-            accent: '#5a6fd8',
-            overviewBg: '#171a20',
-            chipBg: '#2b3038',
-            chipText: '#cbd3da',
-            timelineLine: '#3a404a',
-            noteBg: '#2a2416',
-            noteBorder: '#d6a500',
-            expenseBg: '#1e2a22',
-            expenseBorder: '#2ecc71'
-        } : {
-            pageBg: '#f8f9fa',
-            cardBg: '#ffffff',
-            textPrimary: '#2c3e50',
-            textSecondary: '#7f8c8d',
-            border: '#e9ecef',
-            shadow: 'rgba(0,0,0,0.10)',
-            badgeAllBg: '#667eea',
-            badgeInfoBg: '#4a90e2',
-            accent: '#667eea',
-            overviewBg: '#f8f9fa',
-            chipBg: '#f1f3f5',
-            chipText: '#666',
-            timelineLine: '#e0e0e0',
-            noteBg: '#fff8e1',
-            noteBorder: '#ffc107',
-            expenseBg: '#e8f5e9',
-            expenseBorder: '#4caf50'
-        };
+        const exportTheme = getExportThemeColors(theme, isDarkMode);
 
         container.style.backgroundColor = exportTheme.pageBg;
         container.style.color = exportTheme.textPrimary;
@@ -786,7 +1148,6 @@ class RoadbookHtmlExporter {
         if (data.markers && data.markers.length > 0) {
             const overviewMapContainer = document.getElementById('export-map-overview');
             if (overviewMapContainer) {
-                overviewMapContainer.style.width = '560px';
                 overviewMapContainer.style.height = '250px';
 
                 const overviewMap = L.map('export-map-overview', {
@@ -938,7 +1299,6 @@ class RoadbookHtmlExporter {
             if (!mapContainer) return;
 
             // Give it explicit dimensions inline just to be absolutely sure
-            mapContainer.style.width = '560px';
             mapContainer.style.height = '200px';
 
             const tempMap = L.map(mapContainerId, {

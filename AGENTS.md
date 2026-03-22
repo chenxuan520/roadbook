@@ -196,6 +196,11 @@ Gin 内置了一个“允许来源列表 + 可选 null origin”逻辑：
 - 推荐命令：`cd test && npm run test:local -- tests/<your-new>.spec.mjs`
 - 修改前端 JS 后必须做语法检查：`node -c static/script.js`（其它前端文件同理）。
 
+### 代码组织规则
+- **代码组织**: 尽量避免直接向 `static/script.js` 中添加新功能。考虑到该文件已非常庞大，新增逻辑应优先考虑：
+  - 在 `static/` 目录下创建新的 JS 文件（例如 `static/new_feature.js`）来封装新功能。
+  - 或者，将新功能逻辑添加到与该功能最相关的现有 JS 模块中（例如，导出相关的功能应添加到 `html_export.js`）。
+
 ## 10. 调试模式 (Debug Mode)
 
 项目内置调试模式，由 `static/debug.js` 实现，方便查看应用内部状态并导出现场信息。

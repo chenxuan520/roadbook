@@ -1472,11 +1472,7 @@ class RoadbookApp {
         // 点击导出图片按钮
         if (exportImgBtn) {
             exportImgBtn.addEventListener('click', () => {
-                if (window.htmlExporter) {
-                    window.htmlExporter.exportToImage();
-                } else {
-                    console.error('HTML Exporter not found');
-                }
+                window.htmlExporter.showExportThemeSelector();
                 // 隐藏下拉菜单
                 if (exportDropdownContent) {
                     exportDropdownContent.classList.remove('show');

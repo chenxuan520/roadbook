@@ -1045,6 +1045,30 @@ body.dark-mode .btn:not(.btn-primary):not(.btn-danger):not(.btn-secondary):not(#
     border-bottom: 2px solid var(--accent-primary);
 }
 
+/* 修正：帮助弹窗中的“新手引导”按钮在明亮模式下的颜色问题 */
+#startHelpTourFromHelpModalBtn {
+    background: var(--gradient-primary); /* 在明亮模式下使用蓝紫色 */
+    color: white !important;
+    border: none;
+}
+
+#startHelpTourFromHelpModalBtn:hover {
+    background: var(--gradient-primary);
+    opacity: 0.9;
+}
+
+/* 在黑暗模式下，让“新手引导”按钮恢复为通用的暗色按钮外观，保持风格统一 */
+body.dark-mode #startHelpTourFromHelpModalBtn {
+    background: linear-gradient(135deg, rgba(52, 58, 64, 0.8), rgba(33, 37, 41, 0.8));
+    border: 2px solid rgba(255,255,255,0.3);
+    color: var(--text-primary);
+}
+
+body.dark-mode #startHelpTourFromHelpModalBtn:hover {
+     background: linear-gradient(135deg, rgba(73, 80, 87, 0.9), rgba(52, 58, 64, 0.9));
+     opacity: 1.0; /* 重置在明亮模式下的不透明度效果 */
+}
+
 .help-content p {
     margin-bottom: 1rem;
     line-height: 1.6;
@@ -3797,3 +3821,4 @@ body.dark-mode .ai-command-item .cmd-desc {
 .map-controls .debug-btn {
     background: darkgoldenrod;
 }
+

@@ -24,6 +24,9 @@ test('导出 ICS 功能可用，下载内容包含日程事件', async ({ page }
     await expect(page.locator('#exportDropdownContent')).toBeVisible();
     await page.click('#exportIcsBtn');
 
+    // 新增步骤：确认导出提示弹窗
+    await confirmSwal(page);
+
     // 5. 等待下载完成
     const download = await downloadPromise;
     const suggestedFilename = download.suggestedFilename();
