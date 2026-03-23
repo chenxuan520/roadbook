@@ -661,15 +661,17 @@ class RoadbookHtmlExporter {
             }
         };
 
-        // 获取地图标题 +（在线模式下）云端“计划总览”
+        // 获取地图标题 +（在线模式下）云端“计划总览”与时间
         let planTitle = '我的行程路书';
         let cloudPlanOverview = null;
+        let cloudPlanStartTime = null;
+        let cloudPlanEndTime = null;
         if (window.onlineModeManager && window.onlineModeManager.mode === 'online') {
             if (window.onlineModeManager.currentPlanName) {
                 planTitle = window.onlineModeManager.currentPlanName;
             }
 
-            // 尝试从云端拉取计划详情，用于显示“计划总览”（description）
+            // 尝试从云端拉取计划详情，用于显示“计划总览”（description）及开始结束时间
             try {
                 const planId = window.onlineModeManager.currentPlanId;
                 if (planId && typeof window.onlineModeManager.makeApiRequest === 'function') {
@@ -682,10 +684,12 @@ class RoadbookHtmlExporter {
                             const overview = resp.plan.description.trim();
                             if (overview) cloudPlanOverview = overview;
                         }
+                        if (resp.plan.startTime) cloudPlanStartTime = resp.plan.startTime;
+                        if (resp.plan.endTime) cloudPlanEndTime = resp.plan.endTime;
                     }
                 }
             } catch (e) {
-                console.warn('导出图片：拉取云端计划详情失败，将跳过“计划总览”。', e);
+                console.warn('导出图片：拉取云端计划详情失败，将跳过“计划总览”与时间。', e);
             }
         }
 
@@ -695,6 +699,16 @@ class RoadbookHtmlExporter {
         const markersByDate = this.app.groupMarkersByDate();
         const connections = data.connections || [];
         const dateNotes = data.dateNotes || {};
+
+        const formatPlanDate = (d) => {
+            if (!d) return '';
+            if (d.length === 8 && !d.includes('-')) {
+                return `${d.slice(0,4)}-${d.slice(4,6)}-${d.slice(6,8)}`;
+            }
+            return d;
+        };
+        const displayStartTime = formatPlanDate(cloudPlanStartTime);
+        const displayEndTime = formatPlanDate(cloudPlanEndTime);
 
         let html = `
             <div style="background: ${exportTheme.cardBg}; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px ${exportTheme.shadow}; padding: 30px;">
@@ -711,6 +725,7 @@ class RoadbookHtmlExporter {
                         <h2 style="margin: 0; font-size: 20px; color: ${exportTheme.textPrimary};">计划总览</h2>
                     </div>
                     <div style="background: ${exportTheme.overviewBg}; border-left: 4px solid ${exportTheme.accent}; padding: 12px; border-radius: 0 8px 8px 0; font-size: 14px; color: ${exportTheme.textPrimary}; white-space: pre-wrap;">${escapeHtml(cloudPlanOverview)}</div>
+                    ${(displayStartTime || displayEndTime) ? `<div style="margin-top: 10px; font-size: 13px; color: ${exportTheme.textSecondary}; font-weight: 600;">行程时间：${displayStartTime || '未定'} 至 ${displayEndTime || '未定'}</div>` : ''}
                 </div>
                 ` : ''}
 
