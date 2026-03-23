@@ -22,6 +22,46 @@ class OnlineModeManager {
 
         this.initialize();
         this.restoreState(); // 初始化后恢复状态
+
+        // 监听语言切换事件以更新动态生成的 UI
+        window.addEventListener('languageChanged', () => {
+            this.updateUIText();
+        });
+    }
+
+    // 更新需要动态翻译的 UI 文本
+    updateUIText() {
+        // 更新模式选择器
+        const modeSelector = document.getElementById('modeSelector');
+        if (modeSelector) {
+            const options = modeSelector.options;
+            for (let i = 0; i < options.length; i++) {
+                if (options[i].value === 'offline') {
+                    options[i].textContent = i18next.t('toolbar.offline_mode');
+                } else if (options[i].value === 'online') {
+                    options[i].textContent = i18next.t('toolbar.online_mode');
+                }
+            }
+        }
+
+        // 更新各种按钮
+        const saveButton = document.getElementById('cloudSaveBtn');
+        if (saveButton) saveButton.innerHTML = `<span class="icon">💾</span><span>${i18next.t('toolbar.cloud_save')}</span>`;
+
+        const settingsButton = document.getElementById('cloudSettingsBtn');
+        if (settingsButton) settingsButton.innerHTML = `<span class="icon">⚙️</span><span>${i18next.t('toolbar.manage')}</span>`;
+
+        const logoutButton = document.getElementById('cloudLogoutBtn');
+        if (logoutButton) logoutButton.innerHTML = `<span class="icon">🚪</span><span>${i18next.t('toolbar.logout')}</span>`;
+
+        const shareButton = document.getElementById('shareBtn');
+        if (shareButton) shareButton.innerHTML = `<span class="icon">🔗</span><span>${i18next.t('toolbar.share')}</span>`;
+        
+        // 重新渲染已打开的计划管理面板 (如果显示着的话)
+        const planManager = document.getElementById('planManager');
+        if (planManager && planManager.style.display !== 'none') {
+            this.showPlanManager();
+        }
     }
 
     initialize() {
@@ -224,8 +264,8 @@ class OnlineModeManager {
         modeSelectorContainer.className = 'mode-selector-container';
         modeSelectorContainer.innerHTML = `
             <select id="modeSelector" class="btn" style="background: linear-gradient(135deg, rgba(255,255,255,0.3), rgba(255,255,255,0.15)); color: #fff; border: 2px solid rgba(255,255,255,0.5); padding: 0.6rem 1.2rem; border-radius: 25px; font-size: 0.9rem; font-weight: 600; cursor: pointer; margin-left: 0.5rem;">
-                <option value="offline">离线模式</option>
-                <option value="online">在线模式</option>
+                <option value="offline">${i18next.t('toolbar.offline_mode')}</option>
+                <option value="online">${i18next.t('toolbar.online_mode')}</option>
             </select>
         `;
 
@@ -303,7 +343,7 @@ class OnlineModeManager {
                 saveButton = document.createElement('button');
                 saveButton.id = 'cloudSaveBtn';
                 saveButton.className = 'btn';
-                saveButton.innerHTML = '<span class="icon">💾</span><span>云端保存</span>'; // 添加图标和文本
+                saveButton.innerHTML = `<span class="icon">💾</span><span>${i18next.t('toolbar.cloud_save')}</span>`; // 添加图标和文本
                 saveButton.addEventListener('click', () => {
                     this.saveToCloud();
                 });
@@ -314,7 +354,7 @@ class OnlineModeManager {
                 settingsButton = document.createElement('button');
                 settingsButton.id = 'cloudSettingsBtn';
                 settingsButton.className = 'btn';
-                settingsButton.innerHTML = '<span class="icon">⚙️</span><span>管理</span>'; // 设置图标和文本
+                settingsButton.innerHTML = `<span class="icon">⚙️</span><span>${i18next.t('toolbar.manage')}</span>`; // 设置图标和文本
                 settingsButton.addEventListener('click', () => {
                     this.showPlanManager(); // 点击打开计划管理界面
                 });
@@ -325,7 +365,7 @@ class OnlineModeManager {
                 logoutButton = document.createElement('button');
                 logoutButton.id = 'cloudLogoutBtn';
                 logoutButton.className = 'btn';
-                logoutButton.innerHTML = '<span class="icon">🚪</span><span>退出登录</span>'; // 退出登录图标和文本
+                logoutButton.innerHTML = `<span class="icon">🚪</span><span>${i18next.t('toolbar.logout')}</span>`; // 退出登录图标和文本
                 logoutButton.addEventListener('click', () => {
                     this.logout(); // 点击执行退出登录操作
                 });
@@ -361,7 +401,7 @@ class OnlineModeManager {
                 shareButton = document.createElement('button');
                 shareButton.id = 'shareBtn';
                 shareButton.className = 'btn';
-                shareButton.innerHTML = '<span class="icon">🔗</span><span>分享</span>'; // 分享图标和文本
+                shareButton.innerHTML = `<span class="icon">🔗</span><span>${i18next.t('toolbar.share')}</span>`; // 分享图标和文本
                 shareButton.addEventListener('click', () => {
                     this.generateShareLink();
                 });
@@ -377,7 +417,7 @@ class OnlineModeManager {
     // 生成分享链接
     async generateShareLink() {
         if (!this.currentPlanId) {
-            this.showSwalAlert('提示', '当前没有打开的计划，请先打开或创建一个计划', 'warning');
+            this.showSwalAlert(i18next.t("alert.hint"), i18next.t("alert.no_open_plan"), "warning");
             return;
         }
 
@@ -411,22 +451,22 @@ class OnlineModeManager {
         shareModal.innerHTML = `
             <div class="modal-content" style="width: 500px; max-width: 90vw;">
                 <span class="close" id="closeShareModal">&times;</span>
-                <h3>分享计划</h3>
+                <h3>${i18next.t('modal.share_plan')}</h3>
                 <div class="form-group">
-                    <label>分享链接:</label>
+                    <label>${i18next.t('modal.share_link')}</label>
                     <div style="display: flex; gap: 10px;">
                         <input type="text" id="shareLinkInput" value="${shareUrl}" readonly
                                style="flex: 1; padding: 0.8rem; border: 2px solid #e1e5e9; border-radius: 8px; font-size: 0.9rem;">
-                        <button id="copyShareLinkBtn" class="btn" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; padding: 0.8rem 1.2rem; border-radius: 8px; cursor: pointer;">复制</button>
+                        <button id="copyShareLinkBtn" class="btn" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; padding: 0.8rem 1.2rem; border-radius: 8px; cursor: pointer;">${i18next.t('modal.copy')}</button>
                     </div>
                 </div>
                 <div class="form-group">
                     <p style="color: #666; font-size: 0.9rem; margin: 0;">
-                        任何人都可以通过此链接查看您的计划，无需登录。
+                        ${i18next.t('modal.share_desc')}
                     </p>
                 </div>
                 <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
-                    <button id="closeShareBtn" class="btn" style="background: #ccc; color: #333; border: none; padding: 0.6rem 1.2rem; border-radius: 8px; cursor: pointer;">关闭</button>
+                    <button id="closeShareBtn" class="btn" style="background: #ccc; color: #333; border: none; padding: 0.6rem 1.2rem; border-radius: 8px; cursor: pointer;">${i18next.t('modal.close')}</button>
                 </div>
             </div>
         `;
@@ -453,9 +493,9 @@ class OnlineModeManager {
             const shareLinkInput = document.getElementById('shareLinkInput');
             try {
                 await navigator.clipboard.writeText(shareLinkInput.value);
-                this.showSwalAlert('成功', '分享链接已复制到剪贴板！', 'success', 'top-end');
+                this.showSwalAlert(i18next.t("alert.success"), i18next.t("alert.link_copied"), "success", "top-end");
             } catch (err) {
-                this.showSwalAlert('提示', '请手动复制链接', 'info');
+                this.showSwalAlert(i18next.t("alert.hint"), i18next.t("alert.manual_copy"), "info");
             }
         });
 
@@ -473,20 +513,20 @@ class OnlineModeManager {
             modal.innerHTML = `
                 <div class="modal-content" style="width: 400px;">
                     <span class="close" id="closeLoginModal">&times;</span>
-                    <h3>在线模式登录</h3>
+                    <h3>${i18next.t('modal.login_title')}</h3>
                     <form id="loginForm">
                         <div class="form-group">
-                            <label>账号:</label>
-                            <input type="text" id="loginUsername" class="login-input" placeholder="请输入账号" required>
+                            <label>${i18next.t('modal.account')}</label>
+                            <input type="text" id="loginUsername" class="login-input" placeholder="${i18next.t('modal.account_placeholder')}" required>
                         </div>
                         <div class="form-group">
-                            <label>密码:</label>
+                            <label>${i18next.t('modal.password')}</label>
                             <div class="password-wrapper">
-                                <input type="password" id="loginPassword" class="login-input" placeholder="请输入密码" required>
+                                <input type="password" id="loginPassword" class="login-input" placeholder="${i18next.t('modal.password_placeholder')}" required>
                                 <button type="button" id="togglePassword" class="toggle-password"></button>
                             </div>
                         </div>
-                        <button type="submit" class="btn login-btn">登录</button>
+                        <button type="submit" class="btn login-btn">${i18next.t('modal.login_btn')}</button>
                     </form>
                 </div>
             `;
@@ -570,7 +610,7 @@ class OnlineModeManager {
         const password = document.getElementById('loginPassword').value.trim();
 
         if (!username || !password) {
-            this.showSwalAlert('输入错误', '请输入账号和密码', 'warning');
+            this.showSwalAlert(i18next.t("alert.input_error"), i18next.t("alert.enter_credentials"), "warning");
             return;
         }
 
@@ -598,7 +638,7 @@ class OnlineModeManager {
                 // 显示计划管理界面
                 this.showPlanManager();
             } else {
-                this.showSwalAlert('登录失败', response.message || '未知错误', 'error');
+                this.showSwalAlert(i18next.t("alert.login_failed"), response.message || "未知错误", "error");
                 // 登录失败时切换回离线模式
                 this.mode = 'offline';
                 this.updateUIForMode('offline');
@@ -606,7 +646,7 @@ class OnlineModeManager {
             }
         } catch (error) {
             console.error('登录错误:', error);
-            this.showSwalAlert('登录失败', error.message, 'error');
+            this.showSwalAlert(i18next.t("alert.login_failed"), error.message, "error");
             // 登录失败时切换回离线模式
             this.mode = 'offline';
             this.updateUIForMode('offline');
@@ -618,7 +658,7 @@ class OnlineModeManager {
     async logout(silent = false) {
         this.isLoggingOut = true;
         if (!silent) {
-            const result = await this.showSwalConfirm('退出登录', '确定要退出登录吗？退出后将切换到离线模式。', '确定', '取消');
+            const result = await this.showSwalConfirm(i18next.t("alert.confirm_logout_title"), i18next.t("alert.confirm_logout"), i18next.t("alert.confirm_logout_title"), i18next.t("alert.cancel_btn"));
             if (!result.isConfirmed) {
                 this.isLoggingOut = false;
                 return;
@@ -659,9 +699,9 @@ class OnlineModeManager {
         window.dispatchEvent(new CustomEvent('roadbook:logout'));
 
         if (silent) {
-            this.showSwalAlert('会话过期', '您的登录已过期，已自动切换到离线模式', 'warning');
+            this.showSwalAlert(i18next.t("alert.session_expired_title"), i18next.t("alert.session_expired"), "warning");
         } else {
-            this.showSwalAlert('退出登录', '已退出登录，切换到离线模式', 'info');
+            this.showSwalAlert(i18next.t("alert.logout_success_title"), i18next.t("alert.logout_success"), "info");
         }
 
         this.isLoggingOut = false;
@@ -721,7 +761,7 @@ class OnlineModeManager {
                 <div class="modal-content" style="width: 800px; max-width: 90vw; height: 70vh; max-height: 80vh; background: linear-gradient(135deg, rgba(255,255,255,0.95), rgba(240,240,240,0.95)); backdrop-filter: blur(10px); box-shadow: 0 10px 40px rgba(0,0,0,0.3); margin: 3% auto;">
                     <span class="close" id="closePlanManager" style="position: absolute; right: 15px; top: 15px; z-index: 1001; font-size: 30px; color: #667eea; cursor: pointer;">&times;</span>
                     <div style="display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.5rem 0 1.5rem;">
-                        <h3 style="margin: 0; color: #333; font-size: 1.4rem;">计划管理</h3>
+                        <h3 style="margin: 0; color: #333; font-size: 1.4rem;">${i18next.t('modal.plan_manager')}</h3>
                         <div style="flex: 1; max-width: 300px; margin-left: 20px;">
                             <input type="text" id="planSearchInput" placeholder="搜索计划名称/标签/描述..."
                                 style="width: 100%; padding: 0.6rem 1rem; border: 2px solid rgba(102, 126, 234, 0.3); border-radius: 25px;
@@ -739,10 +779,10 @@ class OnlineModeManager {
 
                     <!-- 操作按钮 -->
                     <div class="plan-actions" style="padding: 0 1.5rem 1.2rem; margin-top: 0; display: flex; gap: 10px; justify-content: center;">
-                        <button id="newPlanBtn" class="btn btn-new">新建计划</button>
+                        <button id="newPlanBtn" class="btn btn-new">${i18next.t('modal.create_plan').replace('➕ ', '')}</button>
                         <button id="editPlanBtn" class="btn btn-open">编辑计划</button>
-                        <button id="openPlanBtn" class="btn btn-open">打开计划</button>
-                        <button id="deletePlanBtn" class="btn btn-danger">删除计划</button>
+                        <button id="openPlanBtn" class="btn btn-open">${i18next.t('modal.open_plan')}</button>
+                        <button id="deletePlanBtn" class="btn btn-danger">${i18next.t('modal.delete_plan')}</button>
                     </div>
                 </div>
             `;
@@ -957,11 +997,11 @@ class OnlineModeManager {
         newPlanModal.innerHTML = `
             <div class="modal-content new-plan-modal-content" style="width: 500px; max-width: 90vw; max-height: 90vh; overflow-y: auto; margin: 5% auto;">
                 <span class="close" id="closeNewPlanModal">&times;</span>
-                <h3>创建新计划</h3>
+                <h3>${i18next.t('modal.create_plan').replace('➕ ', '')}</h3>
                 <form id="newPlanForm">
                     <div class="form-group">
-                        <label for="planName">计划名称: *</label>
-                        <input type="text" id="planName" class="form-control" placeholder="请输入计划名称" required>
+                        <label for="planName">${i18next.t('modal.new_plan_name')} *</label>
+                        <input type="text" id="planName" class="form-control" placeholder="${i18next.t('modal.new_plan_placeholder')}" required>
                     </div>
                     <div class="form-group">
                         <label for="planDescription">计划描述:</label>
@@ -988,8 +1028,8 @@ class OnlineModeManager {
                         </label>
                     </div>
                     <div style="margin-top: 20px; display: flex; gap: 10px;">
-                        <button type="submit" class="btn" style="flex: 1; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important; border: none !important;">创建计划</button>
-                        <button type="button" id="cancelNewPlanBtn" class="btn" style="flex: 1; background-color: #ccc; color: #333;">取消</button>
+                        <button type="submit" class="btn" style="flex: 1; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important; border: none !important;">${i18next.t('modal.create_btn')}</button>
+                        <button type="button" id="cancelNewPlanBtn" class="btn" style="flex: 1; background-color: #ccc; color: #333;">${i18next.t('alert.cancel_btn')}</button>
                     </div>
                 </form>
             </div>
@@ -1029,7 +1069,7 @@ class OnlineModeManager {
             const useLocalData = document.getElementById('useLocalData').checked;
 
             if (!name || !startTime || !endTime) {
-                this.showSwalAlert('输入错误', '请填写所有必填字段！', 'warning');
+                this.showSwalAlert(i18next.t("alert.input_error"), i18next.t("alert.fill_required"), "warning");
                 return;
             }
 
@@ -1053,16 +1093,16 @@ class OnlineModeManager {
                         initialContent = JSON.parse(localDataString);
                     } catch (e) {
                         console.error('解析本地缓存数据失败:', e);
-                        if (!await this.showSwalConfirm("提示", "本地缓存数据已损坏，是否创建空项目？", "是", "否").then(result => result.isConfirmed)) {
+                        if (!await this.showSwalConfirm(i18next.t("alert.hint"), i18next.t("alert.local_data_corrupted"), "是", "否").then(result => result.isConfirmed)) {
                             return;
                         }
                         localStorage.removeItem('roadbookData');
                         initialContent = null;
                     }
                 } else {
-                    this.showSwalAlert('提示', '没有本地缓存数据，将创建空项目。', 'info');
+                    this.showSwalAlert(i18next.t("alert.hint"), i18next.t("alert.no_local_data"), "info");
                 }
-            } else if (await this.showSwalConfirm('提示', '是否使用空白项目？(这将清空当前路书和本地缓存)', '是', '否').then(result => result.isConfirmed)) {
+            } else if (await this.showSwalConfirm(i18next.t("alert.hint"), i18next.t("alert.use_blank_plan"), "是", "否").then(result => result.isConfirmed)) {
                 this.app.clearRoadbook(); // 清空当前应用数据和本地缓存
             }
 
@@ -1079,7 +1119,7 @@ class OnlineModeManager {
                 const response = await this.makeApiRequest('/plans', 'POST', requestBody);
 
                 if (response.id) {
-                    this.showSwalAlert('创建成功', '计划创建成功！', 'success', 'top-end');
+                    this.showSwalAlert(i18next.t("alert.create_success_title"), i18next.t("alert.create_success"), "success", "top-end");
                     newPlanModal.remove(); // 关闭创建计划弹窗
                     this.loadPlanList(); // 重新加载计划列表
                     this.currentPlanId = response.id;
@@ -1108,7 +1148,7 @@ class OnlineModeManager {
     async openSelectedPlan() {
         const selectedRadio = document.querySelector('input[name="selectedPlan"]:checked');
         if (!selectedRadio) {
-            this.showSwalAlert('提示', '请先选择一个计划', 'warning');
+            this.showSwalAlert(i18next.t("alert.hint"), i18next.t("alert.select_plan_first"), "warning");
             return;
         }
 
@@ -1127,12 +1167,12 @@ class OnlineModeManager {
 
                 if (isCloudEmpty) {
                     // 如果云端是空项目
-                    const result = await this.showSwalConfirm('空项目提示', '您正在打开一个空项目。是否需要覆盖本地缓存？如果选择"是"，当前本地项目将被清空并加载空项目。', '是', '否');
+                    const result = await this.showSwalConfirm(i18next.t("alert.empty_plan_warning_title"), i18next.t("alert.empty_plan_warning"), "是", "否");
                     if (result.isConfirmed) {
                         this.app.clearRoadbook(); // 清空当前应用数据和本地缓存
-                        this.showSwalAlert("提示", "本地缓存已清空并加载空云端项目。", "info");
+                        this.showSwalAlert(i18next.t("alert.hint"), i18next.t("alert.cache_cleared_empty"), "info");
                     } else {
-                        this.showSwalAlert("提示", "已取消加载空云端项目，本地缓存保持不变。请选择其他项目或新建项目。", "info");
+                        this.showSwalAlert(i18next.t("alert.hint"), i18next.t("alert.cancel_empty_plan"), "info");
                         this.closePlanManager(); // 用户选择不覆盖，关闭管理界面
                         return; // 终止后续操作
                     }
@@ -1169,9 +1209,9 @@ class OnlineModeManager {
                 // 关闭计划管理界面
                 this.closePlanManager();
 
-                this.showSwalAlert('成功', '计划加载成功！', 'success');
+                this.showSwalAlert(i18next.t("alert.success"), i18next.t("alert.plan_load_success"), "success");
             } else {
-                this.showSwalAlert('错误', '获取计划详情失败：计划数据不完整。', 'error');
+                this.showSwalAlert(i18next.t("alert.error"), i18next.t("alert.plan_load_failed_incomplete"), "error");
                 this.closePlanManager(); // 数据不完整时也关闭管理界面
             }
         } catch (error) {
@@ -1185,7 +1225,7 @@ class OnlineModeManager {
     async editSelectedPlan() {
         const selectedRadio = document.querySelector('input[name="selectedPlan"]:checked');
         if (!selectedRadio) {
-            this.showSwalAlert('提示', '请先选择一个计划', 'warning');
+            this.showSwalAlert(i18next.t("alert.hint"), i18next.t("alert.select_plan_first"), "warning");
             return;
         }
 
@@ -1197,7 +1237,7 @@ class OnlineModeManager {
             if (response.plan) {
                 this.showEditPlanModal(response.plan);
             } else {
-                this.showSwalAlert('错误', '获取计划详情失败', 'error');
+                this.showSwalAlert(i18next.t("alert.error"), i18next.t("alert.plan_load_failed"), "error");
             }
         } catch (error) {
             console.error('获取计划详情失败:', error);
@@ -1290,7 +1330,7 @@ class OnlineModeManager {
             const labelsInput = document.getElementById('editPlanLabels').value.trim();
 
             if (!name || !startTime || !endTime) {
-                this.showSwalAlert('输入错误', '请填写所有必填字段！', 'warning');
+                this.showSwalAlert(i18next.t("alert.input_error"), i18next.t("alert.fill_required"), "warning");
                 return;
             }
 
@@ -1362,7 +1402,7 @@ class OnlineModeManager {
                 const response = await this.makeApiRequest(`/plans/${plan.id}`, 'PUT', requestBody);
 
                 if (response.id) {
-                    this.showSwalAlert('成功', '计划更新成功！', 'success');
+                    this.showSwalAlert(i18next.t("alert.success"), i18next.t("alert.plan_update_success"), "success");
                     editPlanModal.remove(); // 关闭编辑计划弹窗
                     this.loadPlanList(); // 重新加载计划列表
 
@@ -1385,13 +1425,13 @@ class OnlineModeManager {
     async deleteSelectedPlan() {
         const selectedRadio = document.querySelector('input[name="selectedPlan"]:checked');
         if (!selectedRadio) {
-            this.showSwalAlert('提示', '请先选择一个计划', 'warning');
+            this.showSwalAlert(i18next.t("alert.hint"), i18next.t("alert.select_plan_first"), "warning");
             return;
         }
 
         const planId = selectedRadio.value;
         const planName = selectedRadio.parentElement.querySelector('strong').textContent;
-        if (!await this.showSwalConfirm('删除确认', `确定要删除计划 "${planName}" 吗？此操作不可恢复。`, '删除', '取消').then(result => result.isConfirmed)) {
+        if (!await this.showSwalConfirm(i18next.t("alert.confirm_delete"), i18next.t("alert.delete_plan_confirm", {name: planName}), i18next.t("alert.delete_btn"), i18next.t("alert.cancel_btn")).then(result => result.isConfirmed)) {
             return;
         }
 
@@ -1399,7 +1439,7 @@ class OnlineModeManager {
             const response = await this.makeApiRequest(`/plans/${planId}`, 'DELETE');
 
             if (response.message) {
-                this.showSwalAlert('成功', '计划删除成功！', 'success');
+                this.showSwalAlert(i18next.t("alert.success"), i18next.t("alert.delete_plan_success"), "success");
                 this.loadPlanList(); // 重新加载计划列表
 
                 // 如果删除的是当前正在编辑的计划，清空当前计划信息
@@ -1418,7 +1458,7 @@ class OnlineModeManager {
     // 保存到云端
     async saveToCloud() {
         if (!this.currentPlanId) {
-            this.showSwalAlert('提示', '当前没有打开的计划，请先打开或创建一个计划', 'warning');
+            this.showSwalAlert(i18next.t("alert.hint"), i18next.t("alert.no_open_plan"), "warning");
             return;
         }
 
@@ -1510,7 +1550,7 @@ class OnlineModeManager {
             onlineModeActions.insertBefore(indicator, onlineModeActions.firstChild); // 插入到最前面
         }
 
-        indicator.textContent = `正在编辑: ${planName}`;
+        indicator.textContent = `${i18next.t('editing', { planName: planName })}`;
         indicator.style.display = 'block';
         onlineModeActions.style.display = 'flex'; // 确保容器可见
 
@@ -1644,8 +1684,8 @@ class OnlineModeManager {
         if (!indicator) return;
 
         const planName = this.currentPlanName || '未命名计划';
-        const unsavedText = hasChanges ? ' (未保存)' : '';
-        indicator.textContent = `正在编辑: ${planName}${unsavedText}`;
+        const unsavedText = hasChanges ? i18next.t('unsaved') : '';
+        indicator.textContent = `${i18next.t('editing', { planName: planName })}${unsavedText}`;
 
         // 根据是否有未保存的更改来设置CSS类
         if (hasChanges) {

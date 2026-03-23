@@ -1,5 +1,7 @@
 # RoadbookMaker
 
+中文 | [English](README.en.md)
+
 <p align="center">
   <img src="static/favicon.png" alt="RoadbookMaker Logo" width="300" height="300">
 </p>

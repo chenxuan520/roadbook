@@ -222,7 +222,7 @@
                 const isMac = /mac|ios/i.test(String(platform || ''));
                 const shortcut = isMac ? '⌘+C' : 'Ctrl+C';
                 // Using prompt keeps UI minimal and does not change existing icons/buttons.
-                window.prompt(`无法自动复制，请手动复制（${shortcut}）`, String(text || ''));
+                window.prompt(i18next.t('debug.manual_copy', {shortcut}), String(text || ''));
             } catch {
                 // ignore
             }
@@ -380,7 +380,7 @@
 
             // 标题
             const title = document.createElement('h3');
-            title.textContent = '🔧 调试信息';
+            title.textContent = i18next.t('debug.title');
             title.style.cssText = 'margin: 0 0 20px 0; color: var(--text-primary, #333); font-size: 18px;';
             modalContent.appendChild(title);
 
@@ -391,22 +391,22 @@
             const filterInput = document.createElement('input');
             filterInput.className = 'debug-filter-input';
             filterInput.type = 'text';
-            filterInput.placeholder = '过滤 key（支持模糊匹配）…';
+            filterInput.placeholder = i18next.t('debug.filter_placeholder');
 
             const clearBtn = document.createElement('button');
             clearBtn.className = 'debug-action-btn debug-action-btn-secondary';
             clearBtn.type = 'button';
-            clearBtn.textContent = '清空过滤';
+            clearBtn.textContent = i18next.t('debug.clear_filter');
 
             const copyAllBtn = document.createElement('button');
             copyAllBtn.className = 'debug-action-btn';
             copyAllBtn.type = 'button';
-            copyAllBtn.textContent = '复制全部';
+            copyAllBtn.textContent = i18next.t('debug.copy_all');
 
             const downloadBtn = document.createElement('button');
             downloadBtn.className = 'debug-action-btn';
             downloadBtn.type = 'button';
-            downloadBtn.textContent = '下载 JSON';
+            downloadBtn.textContent = i18next.t('debug.download_json');
 
             actionsBar.appendChild(filterInput);
             actionsBar.appendChild(clearBtn);
@@ -423,7 +423,7 @@
 
             // 创建 环境信息 分组
             const envGroup = this.createDebugGroup(
-                '🌐 环境信息',
+                i18next.t('debug.env_info'),
                 snapshot.envInfo,
                 'envInfo'
             );
@@ -431,14 +431,14 @@
 
             // 创建 应用配置/运行状态 分组
             const runtimeGroup = this.createDebugGroup(
-                '⚙️ 应用配置',
+                i18next.t('debug.app_config'),
                 snapshot.runtime,
                 'runtime'
             );
             groupsContainer.appendChild(runtimeGroup);
 
             const summaryGroup = this.createDebugGroup(
-                '📈 状态概览',
+                i18next.t('debug.status_overview'),
                 snapshot.appSummary,
                 'appSummary'
             );
@@ -446,7 +446,7 @@
 
             // LocalStorage 统计分组（便于定位“缓存爆了/某个 key 过大”）
             const storageStatsGroup = this.createDebugGroup(
-                '📦 LocalStorage 统计',
+                i18next.t('debug.ls_stats'),
                 snapshot.localStorageStats,
                 'localStorageStats'
             );
@@ -462,14 +462,14 @@
 
             // 创建日志/错误分组（仅 debug=true 时安装 hooks）
             const logsGroup = this.createDebugGroup(
-                '🧾 最近日志',
+                i18next.t('debug.recent_logs'),
                 snapshot.logs,
                 'logs'
             );
             groupsContainer.appendChild(logsGroup);
 
             const errorsGroup = this.createDebugGroup(
-                '💥 最近错误',
+                i18next.t('debug.recent_errors'),
                 snapshot.errors,
                 'errors'
             );
@@ -477,7 +477,7 @@
 
             // 创建 AppState 分组
             const appStateGroup = this.createDebugGroup(
-                '📊 应用状态',
+                i18next.t('debug.app_state'),
                 snapshot.appState,
                 'appState'
             );
@@ -493,9 +493,9 @@
                 e.stopPropagation();
                 const snapshotJSON = getSnapshotJSON();
                 this.copyText(snapshotJSON, (ok) => {
-                    copyAllBtn.textContent = ok ? '已复制 ✅' : '复制失败 ❌';
+                    copyAllBtn.textContent = ok ? '已复制 ✅' : i18next.t('debug.copy_failed');
                     setTimeout(() => {
-                        copyAllBtn.textContent = '复制全部';
+                        copyAllBtn.textContent = i18next.t('debug.copy_all');
                     }, 1500);
                 });
             });
@@ -504,9 +504,9 @@
                 e.stopPropagation();
                 const snapshotJSON = getSnapshotJSON();
                 this.downloadText(`roadbook-debug-${Date.now()}.json`, snapshotJSON);
-                downloadBtn.textContent = '已下载 ✅';
+                downloadBtn.textContent = i18next.t('debug.downloaded');
                 setTimeout(() => {
-                    downloadBtn.textContent = '下载 JSON';
+                    downloadBtn.textContent = i18next.t('debug.download_json');
                 }, 1500);
             });
 
@@ -626,7 +626,7 @@
 
             const count = document.createElement('span');
             count.className = 'debug-count';
-            count.textContent = `(${Object.keys(data).length} 项)`;
+            count.textContent = i18next.t('debug.items_count', {count: Object.keys(data).length});
             count.style.cssText = 'font-size: 12px; color: var(--text-secondary, #666); margin-left: 8px;';
 
             titleDiv.appendChild(icon);
@@ -647,7 +647,7 @@
             if (Object.keys(data).length === 0) {
                 const emptyHint = document.createElement('div');
                 emptyHint.className = 'debug-empty-hint';
-                emptyHint.textContent = '暂无数据';
+                emptyHint.textContent = i18next.t('debug.no_data');
                 content.appendChild(emptyHint);
             } else {
                 for (const [key, value] of Object.entries(data)) {
@@ -695,7 +695,7 @@
             const copyBtn = document.createElement('span');
             copyBtn.className = 'debug-copy-btn';
             copyBtn.textContent = '📋';
-            copyBtn.title = '点击复制';
+            copyBtn.title = i18next.t('debug.copy_tooltip');
 
             // 把 title、toggle 和 copyBtn 添加到 header
             header.appendChild(titleSpan);
@@ -718,7 +718,7 @@
                 isLoaded = true;
             };
             // 懒加载：避免在弹窗打开时就 stringify 巨大对象，导致卡顿
-            content.textContent = '（点击展开加载）';
+            content.textContent = i18next.t('debug.click_to_load');
 
             // 点击 header 切换展开/折叠
             header.addEventListener('click', (e) => {

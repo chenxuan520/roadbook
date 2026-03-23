@@ -501,9 +501,9 @@
                 <div class="rb-tour-footer">
                     <div class="rb-tour-progress">${this.index + 1} / ${this.steps.length}</div>
                     <div class="rb-tour-actions">
-                        <button class="rb-tour-btn rb-tour-btn-ghost" data-action="skip">跳过</button>
-                        <button class="rb-tour-btn rb-tour-btn-secondary" data-action="prev" ${this.index === 0 ? 'disabled' : ''}>上一步</button>
-                        <button class="rb-tour-btn rb-tour-btn-primary" data-action="next">${isLast ? '完成' : '下一步'}</button>
+                        <button class="rb-tour-btn rb-tour-btn-ghost" data-action="skip">${i18next.t('tour.btn_skip')}</button>
+                        <button class="rb-tour-btn rb-tour-btn-secondary" data-action="prev" ${this.index === 0 ? 'disabled' : ''}>${i18next.t('tour.btn_prev')}</button>
+                        <button class="rb-tour-btn rb-tour-btn-primary" data-action="next">${isLast ? i18next.t('tour.btn_finish') : i18next.t('tour.btn_next')}</button>
                     </div>
                 </div>
             `;
@@ -967,13 +967,13 @@
         const connectionClickStepTitle = hasExistingData ? '点击现有连接线编辑' : '点击示例连接线编辑';
 
         const demoHint = demoCreated
-            ? '\n提示：这是示例数据（两点一线），你可以继续在此基础上修改，或用“🗑️ 清空数据”从头开始。'
+            ? i18next.t('tour.demo_hint')
             : '';
 
         return [
             {
-                title: '欢迎来到 RoadbookMaker',
-                content: '这是一个“地图 + 行程”的规划工具。\n引导会按区域从上到下介绍：地图控件 → 工具栏 → 点/线编辑 → 日程编辑。\n（可随时点击“跳过”，或按 Esc 退出）' + demoHint
+                title: i18next.t('tour.welcome_title'),
+                content: i18next.t('tour.welcome_content') + demoHint
             },
 
             // --- 地图区域（右上角控件按顺序介绍） ---
@@ -989,13 +989,13 @@
             },
             {
                 selector: '#helpBtn',
-                title: '帮助（Helper）',
-                content: '点“❓”可随时打开完整帮助与快捷键说明。'
+                title: i18next.t('tour.help_title'),
+                content: i18next.t('tour.help_content')
             },
             {
                 selector: '#themeToggleBtn',
-                title: '主题切换',
-                content: '右上角这里可以切换明亮/暗色主题，会记住你的偏好。',
+                title: i18next.t('tour.theme_title'),
+                content: i18next.t('tour.theme_content'),
                 tooltipPlacement: 'bottom',
                 tooltipAlign: 'end'
             },
@@ -1003,55 +1003,55 @@
             // --- 顶部工具栏（按从左到右的编辑区域介绍） ---
             {
                 selector: '#searchInput',
-                title: '搜索地点',
-                content: '输入地点名回车搜索；也可以用快捷键 / 快速聚焦到搜索框。'
+                title: i18next.t('tour.search_title'),
+                content: i18next.t('tour.search_content')
             },
             {
                 selector: '#searchMethodSelect',
-                title: '搜索源设置',
-                content: '这里可以切换搜索服务（自动/Photon/Nominatim/高德/天地图等）。\n不确定选哪个时用“自动分配”。'
+                title: i18next.t('tour.search_src_title'),
+                content: i18next.t('tour.search_src_content')
             },
             {
                 selector: '#addMarkerBtn',
-                title: '标记（新增点）',
-                content: '点击“📍 标记”进入添加模式，然后在地图上点击即可落点。\n快捷键：A'
+                title: i18next.t('tour.add_marker_title'),
+                content: i18next.t('tour.add_marker_content')
             },
             {
                 selector: '#connectMarkersBtn',
-                title: '连线（新增边）',
-                content: '点击“🔗 连线”选择两个点并创建连接线。\n快捷键：C'
+                title: i18next.t('tour.connect_title'),
+                content: i18next.t('tour.connect_content')
             },
             {
                 selector: '#mapContainer',
-                title: '删除点/边（不会自动执行）',
-                content: '删除操作需要你手动执行：\n1) 先点击选中一个标记点或连接线（会打开详情面板）\n2) 按键盘 D / Backspace / Delete 删除\n或在详情面板里点“删除”按钮。'
+                title: i18next.t('tour.delete_title'),
+                content: i18next.t('tour.delete_content')
             },
             {
                 selector: '#mapSourceSelect',
-                title: '地图设置（地图源）',
-                content: '这里可以切换地图源（OSM/高德/Google/影像等）。\n切换后会自动保存到本地。'
+                title: i18next.t('tour.map_src_title'),
+                content: i18next.t('tour.map_src_content')
             },
             {
                 selector: '#exportDropdownBtn',
-                title: '导出与分享',
-                content: '用“📤 导出”导出 JSON/HTML/TXT/ICS/图片，方便备份或分享。'
+                title: i18next.t('tour.export_title'),
+                content: i18next.t('tour.export_content')
             },
             {
                 selector: '#importBtn',
-                title: '导入',
-                content: '点“📥 导入”可导入 JSON/HTML/PNG 备份文件，恢复你的路书。'
+                title: i18next.t('tour.import_title'),
+                content: i18next.t('tour.import_content')
             },
             {
                 selector: '#clearCacheBtn',
-                title: '清空数据（谨慎）',
-                content: '“🗑️ 清空数据”会删除本地缓存，适合从头开始。\n建议清空前先导出备份。'
+                title: i18next.t('tour.clear_title'),
+                content: i18next.t('tour.clear_content')
             },
 
             // --- 地图上的点/线编辑（演示自动打开面板） ---
             {
                 getTargetElement: () => getFirstMarkerElement(),
-                title: markerClickStepTitle,
-                content: '已自动演示：点击标记点会打开“标记点详情”。\n你也可以自己再点一次其它标记点，体验切换编辑对象。',
+                title: i18next.t('tour.marker_click_title'),
+                content: i18next.t('tour.marker_click_content'),
                 beforeEnter: () => closeAnyDetailPanels(),
                 afterEnter: () => {
                     setTimeout(() => openFirstMarkerDetailAndFocus(), 120);
@@ -1059,13 +1059,13 @@
             },
             {
                 selector: '#markerDetailPanel',
-                title: '标记点详情面板',
-                content: '这里可以改名称、时间点、图标、标注内容等。\n多数改动会实时保存到本地缓存。\n右上角 × 可关闭面板。'
+                title: i18next.t('tour.marker_panel_title'),
+                content: i18next.t('tour.marker_panel_content')
             },
             {
                 getTargetElement: () => getFirstConnectionElement(),
-                title: connectionClickStepTitle,
-                content: '已自动演示：点击连接线（或中间交通图标）会打开“连接线详情”。\n你可以再点击其它连接线查看差异。',
+                title: i18next.t('tour.conn_click_title'),
+                content: i18next.t('tour.conn_click_content'),
                 beforeEnter: () => closeAnyDetailPanels(),
                 afterEnter: () => {
                     setTimeout(() => openFirstConnectionDetailAndFocus(), 120);
@@ -1073,20 +1073,20 @@
             },
             {
                 selector: '#connectionDetailPanel',
-                title: '连接线详情面板',
-                content: '这里可以切换交通方式、修改时间/耗时、编辑标注与 Logo。\n右上角 × 可关闭面板。'
+                title: i18next.t('tour.conn_panel_title'),
+                content: i18next.t('tour.conn_panel_content')
             },
             {
                 selector: '#mapContainer',
-                title: '右键拖拽连线（更快）',
-                content: '在“查看模式”下：\n1) 右键按住一个标记点开始拖拽\n2) 拖到另一个标记点松开\n即可自动创建连接线（会按距离自动推荐交通方式）。'
+                title: i18next.t('tour.drag_conn_title'),
+                content: i18next.t('tour.drag_conn_content')
             },
 
             // --- 右侧日程编辑（按日期） ---
             {
                 selector: '#markerListPanel',
-                title: '日程列表（按日期分组）',
-                content: '右侧日程列表会按日期分组显示。\n点击每个日期标题左侧的“文件夹/展开”图标，可以展开/收起当天的条目。',
+                title: i18next.t('tour.list_title'),
+                content: i18next.t('tour.list_content'),
                 // 进入日程区域前，必须先退出“点/边详情”以及“日期筛选”状态，回到分组列表层
                 beforeEnter: () => closeAnyDetailPanels(),
                 afterEnter: () => {
@@ -1102,8 +1102,8 @@
             },
             {
                 getTargetElement: () => getFirstDateExpandToggleElement(),
-                title: '展开/收起“文件夹”',
-                content: '这里就是“文件夹/展开”按钮：\n- 点击可展开/收起该日期下的所有点\n- 展开后就能在下面看到当天的地点列表',
+                title: i18next.t('tour.expand_title'),
+                content: i18next.t('tour.expand_content'),
                 afterEnter: () => {
                     // 确保演示时处于“展开”状态（不做收起再展开的抖动）
                     setTimeout(() => ensureFirstDateGroupExpanded(), 120);
@@ -1111,8 +1111,8 @@
             },
             {
                 getTargetElement: () => getFirstMarkerInfoUnderFirstDateGroup(),
-                title: '点击条目编辑“点”',
-                content: '展开后，点击下面的任意一条地点（条目）就会打开该点的编辑面板。\n（本步骤会自动演示一次）',
+                title: i18next.t('tour.edit_item_title'),
+                content: i18next.t('tour.edit_item_content'),
                 beforeEnter: () => closeAnyDetailPanels(),
                 afterEnter: () => {
                     setTimeout(() => {
@@ -1130,8 +1130,8 @@
             },
             {
                 getTargetElement: () => getFirstDateHeaderElement(),
-                title: '日程（按日期）编辑入口',
-                content: '从“日期分组”进入日程编辑界面：\n已自动演示点击一个日期标题 → 进入该日期的详情。',
+                title: i18next.t('tour.date_edit_title'),
+                content: i18next.t('tour.date_edit_content'),
                 beforeEnter: () => {
                     closeAnyDetailPanels();
                     // 在进入“日期详情”前，把文件夹展开状态恢复回演示前
@@ -1145,8 +1145,8 @@
             },
             {
                 selector: '#dateDetailPanel',
-                title: '日程（日期）详情面板',
-                content: '这里是“日程/日期”的编辑界面：\n- 可写日期备注\n- 可记录预计消费\n关闭后会回到列表/地图继续编辑点和线。'
+                title: i18next.t('tour.date_panel_title'),
+                content: i18next.t('tour.date_panel_content')
             }
         ];
     }
@@ -1170,10 +1170,10 @@
             const p2 = L.latLng(center.lat, center.lng + 0.03);
 
             const searchInput = document.getElementById('searchInput');
-            if (searchInput) searchInput.value = '示例点 A';
+            if (searchInput) searchInput.value = i18next.t('tour.demo_marker_a');
             window.app.addMarker(p1);
 
-            if (searchInput) searchInput.value = '示例点 B';
+            if (searchInput) searchInput.value = i18next.t('tour.demo_marker_b');
             window.app.addMarker(p2);
 
             // 创建一条连接线（transportType=null 触发自动推荐）

@@ -115,14 +115,14 @@ class RoadbookApp {
         if (!select) return;
 
         const providerComments = {
-            auto: '根据当前地图自动选择最合适的搜索服务。',
-            gaode: '高德搜索，由后端服务器代理，适用于中国大陆区域, 需要 apikey。',
-            tiansearch: '天地图搜索，由后端服务器代理，适用于中国大陆区域。',
-            cnsearch: '百度搜索，由后端服务器代理，适用于中国大陆区域（可能不稳定）。',
-            nominatim: 'OpenStreetMap官方搜索，全球范围适用，国外地址推荐。',
-            overpass: '一个功能强大的OSM数据挖掘工具，语法复杂，稳定性差不推荐。',
-            mapsearch: '一个第三方的中文OSM搜索服务，无需翻墙。',
-            photon: '基于OpenStreetMap的快速搜索，全球范围适用。'
+            auto: i18next.t('search_provider_desc.auto'),
+            gaode: i18next.t('search_provider_desc.gaode'),
+            tiansearch: i18next.t('search_provider_desc.tiansearch'),
+            cnsearch: i18next.t('search_provider_desc.cnsearch'),
+            nominatim: i18next.t('search_provider_desc.nominatim'),
+            overpass: i18next.t('search_provider_desc.overpass'),
+            mapsearch: i18next.t('search_provider_desc.mapsearch'),
+            photon: i18next.t('search_provider_desc.photon')
         };
 
         Array.from(select.options).forEach(option => {
@@ -762,8 +762,8 @@ class RoadbookApp {
             box-shadow: 0 4px 12px rgba(0,0,0,0.3);
         `;
         loadingMessage.innerHTML = `
-            <div style="margin-bottom: 8px;">📍 正在获取您的位置...</div>
-            <div style="font-size: 12px; opacity: 0.8;">请允许位置访问权限</div>
+            <div style="margin-bottom: 8px;">${i18next.t('alert.getting_location')}</div>
+            <div style="font-size: 12px; opacity: 0.8;">${i18next.t('alert.allow_location')}</div>
         `;
         document.body.appendChild(loadingMessage);
 
@@ -888,19 +888,24 @@ class RoadbookApp {
     askUserToImportSharedData(shareID) {
         // 延迟显示确认对话框，确保页面完全加载
         setTimeout(() => {
-            this.showSwalConfirm('发现分享链接', '检测到分享链接，当前本地已有数据。是否导入分享数据？这将覆盖当前本地数据。', '导入', '取消')
+            this.showSwalConfirm(
+                i18next.t('alert.found_share'),
+                i18next.t('alert.share_conflict'),
+                i18next.t('alert.import_btn'),
+                i18next.t('alert.cancel_btn')
+            )
                 .then(result => {
                     if (result.isConfirmed) {
                         this.importSharedData(shareID);
                     } else {
                         // 用户选择不导入，正常初始化
-                        this.showSwalAlert('提示', '已取消导入分享数据', 'info');
+                        this.showSwalAlert(i18next.t('alert.hint'), i18next.t('alert.import_canceled'), 'info');
                     }
                 })
                 .catch(error => {
                     console.error('显示确认对话框失败:', error);
                     // 如果显示对话框失败，继续正常初始化
-                    this.showSwalAlert('提示', '已取消导入分享数据', 'info');
+                    this.showSwalAlert(i18next.t('alert.hint'), i18next.t('alert.import_canceled'), 'info');
                 });
         }, 1000); // 延迟1秒，确保所有UI元素都加载完成
     }
@@ -912,8 +917,8 @@ class RoadbookApp {
             setTimeout(() => {
                 if (typeof Swal !== 'undefined') {
                     Swal.fire({
-                        title: '正在导入',
-                        text: '正在加载分享数据...',
+                        title: i18next.t('alert.importing_title'),
+                        text: i18next.t('alert.importing_text'),
                         icon: 'info',
                         showConfirmButton: false,
                         allowOutsideClick: false,
@@ -947,10 +952,10 @@ class RoadbookApp {
 
                 // 验证数据结构
                 if (!Array.isArray(shareContent.markers)) {
-                    throw new Error('分享数据中的markers必须是数组');
+                    throw new Error(i18next.t('alert.share_markers_array'));
                 }
                 if (!Array.isArray(shareContent.connections)) {
-                    throw new Error('分享数据中的connections必须是数组');
+                    throw new Error(i18next.t('alert.share_connections_array'));
                 }
 
                 // 加载分享的数据
@@ -965,13 +970,13 @@ class RoadbookApp {
                 }
 
                 setTimeout(() => {
-                    this.showSwalAlert('成功', `分享数据导入成功！导入了 ${shareContent.markers.length} 个标记点和 ${shareContent.connections.length} 条连接线`, 'success');
+                    this.showSwalAlert(i18next.t('alert.success'), i18next.t('alert.import_success', { markerCount: shareContent.markers.length, connCount: shareContent.connections.length }), 'success');
                 }, 200);
 
                 // 继续正常初始化流程
                 this.continueNormalInit();
             } else {
-                throw new Error('分享数据格式不正确，缺少plan或plan.content字段');
+                throw new Error(i18next.t('alert.share_data_invalid'));
             }
         } catch (error) {
             // 关闭加载提示
@@ -979,7 +984,7 @@ class RoadbookApp {
                 Swal.close();
             }
 
-            this.showSwalAlert('错误', '导入分享数据失败: ' + error.message, 'error');
+            this.showSwalAlert(i18next.t('alert.error'), i18next.t('alert.error') + ': ' + error.message, 'error');
 
             // 导入失败，继续正常初始化
             this.continueNormalInit();
@@ -1002,7 +1007,7 @@ class RoadbookApp {
 
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({}));
-                throw new Error(errorData.message || `获取分享数据失败: ${response.status} ${response.statusText}`);
+                throw new Error(errorData.message || `${i18next.t('alert.share_fetch_failed')}${response.status} ${response.statusText}`);
             }
 
             return await response.json();
@@ -1043,7 +1048,7 @@ class RoadbookApp {
         this.mapSearchConfig = {
             osm: {
                 searchable: true,
-                name: 'OpenStreetMap',
+                name: i18next.t('map_source.osm'),
                 searchUrl: 'https://nominatim.openstreetmap.org/search',
                 params: {
                     format: 'json',
@@ -1053,21 +1058,21 @@ class RoadbookApp {
             },
             satellite: {
                 searchable: true,
-                name: 'ESRI影像图',
+                name: i18next.t('map_source.satellite'),
                 searchUrl: apiBaseUrl + '/api/tianmap/search',
                 params: {format: 'json', limit: 10},
                 parser: 'nominatim'
             },
             esri_street: {
                 searchable: true,
-                name: 'ESRI街道图',
+                name: i18next.t('map_source.esri_street'),
                 searchUrl: apiBaseUrl + '/api/tianmap/search',
                 params: {format: 'json', limit: 10},
                 parser: 'nominatim'
             },
             gaode: {
                 searchable: true,
-                name: '高德地图',
+                name: i18next.t('map_source.gaode'),
                 searchUrl: apiBaseUrl + '/api/tianmap/search', // 使用TianSearch端点
                 params: {
                     format: 'json',
@@ -1077,14 +1082,14 @@ class RoadbookApp {
             },
             gaode_satellite: {
                 searchable: true,
-                name: '高德卫星图',
+                name: i18next.t('map_source.gaode_satellite'),
                 searchUrl: apiBaseUrl + '/api/tianmap/search',
                 params: {format: 'json', limit: 10},
                 parser: 'nominatim'
             },
             google: {
                 searchable: true,
-                name: 'Google地图',
+                name: i18next.t('map_source.google'),
                 searchUrl: 'https://photon.komoot.io/api/',
                 params: {
                     limit: 10
@@ -1093,14 +1098,14 @@ class RoadbookApp {
             },
             google_satellite: {
                 searchable: true,
-                name: 'Google卫星图',
+                name: i18next.t('map_source.google_satellite'),
                 searchUrl: apiBaseUrl + '/api/tianmap/search',
                 params: {format: 'json', limit: 10},
                 parser: 'nominatim'
             },
             tencent: {
                 searchable: true,
-                name: '腾讯地图',
+                name: i18next.t('map_source.tencent'),
                 searchUrl: apiBaseUrl + '/api/tianmap/search',
                 params: {format: 'json', limit: 10},
                 parser: 'nominatim'
@@ -1420,14 +1425,14 @@ class RoadbookApp {
                 }
 
                 Swal.fire({
-                    title: '导出为 TXT',
-                    text: '导出的 TXT 文件主要用于大模型分析，无法重新导入。',
+                    title: i18next.t('export.txt_export_title'),
+                    text: i18next.t('export.txt_export_desc'),
                     icon: 'info',
                     showCancelButton: true,
                     showDenyButton: true,
-                    confirmButtonText: '导出文件',
-                    denyButtonText: '复制到剪贴板',
-                    cancelButtonText: '取消',
+                    confirmButtonText: i18next.t('export.export_file'),
+                    denyButtonText: i18next.t('export.copy_clipboard'),
+                    cancelButtonText: i18next.t('export.cancel'),
                     confirmButtonColor: '#667eea',
                     denyButtonColor: '#32b47c',
                     cancelButtonColor: '#6c757d'
@@ -1436,7 +1441,7 @@ class RoadbookApp {
                         // 用户点击“确认导出”
                         if (window.htmlExporter) {
                             window.htmlExporter.exportToTxt();
-                            this.showSwalAlert('已开始下载', 'TXT 文件已开始下载。', 'success');
+                            this.showSwalAlert(i18next.t("alert.success"), i18next.t("alert.txt_download_started"), "success");
                         } else {
                             console.error('HTML Exporter not found');
                         }
@@ -1445,10 +1450,10 @@ class RoadbookApp {
                         if (window.htmlExporter) {
                             const txtContent = window.htmlExporter.exportToTxt(true);
                             navigator.clipboard.writeText(txtContent).then(() => {
-                                this.showSwalAlert('成功', '行程安排已复制到剪贴板！', 'success');
+                                this.showSwalAlert(i18next.t("alert.success"), i18next.t("alert.copy_success"), "success");
                             }).catch(err => {
                                 console.error('复制失败:', err);
-                                this.showSwalAlert('失败', '复制失败，请检查浏览器权限或手动导出。', 'error');
+                                this.showSwalAlert(i18next.t("alert.error"), i18next.t("alert.copy_failed"), "error");
                             });
                         } else {
                             console.error('HTML Exporter not found');
@@ -1794,7 +1799,7 @@ class RoadbookApp {
                         picker.style.display = 'none'; // 操作后隐藏
                     } else {
                         // 如果日期不完整，提示用户
-                        this.showSwalAlert('提示', '请选择完整的起始和结束日期以进行聚焦。', 'info');
+                        this.showSwalAlert(i18next.t("alert.hint"), i18next.t("alert.select_full_date"), "info");
                     }
                 } else {
                     // 否则，执行默认的全局聚焦
@@ -2033,21 +2038,21 @@ class RoadbookApp {
         const expandMarkerLabelsBtn = document.getElementById('expandMarkerLabelsBtn');
         if (expandMarkerLabelsBtn) {
             expandMarkerLabelsBtn.addEventListener('click', () => {
-                this.openExpandModal('marker', '标记点备注');
+                this.openExpandModal('marker', i18next.t('panel.marker_note'));
             });
         }
 
         const expandConnectionLabelsBtn = document.getElementById('expandConnectionLabelsBtn');
         if (expandConnectionLabelsBtn) {
             expandConnectionLabelsBtn.addEventListener('click', () => {
-                this.openExpandModal('connection', '连接线备注');
+                this.openExpandModal('connection', i18next.t('panel.connection_note'));
             });
         }
 
         const expandDateNotesBtn = document.getElementById('expandDateNotesBtn');
         if (expandDateNotesBtn) {
             expandDateNotesBtn.addEventListener('click', () => {
-                this.openExpandModal('date', '日期备注');
+                this.openExpandModal('date', i18next.t('panel.date_note'));
             });
         }
 
@@ -2088,11 +2093,11 @@ class RoadbookApp {
         // 修改标题为只读模式
         const titleElement = document.querySelector('header h1');
         if (titleElement) {
-            titleElement.textContent = `${titleElement.textContent} (只读模式)`;
+            titleElement.textContent = `${titleElement.textContent} (${i18next.t('alert.readonly_mode')})`;
         }
 
         // 显示进入提示
-        alert('当前为移动端只读模式，如需编辑请使用电脑访问。');
+        alert(i18next.t('alert.mobile_readonly'));
 
         // 初始化移动端菜单功能
         this.initMobileMenu();
@@ -2217,12 +2222,12 @@ class RoadbookApp {
             if (currentMapConfig.searchable) {
                 // 启用搜索框
                 searchInput.disabled = false;
-                searchInput.placeholder = '搜索地点...';
+                searchInput.placeholder = i18next.t('toolbar.search_placeholder');
                 searchInput.style.opacity = '1';
             } else {
                 // 禁用搜索框
                 searchInput.disabled = true;
-                searchInput.placeholder = `当前地图(${currentMapConfig.name})不支持搜索`;
+                searchInput.placeholder = i18next.t('alert.search_not_supported', {name: currentMapConfig.name});
                 searchInput.style.opacity = '0.6';
 
                 // 隐藏搜索结果
@@ -2283,7 +2288,7 @@ class RoadbookApp {
     // 创建标记点实体并绑定事件（公共逻辑）
     createMarkerEntity(lat, lng, title = null, id = null, customIconConfig = null, dateTime = null) {
         const markerId = id || Date.now();
-        const markerTitle = title || `标记点${this.markers.length + 1}`;
+        const markerTitle = title || `${i18next.t('alert.default_marker_name')}${this.markers.length + 1}`;
         const iconConfig = customIconConfig || this.getIconForName(markerTitle);
         const icon = this.createMarkerIcon(iconConfig, this.markers.length + 1);
 
@@ -2914,7 +2919,7 @@ class RoadbookApp {
             const shownDate = sticky.dataset ? sticky.dataset.date : '';
             if (shownDate === date) {
                 const notes = this.getDateNotes(date);
-                contentElement.innerHTML = this.convertMarkdownLinksToHtml(notes || '暂无备注');
+                contentElement.innerHTML = this.convertMarkdownLinksToHtml(notes || i18next.t('panel.no_notes'));
             }
         }
     }
@@ -2994,7 +2999,7 @@ class RoadbookApp {
 
     showConnectModal() {
         if (this.markers.length < 2) {
-            this.showSwalAlert('提示', '需要至少2个标记点才能连接！', 'warning');
+            this.showSwalAlert(i18next.t("alert.hint"), i18next.t("alert.need_two_markers"), "warning");
             return;
         }
 
@@ -3128,7 +3133,7 @@ class RoadbookApp {
 
         if (isNaN(startLat) || isNaN(startLng) || isNaN(endLat) || isNaN(endLng)) {
             console.error('连接线坐标无效:', startMarker.position, endMarker.position);
-            this.showSwalAlert('错误', '坐标数据错误，请重新选择标记点！', 'error');
+            this.showSwalAlert(i18next.t("alert.error"), i18next.t("alert.coord_error"), "error");
             return;
         }
 
@@ -3245,7 +3250,7 @@ class RoadbookApp {
         const transportType = transportSelect.value || 'car';
 
         if (startIndex === endIndex) {
-            this.showSwalAlert('提示', '起始点和目标点不能相同！', 'warning');
+            this.showSwalAlert(i18next.t("alert.hint"), i18next.t("alert.same_marker_error"), "warning");
             return;
         }
 
@@ -3331,16 +3336,16 @@ class RoadbookApp {
         // 格式化时间显示
         if (markerData.dateTimes && markerData.dateTimes.length > 0) {
             const formattedTimes = markerData.dateTimes.map(dt => this.formatTime(dt));
-            content += '<p><strong>时间:</strong> ' + formattedTimes.join(', ') + '</p>';
+            content += '<p><strong>' + i18next.t('panel.time') + '</strong> ' + formattedTimes.join(', ') + '</p>';
         } else if (markerData.dateTime) {
-            content += '<p><strong>时间:</strong> ' + this.formatTime(markerData.dateTime) + '</p>';
+            content += '<p><strong>' + i18next.t('panel.time') + '</strong> ' + this.formatTime(markerData.dateTime) + '</p>';
         }
 
         if (markerData.labels && markerData.labels.length > 0) {
-            content += '<p><strong>标注:</strong> ' + this.convertMarkdownLinksToHtml(markerData.labels.join('; ')) + '</p>';
+            content += '<p><strong>' + i18next.t('panel.labels') + '</strong> ' + this.convertMarkdownLinksToHtml(markerData.labels.join('; ')) + '</p>';
         }
 
-        content += '<p><strong>坐标:</strong> ' + markerData.position[1].toFixed(6) + ', ' + markerData.position[0].toFixed(6) + '</p>';
+        content += '<p><strong>' + i18next.t('panel.coordinates') + '</strong> ' + markerData.position[1].toFixed(6) + ', ' + markerData.position[0].toFixed(6) + '</p>';
         content += '</div>';
 
         return content;
@@ -3350,7 +3355,7 @@ class RoadbookApp {
     generateConnectionPopupContent(connData, startMarker, endMarker) {
         let content = '<div class="popup-content">';
         content += '<h3>' + startMarker.title + ' → ' + endMarker.title + '</h3>';
-        content += '<p><strong>交通方式:</strong> ' + this.getTransportIcon(connData.transportType) + ' ' + this.getTransportTypeName(connData.transportType) + '</p>';
+        content += '<p><strong>' + i18next.t('panel.transport') + '</strong> ' + this.getTransportIcon(connData.transportType) + ' ' + this.getTransportTypeName(connData.transportType) + '</p>';
 
         // 动态计算并显示距离
         if (startMarker.position && endMarker.position) {
@@ -3361,19 +3366,19 @@ class RoadbookApp {
             } else {
                 distanceStr = Math.round(distance) + ' m';
             }
-            content += '<p><strong>距离:</strong> ' + distanceStr + '</p>';
+            content += '<p><strong>' + i18next.t('export.distance') + '</strong> ' + distanceStr + '</p>';
         }
 
         if (connData.duration > 0) {
-            content += '<p><strong>耗时:</strong> ' + connData.duration + ' 小时</p>';
+            content += '<p><strong>' + i18next.t('panel.duration') + '</strong> ' + connData.duration + ' ' + i18next.t('export.hours') + '</p>';
         }
 
         if (connData.dateTime) {
-            content += '<p><strong>时间:</strong> ' + this.formatTime(connData.dateTime) + '</p>';
+            content += '<p><strong>' + i18next.t('panel.time') + '</strong> ' + this.formatTime(connData.dateTime) + '</p>';
         }
 
         if (connData.label) {
-            content += '<p><strong>标注:</strong> ' + this.convertMarkdownLinksToHtml(connData.label) + '</p>';
+            content += '<p><strong>' + i18next.t('panel.labels') + '</strong> ' + this.convertMarkdownLinksToHtml(connData.label) + '</p>';
         }
 
         // 添加导航链接
@@ -3381,15 +3386,15 @@ class RoadbookApp {
         const startLng = startMarker.position[1];
         const endLat = endMarker.position[0];
         const endLng = endMarker.position[1];
-        const startTitle = startMarker.title || '起点';
-        const endTitle = endMarker.title || '终点';
+        const startTitle = startMarker.title || i18next.t('panel.start_point');
+        const endTitle = endMarker.title || i18next.t('panel.end_point');
 
         content += '<div class="navigation-links" style="margin-top: 8px; font-size: 0.9rem;">';
-        content += '<p><strong>导航:</strong> ';
-        content += '<a href="http://api.map.baidu.com/direction?origin=latlng:' + startLat + ',' + startLng + '|name:' + encodeURIComponent(startTitle) + '&destination=latlng:' + endLat + ',' + endLng + '|name:' + encodeURIComponent(endTitle) + '&mode=driving&region=中国&output=html&coord_type=gcj02&src=webapp.demo" target="_blank" style="margin: 0 5px; text-decoration: underline;">百度</a>';
-        content += '<a href="https://uri.amap.com/navigation?from=' + startLng + ',' + startLat + ',' + encodeURIComponent(startTitle) + '&to=' + endLng + ',' + endLat + ',' + encodeURIComponent(endTitle) + '&mode=car&policy=1&coordinate=gaode" target="_blank" style="margin: 0 5px; text-decoration: underline;">高德</a>';
-        content += '<a href="https://apis.map.qq.com/uri/v1/routeplan?type=drive&from=' + encodeURIComponent(startTitle) + '&fromcoord=' + startLat + ',' + startLng + '&to=' + encodeURIComponent(endTitle) + '&tocoord=' + endLat + ',' + endLng + '&referer=myapp" target="_blank" style="margin: 0 5px; text-decoration: underline;">腾讯</a>';
-        content += '<a href="https://www.google.com/maps/dir/?api=1&origin=' + startLat + ',' + startLng + '&destination=' + endLat + ',' + endLng + '" target="_blank" style="margin: 0 5px; text-decoration: underline;">Google</a>';
+        content += '<p><strong>' + i18next.t('panel.nav_links') + '</strong> ';
+        content += '<a href="http://api.map.baidu.com/direction?origin=latlng:' + startLat + ',' + startLng + '|name:' + encodeURIComponent(startTitle) + '&destination=latlng:' + endLat + ',' + endLng + '|name:' + encodeURIComponent(endTitle) + '&mode=driving&region=中国&output=html&coord_type=gcj02&src=webapp.demo" target="_blank" style="margin: 0 5px; text-decoration: underline;">' + i18next.t('export.nav_baidu') + '</a>';
+        content += '<a href="https://uri.amap.com/navigation?from=' + startLng + ',' + startLat + ',' + encodeURIComponent(startTitle) + '&to=' + endLng + ',' + endLat + ',' + encodeURIComponent(endTitle) + '&mode=car&policy=1&coordinate=gaode" target="_blank" style="margin: 0 5px; text-decoration: underline;">' + i18next.t('export.nav_gaode') + '</a>';
+        content += '<a href="https://apis.map.qq.com/uri/v1/routeplan?type=drive&from=' + encodeURIComponent(startTitle) + '&fromcoord=' + startLat + ',' + startLng + '&to=' + encodeURIComponent(endTitle) + '&tocoord=' + endLat + ',' + endLng + '&referer=myapp" target="_blank" style="margin: 0 5px; text-decoration: underline;">' + i18next.t('export.nav_tencent') + '</a>';
+        content += '<a href="https://www.google.com/maps/dir/?api=1&origin=' + startLat + ',' + startLng + '&destination=' + endLat + ',' + endLng + '" target="_blank" style="margin: 0 5px; text-decoration: underline;">' + i18next.t('export.nav_google') + '</a>';
         content += '</p>';
         content += '</div>';
 
@@ -3413,7 +3418,7 @@ class RoadbookApp {
 
         if (match) {
             const url = match[0]; // 匹配到的第一个URL
-            processedText = `[相关链接](${url})`; // 始终使用 '相关链接' 作为链接文本
+            processedText = `[${i18next.t('panel.related_links')}](${url})`; // 使用多语言 '相关链接' 作为链接文本
         }
 
         // 将处理后的文本插入到当前光标位置
@@ -3445,7 +3450,7 @@ class RoadbookApp {
 
         if (match) {
             const url = match[0]; // 匹配到的第一个URL
-            processedText = `[相关链接](${url})`; // 始终使用 '相关链接' 作为链接文本
+            processedText = `[${i18next.t('panel.related_links')}](${url})`; // 使用多语言 '相关链接' 作为链接文本
         }
 
         // 将处理后的文本插入到当前光标位置
@@ -3501,7 +3506,7 @@ class RoadbookApp {
 
         if (match) {
             const url = match[0]; // 匹配到的第一个URL
-            processedText = `[相关链接](${url})`; // 始终使用 '相关链接' 作为链接文本
+            processedText = `[${i18next.t('panel.related_links')}](${url})`; // 使用多语言 '相关链接' 作为链接文本
         }
 
         // 将处理后的文本插入到当前光标位置
@@ -3690,21 +3695,21 @@ class RoadbookApp {
 
     getTransportTypeName(type) {
         const names = {
-            car: '汽车',
-            train: '火车',
-            subway: '地铁',
-            plane: '飞机',
-            walk: '步行',
-            bus: '公交',
-            cruise: '游轮'
+            car: i18next.t('export.trans_car'),
+            train: i18next.t('export.trans_train'),
+            subway: i18next.t('export.trans_subway'),
+            plane: i18next.t('export.trans_plane'),
+            walk: i18next.t('export.trans_walk'),
+            bus: i18next.t('export.trans_bus'),
+            cruise: i18next.t('export.trans_cruise')
         };
-        return names[type] || '其他';
+        return names[type] || i18next.t('export.trans_other');
     }
 
     showMarkerTooltip(markerData, latlng, event = null) {
         let tooltipContent = `<div style="background: rgba(0,0,0,0.8); color: white; padding: 8px; border-radius: 4px; font-size: 12px;">`;
         tooltipContent += `<div><strong>${markerData.title}</strong></div>`;
-        tooltipContent += `<div>坐标: ${markerData.position[1].toFixed(6)}, ${markerData.position[0].toFixed(6)}</div>`;
+        tooltipContent += `<div>${i18next.t('panel.coordinates')} ${markerData.position[1].toFixed(6)}, ${markerData.position[0].toFixed(6)}</div>`;
 
         // 显示多个时间点，按日期分组（从早到晚排序）
         if (markerData.dateTimes && markerData.dateTimes.length > 0) {
@@ -3727,10 +3732,10 @@ class RoadbookApp {
                     .sort((a, b) => new Date(a) - new Date(b))
                     .map(dt => this.formatTime(dt))
                     .join(', ');
-                tooltipContent += `<div>时间: ${times}</div>`;
+                tooltipContent += `<div>${i18next.t('panel.time')} ${times}</div>`;
             } else {
                 // 多个日期，按日期分组显示（从早到晚）
-                tooltipContent += `<div>时间:</div>`;
+                tooltipContent += `<div>${i18next.t('panel.time')}</div>`;
                 sortedDates.forEach(date => {
                     const dateHeader = this.formatDateHeader(date);
                     const times = timesByDate[date]
@@ -3741,12 +3746,12 @@ class RoadbookApp {
                 });
             }
         } else if (markerData.dateTime) {
-            tooltipContent += `<div>时间: ${this.formatTime(markerData.dateTime)}</div>`;
+            tooltipContent += `<div>${i18next.t('panel.time')} ${this.formatTime(markerData.dateTime)}</div>`;
         }
 
         if (markerData.labels && markerData.labels.length > 0) {
             const labelsHtml = this.convertMarkdownLinksToHtml(markerData.labels.join('; '));
-            tooltipContent += '<div>标注: ' + labelsHtml + '</div>';
+            tooltipContent += '<div>' + i18next.t('panel.labels') + ' ' + labelsHtml + '</div>';
         }
 
         tooltipContent += `</div>`;
@@ -3807,19 +3812,19 @@ class RoadbookApp {
             } else {
                 distanceStr = Math.round(distance) + ' m';
             }
-            tooltipContent += `<div>距离: ${distanceStr}</div>`;
+            tooltipContent += `<div>${i18next.t('export.distance')} ${distanceStr}</div>`;
         }
 
         if (connection.duration > 0) {
-            tooltipContent += `<div>耗时: ${connection.duration} 小时</div>`;
+            tooltipContent += `<div>${i18next.t('panel.duration')} ${connection.duration} ${i18next.t('export.hours')}</div>`;
         }
         if (connection.dateTime) {
             // 使用相同的格式化方式显示时间
-            tooltipContent += `<div>时间: ${this.formatTime(connection.dateTime)}</div>`;
+            tooltipContent += `<div>${i18next.t('panel.time')} ${this.formatTime(connection.dateTime)}</div>`;
         }
         if (connection.label) {
             const labelsHtml = this.convertMarkdownLinksToHtml(connection.label);
-            tooltipContent += `<div>标注: ${labelsHtml}</div>`;
+            tooltipContent += `<div>${i18next.t('panel.labels')} ${labelsHtml}</div>`;
         }
 
         tooltipContent += `</div>`;
@@ -3947,7 +3952,7 @@ class RoadbookApp {
         // 设置面板标题
         const detailTitle = document.getElementById('detailTitle');
         if (detailTitle) {
-            detailTitle.textContent = '连接线详情';
+            detailTitle.textContent = i18next.t('panel.connection_detail');
         }
 
         // 连接线不需要名称输入
@@ -3986,9 +3991,9 @@ class RoadbookApp {
             if (startMarker && endMarker) {
                 const distance = this.calculateLineDistance(startMarker.position, endMarker.position);
                 if (distance > 1000) {
-                    distanceStr = ` | 距离: ${(distance / 1000).toFixed(2)} km`;
+                    distanceStr = ` | ${i18next.t('panel.distance')} ${(distance / 1000).toFixed(2)} km`;
                 } else {
-                    distanceStr = ` | 距离: ${Math.round(distance)} m`;
+                    distanceStr = ` | ${i18next.t('panel.distance')} ${Math.round(distance)} m`;
                 }
             }
 
@@ -4132,8 +4137,8 @@ class RoadbookApp {
         const endLng = endMarker.position[1];
 
         // 获取起始点和终点的名称
-        const startTitle = startMarker.title || '起点';
-        const endTitle = endMarker.title || '终点';
+        const startTitle = startMarker.title || i18next.t('panel.start_point');
+        const endTitle = endMarker.title || i18next.t('panel.end_point');
 
         // 生成百度导航链接
         const baiduLink = `http://api.map.baidu.com/direction?origin=latlng:${startLat},${startLng}|name:${startTitle}&destination=latlng:${endLat},${endLng}|name:${endTitle}&mode=driving&region=中国&output=html&coord_type=gcj02&src=webapp.demo`;
@@ -4174,12 +4179,12 @@ class RoadbookApp {
     // 获取交通枢纽信息
     async getTrafficInfo(lat, lon) {
         if (lat === undefined || lon === undefined) {
-            throw new Error("无效的坐标");
+            throw new Error(i18next.t('alert.invalid_coord'));
         }
         const response = await fetch(`${apiBaseUrl}/api/trafficpos?lat=${lat}&lon=${lon}`);
         if (!response.ok) {
             const errorText = await response.text();
-            throw new Error(`交通信息API请求失败: ${response.status} ${errorText}`);
+            throw new Error(`${i18next.t('alert.traffic_api_failed')} ${response.status} ${errorText}`);
         }
         return await response.json();
     }
@@ -4205,7 +4210,7 @@ class RoadbookApp {
         if (transportType === 'train') {
             ticketBookingSection.style.display = 'block';
             ctripTrainLink.style.display = 'inline-block';
-            ctripTrainLink.textContent = '🚄 携程火车票';
+            ctripTrainLink.textContent = i18next.t('ticket.ctrip_train');
             // 为<a>标签绑定点击事件来触发异步逻辑
             ctripTrainLink.onclick = (e) => {
                 e.preventDefault(); // 阻止<a>标签的默认跳转行为
@@ -4214,7 +4219,7 @@ class RoadbookApp {
         } else if (transportType === 'plane') {
             ticketBookingSection.style.display = 'block';
             planeTicketBtn.style.display = 'inline-block';
-            planeTicketBtn.textContent = '✈️ 查询飞机票';
+            planeTicketBtn.textContent = i18next.t('ticket.search_plane');
             // 为<button>标签绑定点击事件
             planeTicketBtn.onclick = () => {
                 this.handlePlaneTicketClick(connectionData);
@@ -4225,7 +4230,7 @@ class RoadbookApp {
     // 处理火车票点击
     async handleTrainTicketClick(connectionData) {
         Swal.fire({
-            title: '正在查询火车站...',
+            title: i18next.t('ticket.querying_station'),
             allowOutsideClick: false,
             didOpen: () => Swal.showLoading()
         });
@@ -4234,7 +4239,7 @@ class RoadbookApp {
             const startMarker = this.markers.find(m => m.id === connectionData.startId);
             const endMarker = this.markers.find(m => m.id === connectionData.endId);
 
-            if (!startMarker || !endMarker) throw new Error('无法找到路线的起点或终点。');
+            if (!startMarker || !endMarker) throw new Error(i18next.t('ticket.find_marker_failed'));
 
             const [startInfo, endInfo] = await Promise.all([
                 this.getTrafficInfo(startMarker.position[0], startMarker.position[1]),
@@ -4243,7 +4248,7 @@ class RoadbookApp {
 
             const startStation = startInfo.nearest_station.name;
             const endStation = endInfo.nearest_station.name;
-            if (!startStation || !endStation) throw new Error('未能获取有效的火车站名称。');
+            if (!startStation || !endStation) throw new Error(i18next.t('ticket.get_station_failed'));
 
             let travelDate = new Date().toISOString().split('T')[0];
             if (connectionData.dateTime) {
@@ -4258,14 +4263,14 @@ class RoadbookApp {
             Swal.close();
             window.open(ctripLink, '_blank');
         } catch (error) {
-            Swal.fire('查询失败', error.message, 'error');
+            Swal.fire(i18next.t('alert.query_failed'), error.message, 'error');
         }
     }
 
     // 处理飞机票点击
     async handlePlaneTicketClick(connectionData) {
         Swal.fire({
-            title: '正在查询机场信息...',
+            title: i18next.t('ticket.querying_airport'),
             allowOutsideClick: false,
             didOpen: () => Swal.showLoading()
         });
@@ -4274,7 +4279,7 @@ class RoadbookApp {
             const startMarker = this.markers.find(m => m.id === connectionData.startId);
             const endMarker = this.markers.find(m => m.id === connectionData.endId);
 
-            if (!startMarker || !endMarker) throw new Error('无法找到路线的起点或终点。');
+            if (!startMarker || !endMarker) throw new Error(i18next.t('ticket.find_marker_failed'));
 
             const [startInfo, endInfo] = await Promise.all([
                 this.getTrafficInfo(startMarker.position[0], startMarker.position[1]),
@@ -4283,7 +4288,7 @@ class RoadbookApp {
 
             const startAirportCode = startInfo.nearest_airport.code;
             const endAirportCode = endInfo.nearest_airport.code;
-            if (!startAirportCode || !endAirportCode) throw new Error('未能获取有效的机场代码。');
+            if (!startAirportCode || !endAirportCode) throw new Error(i18next.t('ticket.get_airport_failed'));
 
             let travelDate = new Date().toISOString().split('T')[0];
             if (connectionData.dateTime) {
@@ -4298,13 +4303,13 @@ class RoadbookApp {
             Swal.close();
             window.open(ctripLink, '_blank');
         } catch (error) {
-            Swal.fire('查询失败', error.message, 'error');
+            Swal.fire(i18next.t('alert.query_failed'), error.message, 'error');
         }
     }
 
     showLabelModal() {
         if (this.markers.length === 0) {
-            this.showSwalAlert('提示', '需要先添加标记点！', 'warning');
+            this.showSwalAlert(i18next.t("alert.hint"), i18next.t("alert.need_marker_first"), "warning");
             return;
         }
 
@@ -4324,7 +4329,7 @@ class RoadbookApp {
         const content = document.getElementById('labelContent').value.trim();
 
         if (!content) {
-            this.showSwalAlert('提示', '请输入标注内容！', 'warning');
+            this.showSwalAlert(i18next.t("alert.hint"), i18next.t("alert.enter_label_content"), "warning");
             return;
         }
 
@@ -4374,7 +4379,7 @@ class RoadbookApp {
                     <span class="expand-toggle">${expandIcon}</span>
                     ${this.formatDateHeader(date)}
                 </h4>
-                <span class="marker-count">${markers.length} 个地点</span>
+                <span class="marker-count">${i18next.t('panel.places_count', {count: markers.length})}</span>
             `;
 
             // 为日期标题添加展开/收起功能，同时保留筛选功能
@@ -4427,8 +4432,8 @@ class RoadbookApp {
                             <div class="time-info">${timeDisplay}</div>
                         </div>
                         <div class="marker-actions">
-                            <button class="edit-btn" title="编辑">✏️</button>
-                            <button class="delete-btn" title="删除">🗑️</button>
+                <button class="edit-btn" title="${i18next.t('panel.edit')}">✏️</button>
+                <button class="delete-btn" title="${i18next.t('panel.delete')}">🗑️</button>
                         </div>
                     `;
 
@@ -4446,7 +4451,7 @@ class RoadbookApp {
                     // 删除按钮
                     item.querySelector('.delete-btn').addEventListener('click', async (e) => {
                         e.stopPropagation();
-                        const result = await this.showSwalConfirm('删除确认', `确定要删除标记点"${marker.title}"吗？`, '删除', '取消');
+                        const result = await this.showSwalConfirm(i18next.t("alert.confirm_delete"), i18next.t("alert.delete_marker_confirm", {title: marker.title}), i18next.t("alert.delete_btn"), i18next.t("alert.cancel_btn"));
                         if (result.isConfirmed) {
                             this.removeMarker(marker);
                         }
@@ -4496,7 +4501,7 @@ class RoadbookApp {
                         document.body.appendChild(tooltip);
                     }
 
-                    let tooltipContent = '<div class="expenses-tooltip-header">每日消费明细</div>';
+                    let tooltipContent = `<div class="expenses-tooltip-header">${i18next.t('panel.daily_expense_detail')}</div>`;
                     if (dailyExpenses.length > 0) {
                         dailyExpenses.forEach(item => {
                             tooltipContent += `<div class="expenses-tooltip-item">
@@ -4505,11 +4510,11 @@ class RoadbookApp {
                             </div>`;
                         });
                         tooltipContent += `<div class="expenses-tooltip-footer">
-                            <span>总计:</span>
+                            <span>${i18next.t('panel.total')}</span>
                             <span class="expenses-tooltip-total">¥${totalCost.toFixed(2)}</span>
                         </div>`;
                     } else {
-                        tooltipContent += '<div>无消费记录</div>';
+                        tooltipContent += `<div>${i18next.t('panel.no_expenses')}</div>`;
                     }
 
                     tooltip.innerHTML = tooltipContent;
@@ -4548,7 +4553,7 @@ class RoadbookApp {
         this.markers.forEach(marker => {
             const markerDates = this.getMarkerAllDates(marker);
             markerDates.forEach(date => {
-                if (date !== '未知日期') {
+                if (date !== i18next.t('panel.unknown_date')) {
                     allDates.add(date);
                 }
             });
@@ -4625,13 +4630,13 @@ class RoadbookApp {
         if (marker.dateTimes && marker.dateTimes.length > 0) {
             marker.dateTimes.forEach(dateTime => {
                 const dateKey = this.getDateKey(dateTime);
-                if (dateKey !== '未知日期') {
+                if (dateKey !== i18next.t('panel.unknown_date')) {
                     dates.add(dateKey);
                 }
             });
         } else if (marker.dateTime) {
             const dateKey = this.getDateKey(marker.dateTime);
-            if (dateKey !== '未知日期') {
+            if (dateKey !== i18next.t('panel.unknown_date')) {
                 dates.add(dateKey);
             }
         }
@@ -4641,23 +4646,23 @@ class RoadbookApp {
 
     // 获取日期键（YYYY-MM-DD格式）
     getDateKey(dateTimeString) {
-        if (!dateTimeString) return '未知日期';
+        if (!dateTimeString) return i18next.t('panel.unknown_date');
         try {
             const date = new Date(dateTimeString);
-            if (isNaN(date.getTime())) return '未知日期';
+            if (isNaN(date.getTime())) return i18next.t('panel.unknown_date');
             // 使用本地时区的日期，而不是UTC
             const year = date.getFullYear();
             const month = String(date.getMonth() + 1).padStart(2, '0');
             const day = String(date.getDate()).padStart(2, '0');
             return `${year}-${month}-${day}`; // YYYY-MM-DD in local timezone
         } catch (error) {
-            return '未知日期';
+            return i18next.t('panel.unknown_date');
         }
     }
 
     // 格式化日期标题
     formatDateHeader(dateKey) {
-        if (dateKey === '未知日期') return dateKey;
+        if (dateKey === i18next.t('panel.unknown_date')) return dateKey;
         try {
             const date = new Date(dateKey);
             // 获取今天的日期键（本地时区）
@@ -4670,11 +4675,11 @@ class RoadbookApp {
             const yesterdayKey = this.getDateKey(yesterday.toISOString());
 
             if (dateKey === todayKey) {
-                return '今天';
+                return i18next.t('panel.today');
             } else if (dateKey === yesterdayKey) {
-                return '昨天';
+                return i18next.t('panel.yesterday');
             } else {
-                return `${date.getMonth() + 1}月${date.getDate()}日 (${this.getWeekdayName(date.getDay())})`;
+                return i18next.t('panel.date_format', { month: date.getMonth() + 1, day: date.getDate(), weekday: this.getWeekdayName(date.getDay()) });
             }
         } catch (error) {
             return dateKey;
@@ -4683,7 +4688,7 @@ class RoadbookApp {
 
     // 获取星期几的中文名称
     getWeekdayName(day) {
-        const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+        const weekdays = [i18next.t('panel.sun'), i18next.t('panel.mon'), i18next.t('panel.tue'), i18next.t('panel.wed'), i18next.t('panel.thu'), i18next.t('panel.fri'), i18next.t('panel.sat')];
         return weekdays[day];
     }
 
@@ -4779,9 +4784,9 @@ class RoadbookApp {
         if (headerTitle) {
             const originalText = headerTitle.textContent;
             const dateHeader = this.formatDateHeader(date);
-            headerTitle.innerHTML = `${originalText} <span style="font-size: 0.8rem; background: rgba(255,255,255,0.2); padding: 0.2rem 0.5rem; border-radius: 10px; margin-left: 1rem;">📅 ${dateHeader} 筛选模式</span>`;
+            headerTitle.innerHTML = `${originalText} <span style="font-size: 0.8rem; background: rgba(255,255,255,0.2); padding: 0.2rem 0.5rem; border-radius: 10px; margin-left: 1rem;">📅 ${dateHeader} ${i18next.t('panel.filter_mode')}</span>`;
             headerTitle.style.cursor = 'pointer';
-            headerTitle.title = '点击退出筛选模式';
+            headerTitle.title = i18next.t('panel.click_to_exit_filter');
 
             // 添加点击标题退出筛选模式
             headerTitle.onclick = () => {
@@ -4825,7 +4830,7 @@ class RoadbookApp {
 
             // 获取日期备注
             const notes = this.getDateNotes(date);
-            contentElement.innerHTML = this.convertMarkdownLinksToHtml(notes || '暂无备注');
+            contentElement.innerHTML = this.convertMarkdownLinksToHtml(notes || i18next.t('panel.no_notes'));
 
             // 添加事件监听器，防止链接点击退出聚焦模式
             contentElement.addEventListener('click', (e) => {
@@ -4989,12 +4994,12 @@ class RoadbookApp {
         endDate.setHours(23, 59, 59, 999); // 设置为当天的结束
 
         if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
-            this.showSwalAlert('错误', '无效的日期格式。', 'error');
+            this.showSwalAlert(i18next.t("alert.error"), i18next.t("alert.invalid_date_format"), "error");
             return;
         }
 
         if (startDate > endDate) {
-            this.showSwalAlert('错误', '开始日期不能晚于结束日期。', 'error');
+            this.showSwalAlert(i18next.t("alert.error"), i18next.t("alert.date_range_error"), "error");
             return;
         }
 
@@ -5014,7 +5019,7 @@ class RoadbookApp {
         });
 
         if (filteredMarkers.length === 0 && filteredConnections.length === 0) {
-            this.showSwalAlert('提示', '该日期范围内没有找到任何地点或路线。', 'info');
+            this.showSwalAlert(i18next.t("alert.hint"), i18next.t("alert.no_data_in_range"), "info");
             return;
         }
 
@@ -5041,11 +5046,11 @@ class RoadbookApp {
             const filterHeader = document.createElement('div');
             filterHeader.className = 'date-group-header';
             filterHeader.innerHTML = `
-                <h4>📅 ${this.formatDateHeader(this.filteredDate)} 筛选结果</h4>
-                <span class="marker-count">筛选模式</span>
+                <h4>📅 ${this.formatDateHeader(this.filteredDate)} ${i18next.t('panel.filter_result')}</h4>
+                <span class="marker-count">${i18next.t('panel.filter_mode')}</span>
             `;
             filterHeader.style.cursor = 'pointer';
-            filterHeader.title = '点击退出筛选模式';
+            filterHeader.title = i18next.t('panel.click_to_exit_filter');
             filterHeader.addEventListener('click', () => {
                 this.exitFilterMode();
             });
@@ -5076,8 +5081,8 @@ class RoadbookApp {
                         <div class="time-info">${timeDisplay}</div>
                     </div>
                     <div class="marker-actions">
-                        <button class="edit-btn" title="编辑">✏️</button>
-                        <button class="delete-btn" title="删除">🗑️</button>
+                <button class="edit-btn" title="${i18next.t('panel.edit')}">✏️</button>
+                <button class="delete-btn" title="${i18next.t('panel.delete')}">🗑️</button>
                     </div>
                 `;
 
@@ -5092,7 +5097,7 @@ class RoadbookApp {
 
                 item.querySelector('.delete-btn').addEventListener('click', async (e) => {
                     e.stopPropagation();
-                    const result = await this.showSwalConfirm('删除确认', `确定要删除标记点"${marker.title}"吗？`, '删除', '取消');
+                    const result = await this.showSwalConfirm(i18next.t("alert.confirm_delete"), i18next.t("alert.delete_marker_confirm", {title: marker.title}), i18next.t("alert.delete_btn"), i18next.t("alert.cancel_btn"));
                     if (result.isConfirmed) {
                         this.removeMarker(marker);
                     }
@@ -5367,7 +5372,7 @@ class RoadbookApp {
                     if (searchResults) {
                         const resultsList = document.getElementById('resultsList');
                         if (resultsList) {
-                            resultsList.innerHTML = '<li style="padding: 12px 15px; color: #999; cursor: default;">未找到相关地点，请尝试其他关键词</li>';
+                            resultsList.innerHTML = `<li style="padding: 12px 15px; color: #999; cursor: default;">${i18next.t('alert.no_search_result')}</li>`;
                         }
                         searchResults.style.display = 'block';
                     }
@@ -5380,29 +5385,29 @@ class RoadbookApp {
                 if (searchResults) {
                     const resultsList = document.getElementById('resultsList');
                     if (resultsList) {
-                        let errorMessage = '搜索失败，请检查网络连接';
+                        let errorMessage = i18next.t('alert.search_failed_network');
 
                         // 提取状态码
                         const statusMatch = error.message.match(/(\d{3})/);
                         const statusCode = statusMatch ? parseInt(statusMatch[1], 10) : 0;
 
                         if (statusCode === 401) {
-                            errorMessage = '搜索失败：未授权，请登录。';
+                            errorMessage = i18next.t('alert.search_failed_unauth');
                         } else if (statusCode === 403) {
-                            errorMessage = '搜索失败：无权限，请检查API密钥或配置。';
+                            errorMessage = i18next.t('alert.search_failed_permission');
                         } else if (statusCode === 400) {
-                            errorMessage = '搜索失败：请求参数错误。';
+                            errorMessage = i18next.t('alert.search_failed_param');
                         } else if (statusCode === 404) {
-                            errorMessage = '搜索失败：服务或资源未找到。';
+                            errorMessage = i18next.t('alert.search_failed_not_found');
                         } else if (error.message.includes('API Error')) {
                             const apiErrorMessage = error.message.replace(/Search API Error: |Overpass API Error: /, '');
-                            errorMessage = `搜索失败：${apiErrorMessage}`;
+                            errorMessage = `${i18next.t('alert.query_failed')}：${apiErrorMessage}`;
                         } else if (error.message.includes('timeout') || error.name === 'AbortError') {
-                            errorMessage = '搜索请求超时，请稍后再试。';
+                            errorMessage = i18next.t('alert.search_failed_timeout');
                         } else if (error.message === 'Search config error') {
-                            errorMessage = '搜索方式配置错误';
+                            errorMessage = i18next.t('alert.search_config_error');
                         } else if (error.message === 'Search not supported') {
-                            errorMessage = '当前地图不支持搜索';
+                            errorMessage = i18next.t('alert.search_unsupported_map');
                         }
 
                         resultsList.innerHTML = `<li style="padding: 12px 15px; color: #999; cursor: default;">${errorMessage}</li>`;
@@ -5518,7 +5523,7 @@ class RoadbookApp {
                     limit: 10
                 },
                 parser: 'nominatim',
-                name: '高德'
+                name: i18next.t('panel.provider_gaode')
             };
         } else if (this.currentSearchMethod === 'cnsearch') {
             // CNSearch搜索模式
@@ -5530,7 +5535,7 @@ class RoadbookApp {
                     limit: 10
                 },
                 parser: 'nominatim', // 使用Nominatim格式，因为CNSearch与Nominatim格式一致
-                name: '百度'
+                name: i18next.t('panel.provider_baidu')
             };
         } else if (this.currentSearchMethod === 'tiansearch') {
             // TianSearch搜索模式
@@ -5542,7 +5547,7 @@ class RoadbookApp {
                     limit: 10
                 },
                 parser: 'nominatim', // 使用Nominatim格式，因为TianSearch与Nominatim格式一致
-                name: '天地图'
+                name: i18next.t('panel.provider_tianditu')
             };
         } else {
             return Promise.reject(new Error('Search config error'));
@@ -5622,7 +5627,7 @@ class RoadbookApp {
         // 添加搜索结果到列表
         features.forEach((feature) => {
             const li = document.createElement('li');
-            const name = feature.properties.name || feature.properties.street || '未知地点';
+            const name = feature.properties.name || feature.properties.street || i18next.t('panel.unknown_place');
             const city = feature.properties.city || '';
             const country = feature.properties.country || '';
 
@@ -5637,7 +5642,7 @@ class RoadbookApp {
 
             li.innerHTML = `
                 <div class="result-title">${name}</div>
-                <div class="result-address">${address || '地点'}</div>
+                <div class="result-address">${address || i18next.t('panel.place')}</div>
             `;
 
             // 添加点击事件
@@ -5667,7 +5672,7 @@ class RoadbookApp {
                 this.map.removeLayer(this.searchMarker);
             }
 
-            const name = feature.properties.name || feature.properties.street || '搜索结果';
+            const name = feature.properties.name || feature.properties.street || i18next.t('panel.search_result');
             this.searchMarker = L.marker([lat, lon])
                 .addTo(this.map)
                 .bindPopup(name)
@@ -5697,7 +5702,7 @@ class RoadbookApp {
 
             console.log(`已选择Photon搜索结果: ${name} (${lat}, ${lon})`);
         } else {
-            this.showSwalAlert('错误', '未能获取有效的地理位置信息', 'error');
+            this.showSwalAlert(i18next.t("alert.error"), i18next.t("alert.geolocation_failed"), "error");
         }
     }
 
@@ -5719,7 +5724,7 @@ class RoadbookApp {
 
             // 获取名称
             if (element.tags) {
-                name = element.tags.name || element.tags['name:zh'] || element.tags['name:en'] || '未知地点';
+                name = element.tags.name || element.tags['name:zh'] || element.tags['name:en'] || i18next.t('panel.unknown_place');
 
                 // 构建显示名称
                 display_name = name;
@@ -5756,7 +5761,7 @@ class RoadbookApp {
             const li = document.createElement('li');
             li.innerHTML = `
                 <div class="result-title">${result.display_name}</div>
-                <div class="result-address">${result.type || result.class || '地点'}</div>
+                <div class="result-address">${result.type || result.class || i18next.t('panel.place')}</div>
             `;
 
             // 添加点击事件
@@ -5814,21 +5819,21 @@ class RoadbookApp {
 
             console.log(`已选择搜索结果: ${result.display_name} (${lat}, ${lon})`);
         } else {
-            this.showSwalAlert('错误', '未能获取有效的地理位置信息', 'error');
+            this.showSwalAlert(i18next.t("alert.error"), i18next.t("alert.geolocation_failed"), "error");
         }
     }
 
     async clearCache() {
-        const result = await this.showSwalConfirm('清除确认', '确定要清除本地缓存吗？此操作将删除所有已保存的数据，无法恢复。', '清除', '取消');
+        const result = await this.showSwalConfirm(i18next.t("alert.confirm_clear"), i18next.t("alert.clear_cache_confirm"), i18next.t("alert.clear_btn"), i18next.t("alert.cancel_btn"));
         if (result.isConfirmed) {
             try {
                 localStorage.removeItem('roadbookData');
                 // 清除当前数据
                 this.clearAll();
-                this.showSwalAlert('成功', '本地缓存已清除！', 'success');
+                this.showSwalAlert(i18next.t("alert.success"), i18next.t("alert.clear_success"), "success");
             } catch (error) {
                 console.error('清除本地缓存失败:', error);
-                this.showSwalAlert('错误', '清除本地缓存失败！', 'error');
+                this.showSwalAlert(i18next.t("alert.error"), i18next.t("alert.clear_failed"), "error");
             }
         }
     }
@@ -5838,7 +5843,7 @@ class RoadbookApp {
             window.htmlExporter.exportToIcs();
         } else {
             console.error('HTML Exporter not found');
-            Swal.fire('错误', '导出模块未加载，请刷新页面重试。', 'error');
+            Swal.fire(i18next.t('alert.error'), i18next.t('alert.export_module_missing'), 'error');
         }
     }
 
@@ -5916,7 +5921,7 @@ class RoadbookApp {
             if (typeof RoadbookHtmlExporter !== 'undefined' && window.htmlExporter) {
                 window.htmlExporter.importFromPng(file);
             } else {
-                this.showSwalAlert('错误', '导出模块未加载，无法从 PNG 导入！', 'error');
+                this.showSwalAlert(i18next.t("alert.error"), i18next.t("alert.export_module_missing_png"), "error");
             }
             return;
         }
@@ -5949,7 +5954,7 @@ class RoadbookApp {
                 }, 100); // 稍微延时以确保数据加载完成
 
             } catch (error) {
-                this.showSwalAlert('错误', '文件格式错误！', 'error');
+                this.showSwalAlert(i18next.t("alert.error"), i18next.t("alert.file_format_error"), "error");
             }
         };
         reader.readAsText(file);
@@ -5970,7 +5975,7 @@ class RoadbookApp {
                     dataMatch = htmlContent.match(/const roadbookData = JSON\.parse\(`([^`\\]*(\\.[^`\\]*)*)`\)/);
 
                     if (!dataMatch) {
-                        this.showSwalAlert('错误', 'HTML文件中未找到路书数据！', 'error');
+                        this.showSwalAlert(i18next.t("alert.error"), i18next.t("alert.html_no_data"), "error");
                         return;
                     }
 
@@ -5992,7 +5997,7 @@ class RoadbookApp {
 
             } catch (error) {
                 console.error('导入HTML失败:', error);
-                this.showSwalAlert('错误', 'HTML文件格式错误或数据损坏！', 'error');
+                this.showSwalAlert(i18next.t("alert.error"), i18next.t("alert.html_format_error"), "error");
             }
         };
         reader.readAsText(file);
@@ -6081,7 +6086,7 @@ class RoadbookApp {
                     const compareResult = this.compareVersions(data.version, currentVersion);
 
                     if (compareResult === 1) { // 导入版本 > 当前版本
-                        versionWarning = `⚠️ 版本警告: 导入的数据版本 (${data.version}) 高于当前应用版本 (${currentVersion})。<br>可能包含当前版本不支持的特性，建议升级应用。`;
+                        versionWarning = i18next.t('alert.version_warning', {dataVersion: data.version, currentVersion: currentVersion});
                         console.warn(versionWarning.replace(/<br>/g, '\n'));
                     }
                 }
@@ -6341,13 +6346,13 @@ class RoadbookApp {
 
         // 只在手动导入文件时显示提示
         if (isImport) {
-            let title = '导入成功';
-            let message = `路书导入成功！\n标记点: ${markerCount} 个\n连接线: ${connectionCount} 条`;
+            let title = i18next.t('alert.import_success_title');
+            let message = i18next.t('alert.import_success_msg', {markerCount, connCount});
             let icon = 'success';
 
             if (versionWarning) {
                 // 如果有版本警告，使用 HTML 显示，并改变样式
-                message = `路书导入成功！<br>标记点: ${markerCount} 个<br>连接线: ${connectionCount} 条<br><br><span style="color: #856404; background-color: #fff3cd; padding: 10px; border-radius: 4px; display: inline-block; text-align: left; font-size: 0.9em; border: 1px solid #ffeeba; width: 100%; box-sizing: border-box;">${versionWarning}</span>`;
+                message = i18next.t('alert.import_success_msg_html', {markerCount, connCount, versionWarning});
             }
 
             if (typeof Swal !== 'undefined') {
@@ -6355,7 +6360,7 @@ class RoadbookApp {
                     title: title,
                     html: versionWarning ? message : message.replace(/\n/g, '<br>'),
                     icon: icon,
-                    confirmButtonText: '确定',
+                    confirmButtonText: i18next.t('alert.confirm'),
                     confirmButtonColor: '#667eea'
                 });
             } else {
@@ -6623,7 +6628,7 @@ class RoadbookApp {
 
     async showMarkerContextMenu(markerData) {
         // 简单的右键菜单
-        const result = await this.showSwalConfirm('删除确认', `要删除标记点"${markerData.title}"吗？`, '删除', '取消');
+        const result = await this.showSwalConfirm(i18next.t("alert.confirm_delete"), i18next.t("alert.delete_marker_confirm", {title: markerData.title}), i18next.t("alert.delete_btn"), i18next.t("alert.cancel_btn"));
         if (result.isConfirmed) {
             this.removeMarker(markerData);
         }
@@ -6737,11 +6742,11 @@ class RoadbookApp {
 
         // Base configuration
         let swalConfig = {
-            title: '批量操作',
-            text: `已选中 ${selectedMarkers.length} 个标记点，请选择操作`,
+            title: i18next.t('alert.batch_operation'),
+            text: i18next.t('alert.selected_markers', {count: selectedMarkers.length}),
             icon: 'question',
             showCancelButton: true,
-            cancelButtonText: '取消',
+            cancelButtonText: i18next.t('alert.cancel_btn'),
             reverseButtons: true
         };
 
@@ -6749,8 +6754,8 @@ class RoadbookApp {
             // AI Enabled: Show AI button as primary, Delete as secondary (deny)
             Object.assign(swalConfig, {
                 showDenyButton: true,
-                confirmButtonText: '🦄 问问 AI',
-                denyButtonText: '🗑️ 删除',
+                confirmButtonText: i18next.t('alert.ask_ai'),
+                denyButtonText: `🗑️ ${i18next.t('alert.delete_btn')}`,
                 confirmButtonColor: '#667eea',
                 denyButtonColor: '#d33'
             });
@@ -6758,7 +6763,7 @@ class RoadbookApp {
             // AI Disabled: Show Delete button as primary
             Object.assign(swalConfig, {
                 showDenyButton: false,
-                confirmButtonText: '🗑️ 删除',
+                confirmButtonText: `🗑️ ${i18next.t('alert.delete_btn')}`,
                 confirmButtonColor: '#d33'
             });
         }
@@ -6782,7 +6787,7 @@ class RoadbookApp {
     }
 
     async deleteMarkers(markers) {
-        const result = await this.showSwalConfirm('删除确认', `确定要删除选中的 ${markers.length} 个标记点吗？`, '删除', '取消');
+        const result = await this.showSwalConfirm(i18next.t("alert.confirm_delete"), i18next.t("alert.delete_multi_markers_confirm", {count: markers.length}), i18next.t("alert.delete_btn"), i18next.t("alert.cancel_btn"));
         if (result.isConfirmed) {
             const markersToDelete = [...markers];
             let count = 0;
@@ -6796,7 +6801,7 @@ class RoadbookApp {
                 }
             });
 
-            this.showSwalAlert('成功', `已删除 ${count} 个标记点`, 'success');
+            this.showSwalAlert(i18next.t("alert.success"), i18next.t("alert.delete_multi_success", {count: count}), "success");
         }
     }
 
@@ -6853,7 +6858,7 @@ class RoadbookApp {
         // 设置面板标题
         const detailTitle = document.getElementById('detailTitle');
         if (detailTitle) {
-            detailTitle.textContent = '标记点详情';
+            detailTitle.textContent = i18next.t('panel.marker_detail');
         }
 
         // 填充详情面板数据
@@ -6915,7 +6920,7 @@ class RoadbookApp {
             formGroupContainer.style.display = 'block';
             const title = document.createElement('h4');
             title.className = 'related-connections-title';
-            title.textContent = '相关的线路';
+            title.textContent = i18next.t('panel.related_routes');
             connectionsContainer.appendChild(title);
 
             relatedConnections.forEach(conn => {
@@ -6925,11 +6930,11 @@ class RoadbookApp {
                 const isOutgoing = conn.startId === markerData.id;
                 const otherMarkerId = isOutgoing ? conn.endId : conn.startId;
                 const otherMarker = this.markers.find(m => m.id === otherMarkerId);
-                const otherMarkerName = otherMarker ? otherMarker.title : '未知地点';
+                const otherMarkerName = otherMarker ? otherMarker.title : i18next.t('panel.unknown_place');
 
                 item.innerHTML = `
                     <span class="connection-arrow">${isOutgoing ? '➡️' : '⬅️'}</span>
-                    <span class="connection-text">${isOutgoing ? '前往' : '来自'}: <strong>${otherMarkerName}</strong></span>
+                    <span class="connection-text">${isOutgoing ? i18next.t('panel.to') : i18next.t('panel.from')}: <strong>${otherMarkerName}</strong></span>
                     <span class="connection-transport-icon">${this.getTransportIcon(conn.transportType)}</span>
                 `;
 
@@ -7054,7 +7059,7 @@ class RoadbookApp {
 
             const deleteBtn = document.createElement('button');
             deleteBtn.className = 'delete-time-btn';
-            deleteBtn.textContent = '删除';
+            deleteBtn.textContent = i18next.t('panel.delete');
             deleteBtn.addEventListener('click', () => {
                 this.deleteMarkerDateTime(index);
             });
@@ -7088,11 +7093,11 @@ class RoadbookApp {
     // 删除标记点时间
     async deleteMarkerDateTime(index) {
         if (!this.currentMarker || !this.currentMarker.dateTimes || this.currentMarker.dateTimes.length <= 1) {
-            this.showSwalAlert('提示', '至少需要保留一个时间点！', 'warning');
+            this.showSwalAlert(i18next.t("alert.hint"), i18next.t("alert.keep_one_time"), "warning");
             return;
         }
 
-        const result = await this.showSwalConfirm('删除确认', '确定要删除这个时间点吗？', '删除', '取消');
+        const result = await this.showSwalConfirm(i18next.t("alert.confirm_delete"), i18next.t("alert.delete_time_confirm"), i18next.t("alert.delete_btn"), i18next.t("alert.cancel_btn"));
         if (result.isConfirmed) {
             this.currentMarker.dateTimes.splice(index, 1);
             this.currentMarker.dateTime = this.currentMarker.dateTimes[0]; // 更新主时间
@@ -7414,7 +7419,7 @@ class RoadbookApp {
     async deleteCurrentMarker() {
         if (!this.currentMarker) return;
 
-        const result = await this.showSwalConfirm('删除确认', `确定要删除标记点"${this.currentMarker.title}"吗？`, '删除', '取消');
+        const result = await this.showSwalConfirm(i18next.t("alert.confirm_delete"), i18next.t("alert.delete_marker_confirm", {title: this.currentMarker.title}), i18next.t("alert.delete_btn"), i18next.t("alert.cancel_btn"));
         if (result.isConfirmed) {
             this.removeMarker(this.currentMarker);
             this.hideMarkerDetail();
@@ -7424,7 +7429,7 @@ class RoadbookApp {
     async deleteCurrentConnection() {
         if (!this.currentConnection) return;
 
-        const result = await this.showSwalConfirm('删除确认', `确定要删除连接线"${this.currentConnection.startTitle} → ${this.currentConnection.endTitle}"吗？`, '删除', '取消');
+        const result = await this.showSwalConfirm(i18next.t("alert.confirm_delete"), i18next.t("alert.delete_connection_confirm", {start: this.currentConnection.startTitle, end: this.currentConnection.endTitle}), i18next.t("alert.delete_btn"), i18next.t("alert.cancel_btn"));
         if (result.isConfirmed) {
             this.removeConnection(this.currentConnection);
             this.hideConnectionDetail();
@@ -7474,7 +7479,7 @@ class RoadbookApp {
         // 设置面板标题
         const dateDetailTitle = document.getElementById('dateDetailTitle');
         if (dateDetailTitle) {
-            dateDetailTitle.textContent = `${this.formatDateHeader(date)} 详情`;
+            dateDetailTitle.textContent = `${this.formatDateHeader(date)} ${i18next.t('panel.detail')}`;
         }
 
         // 显示日期
@@ -7552,7 +7557,7 @@ class RoadbookApp {
         // Actually getDateExpenses returns entry.expenses which is a reference to the array inside dateNotes[date]
 
         if (expenses.length === 0) {
-            list.innerHTML = '<li style="color: #999; font-size: 0.9em; text-align: center; padding: 5px;">暂无消费记录</li>';
+            list.innerHTML = `<li style="color: #999; font-size: 0.9em; text-align: center; padding: 5px;">${i18next.t('panel.no_expenses')}</li>`;
         } else {
             expenses.forEach((expense, index) => {
                 const li = document.createElement('li');
@@ -7563,7 +7568,7 @@ class RoadbookApp {
                 li.style.borderBottom = '1px solid #eee';
                 // Add cursor pointer to indicate interactivity
                 li.style.cursor = 'pointer';
-                li.title = '双击编辑';
+                li.title = i18next.t('panel.double_click_edit');
 
                 // Store data for edit
                 li.dataset.index = index;
@@ -7573,11 +7578,11 @@ class RoadbookApp {
                 li.innerHTML = `
                     <div class="expense-display" style="flex: 1; display: flex; align-items: center; gap: 10px;">
                         <span class="expense-cost" style="font-weight: bold; color: #FF5722;">¥${expense.cost}</span>
-                        <span class="expense-remark" style="color: #666; font-size: 0.9em;">${expense.remark || '无备注'}</span>
+                        <span class="expense-remark" style="color: #666; font-size: 0.9em;">${expense.remark || i18next.t('panel.no_notes')}</span>
                     </div>
                     <div class="expense-edit-form" style="display: none; flex: 1; gap: 5px; align-items: center;">
                         <input type="number" class="edit-cost" value="${expense.cost}" step="0.01" style="width: 80px; padding: 2px;">
-                        <input type="text" class="edit-remark" value="${expense.remark || ''}" placeholder="备注" style="flex: 1; padding: 2px;">
+                        <input type="text" class="edit-remark" value="${expense.remark || ''}" placeholder="${i18next.t('panel.remark_placeholder')}" style="flex: 1; padding: 2px;">
                         <button class="save-edit-btn" style="background: #4caf50; color: white; border: none; border-radius: 3px; cursor: pointer; padding: 2px 8px;">🆗</button>
                         <button class="cancel-edit-btn" style="background: #9e9e9e; color: white; border: none; border-radius: 3px; cursor: pointer; padding: 2px 8px;">✕</button>
                     </div>
@@ -7615,7 +7620,7 @@ class RoadbookApp {
                     const newRemark = remarkInput.value.trim();
 
                     if (!newCost) {
-                        this.showSwalAlert('提示', '请输入金额', 'warning');
+                        this.showSwalAlert(i18next.t("alert.hint"), i18next.t("alert.enter_amount"), "warning");
                         return;
                     }
 
@@ -7659,7 +7664,7 @@ class RoadbookApp {
         const remark = remarkInput.value.trim();
 
         if (!cost) {
-            this.showSwalAlert('提示', '请输入金额', 'warning');
+            this.showSwalAlert(i18next.t("alert.hint"), i18next.t("alert.enter_amount"), "warning");
             return;
         }
 
@@ -7795,7 +7800,7 @@ class RoadbookApp {
                 icon: icon,
                 position: position,
                 showConfirmButton: true,
-                confirmButtonText: '确定',
+                confirmButtonText: i18next.t('alert.confirm'),
                 confirmButtonColor: '#667eea',
                 timer: icon === 'success' ? 2000 : undefined,
                 toast: position === 'top-end',
@@ -7810,7 +7815,7 @@ class RoadbookApp {
     }
 
     // SweetAlert2 确认对话框
-    showSwalConfirm(title, text, confirmText = '确定', cancelText = '取消') {
+    showSwalConfirm(title, text, confirmText = i18next.t('alert.confirm'), cancelText = i18next.t('alert.cancel_btn')) {
         if (typeof Swal !== 'undefined') {
             return Swal.fire({
                 title: title,
@@ -8000,12 +8005,12 @@ class RoadbookApp {
         if (linkElement) {
             let query = '';
             if (isMarker) {
-                query = `${data.title} 攻略`;
+                query = `${data.title}${i18next.t('panel.guide')}`;
             } else {
                 const startMarker = this.markers.find(m => m.id === data.startId);
                 const endMarker = this.markers.find(m => m.id === data.endId);
                 if (startMarker && endMarker) {
-                    query = `${startMarker.title}到${endMarker.title}`;
+                    query = `${startMarker.title} ${i18next.t('panel.to')} ${endMarker.title}`;
                 }
             }
             linkElement.href = `https://www.xiaohongshu.com/search_result/?keyword=${encodeURIComponent(query)}`;

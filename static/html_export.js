@@ -180,7 +180,7 @@ class RoadbookHtmlExporter {
         };
 
         const title = document.createElement('h3');
-        title.textContent = '选择导出图片风格';
+        title.textContent = i18next.t('export.theme_title');
         title.style.marginTop = '0';
         title.style.color = 'var(--text-primary)';
         title.style.marginBottom = '20px'; // 增加标题和选项之间的间距
@@ -192,12 +192,12 @@ class RoadbookHtmlExporter {
         themeContainer.style.gap = '15px';
 
         const themes = [
-            { id: 'default', name: '默认主题', colors: { bg: this.app.isDarkMode ? '#0f1115' : '#f8f9fa', accent: this.app.isDarkMode ? '#5a6fd8' : '#667eea' } },
-            { id: 'minimalist', name: '简约风', colors: { bg: '#f5f7fa', accent: '#4f46e5' } },
-            { id: 'scrapbook', name: '手帐风', colors: { bg: '#fdf6e3', accent: '#b5835a' } },
-            { id: 'cyberpunk', name: '赛博朋克', colors: { bg: '#0d0221', accent: '#00f5d4' } },
-            { id: 'girly', name: '少女风', colors: { bg: '#fff0f5', accent: '#ff69b4' } },
-            { id: 'fresh', name: '清新风', colors: { bg: '#e6f4ea', accent: '#34a853' } }
+            { id: 'default', name: i18next.t('export.theme_default'), colors: { bg: this.app.isDarkMode ? '#0f1115' : '#f8f9fa', accent: this.app.isDarkMode ? '#5a6fd8' : '#667eea' } },
+            { id: 'minimalist', name: i18next.t('export.theme_minimalist'), colors: { bg: '#f5f7fa', accent: '#4f46e5' } },
+            { id: 'scrapbook', name: i18next.t('export.theme_scrapbook'), colors: { bg: '#fdf6e3', accent: '#b5835a' } },
+            { id: 'cyberpunk', name: i18next.t('export.theme_cyberpunk'), colors: { bg: '#0d0221', accent: '#00f5d4' } },
+            { id: 'girly', name: i18next.t('export.theme_girly'), colors: { bg: '#fff0f5', accent: '#ff69b4' } },
+            { id: 'fresh', name: i18next.t('export.theme_fresh'), colors: { bg: '#e6f4ea', accent: '#34a853' } }
         ];
 
         themes.forEach(theme => {
@@ -299,7 +299,7 @@ class RoadbookHtmlExporter {
         };
 
         const title = document.createElement('h3');
-        title.textContent = '选择导出图片风格';
+        title.textContent = i18next.t('export.theme_title');
         title.style.marginTop = '0';
         title.style.color = 'var(--text-primary)';
         title.style.marginBottom = '20px'; // 增加标题和选项之间的间距
@@ -311,12 +311,12 @@ class RoadbookHtmlExporter {
         themeContainer.style.gap = '15px';
 
         const themes = [
-            { id: 'default', name: '默认主题', colors: { bg: this.app.isDarkMode ? '#0f1115' : '#f8f9fa', accent: this.app.isDarkMode ? '#5a6fd8' : '#667eea' } },
-            { id: 'minimalist', name: '简约风', colors: { bg: '#f5f7fa', accent: '#4f46e5' } },
-            { id: 'scrapbook', name: '手帐风', colors: { bg: '#fdf6e3', accent: '#b5835a' } },
-            { id: 'cyberpunk', name: '赛博朋克', colors: { bg: '#0d0221', accent: '#00f5d4' } },
-            { id: 'girly', name: '少女风', colors: { bg: '#fff0f5', accent: '#ff69b4' } },
-            { id: 'fresh', name: '清新风', colors: { bg: '#e6f4ea', accent: '#34a853' } }
+            { id: 'default', name: i18next.t('export.theme_default'), colors: { bg: this.app.isDarkMode ? '#0f1115' : '#f8f9fa', accent: this.app.isDarkMode ? '#5a6fd8' : '#667eea' } },
+            { id: 'minimalist', name: i18next.t('export.theme_minimalist'), colors: { bg: '#f5f7fa', accent: '#4f46e5' } },
+            { id: 'scrapbook', name: i18next.t('export.theme_scrapbook'), colors: { bg: '#fdf6e3', accent: '#b5835a' } },
+            { id: 'cyberpunk', name: i18next.t('export.theme_cyberpunk'), colors: { bg: '#0d0221', accent: '#00f5d4' } },
+            { id: 'girly', name: i18next.t('export.theme_girly'), colors: { bg: '#fff0f5', accent: '#ff69b4' } },
+            { id: 'fresh', name: i18next.t('export.theme_fresh'), colors: { bg: '#e6f4ea', accent: '#34a853' } }
         ];
 
         themes.forEach(theme => {
@@ -433,17 +433,17 @@ class RoadbookHtmlExporter {
 
     exportToIcs() {
         if (typeof Swal === 'undefined') {
-            alert('核心组件缺失，无法导出。');
+            alert(i18next.t('export.missing_core'));
             return;
         }
 
         Swal.fire({
-            title: '导出为日历文件',
-            html: `ICS 文件用于导入到系统日历 (如 Google Calendar, Outlook)，<br><b>它无法被 RoadbookMaker 重新导入</b>。<br><br>确定要继续导出吗？`,
+            title: i18next.t('export.ics_title'),
+            html: i18next.t('export.ics_desc'),
             icon: 'info',
             showCancelButton: true,
-            confirmButtonText: '继续导出',
-            cancelButtonText: '取消',
+            confirmButtonText: i18next.t('export.continue_export'),
+            cancelButtonText: i18next.t('export.cancel'),
             confirmButtonColor: '#3085d6',
             cancelButtonColor: '#d33',
         }).then((result) => {
@@ -451,7 +451,7 @@ class RoadbookHtmlExporter {
                 // 这里假设 Swal 是全局可用的，或者通过 this.app 访问（如果 app 有封装的话）
                 // script.js 中 Swal 是全局的
                 if (this.app.markers.length === 0) {
-                    Swal.fire('提示', '当前没有可导出的标记点。', 'info');
+                    Swal.fire(i18next.t('export.notice'), i18next.t('export.no_data_marker'), 'info');
                     return;
                 }
 
@@ -512,12 +512,12 @@ class RoadbookHtmlExporter {
                         }
 
                         // 处理标题和描述，转义特殊字符
-                        const summary = marker.title ? marker.title.replace(/[,;]/g, '\\$&').replace(/\n/g, '\\n') : '未命名地点';
+                        const summary = marker.title ? marker.title.replace(/[,;]/g, '\\$&').replace(/\n/g, '\\n') : `${i18next.t('export.unnamed_place')}`;
 
                         // 组合备注信息
                         let description = '';
                         if (marker.labels && marker.labels.length > 0) {
-                            description += `标签: ${marker.labels.join(', ')}\\n`;
+                            description += `${i18next.t('export.label_prefix')}${marker.labels.join(', ')}\n`;
                         }
 
                         // 尝试获取当天的日期备注
@@ -540,11 +540,11 @@ class RoadbookHtmlExporter {
                         // 交通方式连接信息（如果有从该点出发的连接）
                         const outgoingConnections = this.app.connections.filter(c => c.startId === marker.id);
                         if (outgoingConnections.length > 0) {
-                             description += `\\n🔜 下一站:`;
+                             description += i18next.t('export.next_stop_prefix');
                              outgoingConnections.forEach(conn => {
                                  const endMarker = this.app.markers.find(m => m.id === conn.endId);
-                                 const endTitle = endMarker ? endMarker.title : '未知地点';
-                                 description += `\\n- 前往 ${endTitle} (${this.getTransportTypeName(conn.transportType)}${conn.duration ? ', ' + conn.duration + 'h' : ''})`;
+                                 const endTitle = endMarker ? endMarker.title : i18next.t('export.unknown_place');
+                                 description += `${i18next.t('export.to_prefix')}${endTitle} (${this.getTransportTypeName(conn.transportType)}${conn.duration ? ', ' + conn.duration + 'h' : ''})`;
                              });
                              description += `\\n`;
                         }
@@ -554,10 +554,10 @@ class RoadbookHtmlExporter {
                             icsContent.push(`GEO:${marker.position.lat};${marker.position.lng}`);
                             // 某些日历应用可能不显示GEO，所以在描述里也加一下
                             // Google Maps link
-                            description += `\\n📍 导航: https://www.google.com/maps/search/?api=1&query=${marker.position.lat},${marker.position.lng}`;
+                            description += `${i18next.t('export.nav_prefix')}https://www.google.com/maps/search/?api=1&query=${marker.position.lat},${marker.position.lng}`;
                         } else if (marker.position && Array.isArray(marker.position)) { // 兼容数组格式 [lat, lng]
                              icsContent.push(`GEO:${marker.position[0]};${marker.position[1]}`);
-                             description += `\\n📍 导航: https://www.google.com/maps/search/?api=1&query=${marker.position[0]},${marker.position[1]}`;
+                             description += `${i18next.t('export.nav_prefix')}https://www.google.com/maps/search/?api=1&query=${marker.position[0]},${marker.position[1]}`;
                         }
 
                         icsContent.push(`SUMMARY:${summary}`);
@@ -587,9 +587,9 @@ class RoadbookHtmlExporter {
     async exportToImage(theme = 'default') {
         if (this.app.markers.length === 0) {
             if (typeof Swal !== 'undefined') {
-                Swal.fire('提示', '当前没有可导出的数据。', 'info');
+                Swal.fire(i18next.t('export.notice'), i18next.t('export.no_data_all'), 'info');
             } else {
-                alert('当前没有可导出的数据。');
+                alert(i18next.t('export.no_data_all'));
             }
             return;
         }
@@ -597,8 +597,8 @@ class RoadbookHtmlExporter {
         // Show loading state
         if (typeof Swal !== 'undefined') {
             Swal.fire({
-                title: '正在生成长图',
-                text: '请稍候，这可能需要几秒钟...',
+                title: i18next.t('export.generating_img'),
+                text: i18next.t('export.please_wait'),
                 allowOutsideClick: false,
                 didOpen: () => {
                     Swal.showLoading();
@@ -648,21 +648,21 @@ class RoadbookHtmlExporter {
             if (this.app && typeof this.app.getDateKey === 'function') {
                 return this.app.getDateKey(dt);
             }
-            if (!dt) return '未知日期';
+            if (!dt) return i18next.t('panel.unknown_date');
             try {
                 const d = new Date(dt);
-                if (isNaN(d.getTime())) return '未知日期';
+                if (isNaN(d.getTime())) return i18next.t('panel.unknown_date');
                 const yyyy = d.getFullYear();
                 const mm = String(d.getMonth() + 1).padStart(2, '0');
                 const dd = String(d.getDate()).padStart(2, '0');
                 return `${yyyy}-${mm}-${dd}`;
             } catch {
-                return '未知日期';
+                return i18next.t('panel.unknown_date');
             }
         };
 
-        // 获取地图标题 +（在线模式下）云端“计划总览”与时间
-        let planTitle = '我的行程路书';
+        // 获取地图标题 +（在线模式下）云端“${i18next.t('export.plan_overview')}”与时间
+        let planTitle = i18next.t('export.my_roadbook');
         let cloudPlanOverview = null;
         let cloudPlanStartTime = null;
         let cloudPlanEndTime = null;
@@ -671,7 +671,7 @@ class RoadbookHtmlExporter {
                 planTitle = window.onlineModeManager.currentPlanName;
             }
 
-            // 尝试从云端拉取计划详情，用于显示“计划总览”（description）及开始结束时间
+            // 尝试从云端拉取计划详情，用于显示“${i18next.t('export.plan_overview')}”（description）及开始结束时间
             try {
                 const planId = window.onlineModeManager.currentPlanId;
                 if (planId && typeof window.onlineModeManager.makeApiRequest === 'function') {
@@ -689,7 +689,7 @@ class RoadbookHtmlExporter {
                     }
                 }
             } catch (e) {
-                console.warn('导出图片：拉取云端计划详情失败，将跳过“计划总览”与时间。', e);
+                console.warn(`导出图片：拉取云端计划详情失败，将跳过“${i18next.t('export.plan_overview')}”与时间。`, e);
             }
         }
 
@@ -714,18 +714,18 @@ class RoadbookHtmlExporter {
             <div style="background: ${exportTheme.cardBg}; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px ${exportTheme.shadow}; padding: 30px;">
                 <div style="text-align: center; margin-bottom: 20px;">
                     <h1 style="margin: 0 0 10px 0; color: ${exportTheme.textPrimary}; font-size: 28px;">${planTitle}</h1>
-                    <p style="margin: 0; color: ${exportTheme.textSecondary}; font-size: 14px;">由 RoadbookMaker 生成</p>
+                    <p style="margin: 0; color: ${exportTheme.textSecondary}; font-size: 14px;">${i18next.t('export.generated_by')}</p>
                 </div>
 
                 ${cloudPlanOverview ? `
-                <!-- 云端计划总览 -->
+                <!-- 云端${i18next.t('export.plan_overview')} -->
                 <div style="margin-bottom: 30px;">
                     <div style="display: flex; align-items: baseline; gap: 10px; margin-bottom: 12px; border-bottom: 2px solid ${exportTheme.border}; padding-bottom: 10px;">
                         <span style="background: ${exportTheme.badgeInfoBg}; color: white; padding: 4px 10px; border-radius: 999px; font-weight: 700; font-size: 13px; letter-spacing: 0.3px;">INFO</span>
-                        <h2 style="margin: 0; font-size: 20px; color: ${exportTheme.textPrimary};">计划总览</h2>
+                        <h2 style="margin: 0; font-size: 20px; color: ${exportTheme.textPrimary};">${i18next.t('export.plan_overview')}</h2>
                     </div>
                     <div style="background: ${exportTheme.overviewBg}; border-left: 4px solid ${exportTheme.accent}; padding: 12px; border-radius: 0 8px 8px 0; font-size: 14px; color: ${exportTheme.textPrimary}; white-space: pre-wrap;">${escapeHtml(cloudPlanOverview)}</div>
-                    ${(displayStartTime || displayEndTime) ? `<div style="margin-top: 10px; font-size: 13px; color: ${exportTheme.textSecondary}; font-weight: 600;">行程时间：${displayStartTime || '未定'} 至 ${displayEndTime || '未定'}</div>` : ''}
+                    ${(displayStartTime || displayEndTime) ? `<div style="margin-top: 10px; font-size: 13px; color: ${exportTheme.textSecondary}; font-weight: 600;">${i18next.t('export.time_range')}${displayStartTime || i18next.t('export.tbd')} ${i18next.t('export.to')} ${displayEndTime || i18next.t('export.tbd')}</div>` : ''}
                 </div>
                 ` : ''}
 
@@ -733,7 +733,7 @@ class RoadbookHtmlExporter {
                 <div style="margin-bottom: 30px;">
                     <div style="display: flex; align-items: baseline; gap: 10px; margin-bottom: 15px; border-bottom: 2px solid ${exportTheme.border}; padding-bottom: 10px;">
                         <span style="background: ${exportTheme.badgeAllBg}; color: white; padding: 4px 10px; border-radius: 999px; font-weight: 700; font-size: 13px; letter-spacing: 0.3px;">ALL</span>
-                        <h2 style="margin: 0; font-size: 20px; color: ${exportTheme.textPrimary};">行程总览</h2>
+                        <h2 style="margin: 0; font-size: 20px; color: ${exportTheme.textPrimary};">${i18next.t('export.trip_overview')}</h2>
                     </div>
                     <div id="export-map-overview" style="width: 100%; height: 250px; border-radius: 8px; background: ${exportTheme.overviewBg}; overflow: hidden; position: relative; z-index: 1;"></div>
                 </div>
@@ -758,7 +758,7 @@ class RoadbookHtmlExporter {
             // Parse date for display
             let displayDate = dateStr;
             let displayDay = "";
-            if (dateStr !== '未知日期') {
+            if (dateStr !== i18next.t('panel.unknown_date')) {
                 try {
                     const d = new Date(dateStr);
                     displayDate = `${d.getMonth() + 1}月${d.getDate()}日`;
@@ -790,7 +790,7 @@ class RoadbookHtmlExporter {
                     const totalExpense = noteObj.expenses.reduce((sum, exp) => sum + (Number(exp.cost) || 0), 0);
                     html += `
                         <div style="background: ${exportTheme.expenseBg}; padding: 10px 15px; margin-bottom: 20px; border-radius: 8px; font-size: 14px; color: ${exportTheme.textPrimary};">
-                            <strong style="color: ${exportTheme.expenseBorder};">💰 今日预算: ￥${totalExpense}</strong>
+                            <strong style="color: ${exportTheme.expenseBorder};">${i18next.t('export.budget')}${totalExpense}</strong>
                             <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px;">
                                 ${noteObj.expenses.map(exp => `<span style="background: ${exportTheme.cardBg}; padding: 2px 8px; border-radius: 999px; border: 1px solid ${exportTheme.border}; color: ${exportTheme.textSecondary};">${exp.remark}: ￥${exp.cost}</span>`).join('')}
                             </div>
@@ -869,8 +869,8 @@ class RoadbookHtmlExporter {
                 const transportIcon = this.app.getTransportIcon ? this.app.getTransportIcon(conn.transportType) : '';
                 const transportColor = this.app.getTransportColor ? this.app.getTransportColor(conn.transportType) : exportTheme.accent;
                 const connTime = getDisplayTime(conn.dateTime);
-                const startTitle = startMarker ? startMarker.title : (conn.startTitle || '起点');
-                const endTitle = endMarker ? endMarker.title : (conn.endTitle || '终点');
+                const startTitle = startMarker ? startMarker.title : (conn.startTitle || i18next.t('panel.start_point'));
+                const endTitle = endMarker ? endMarker.title : (conn.endTitle || i18next.t('panel.end_point'));
 
                 return `
                     <div style="position: relative; margin: 6px 0 18px 0; display: flex; align-items: flex-start; gap: 10px; z-index: 2;">
@@ -990,7 +990,7 @@ class RoadbookHtmlExporter {
                 if (paths.length > 1) {
                     html += `
                         <div style="margin: 12px 0 10px 0; padding-left: 20px; display: flex; align-items: center; gap: 10px;">
-                            <span style="font-size: 12px; font-weight: 700; color: ${exportTheme.textSecondary}; background: ${exportTheme.chipBg}; border: 1px solid ${exportTheme.border}; padding: 2px 8px; border-radius: 999px;">行程 ${pathIndex + 1}</span>
+                            <span style="font-size: 12px; font-weight: 700; color: ${exportTheme.textSecondary}; background: ${exportTheme.chipBg}; border: 1px solid ${exportTheme.border}; padding: 2px 8px; border-radius: 999px;">${i18next.t('export.path')}${pathIndex + 1}</span>
                             <div style="flex: 1; border-top: 1px dashed ${exportTheme.border};"></div>
                         </div>
                     `;
@@ -1026,7 +1026,7 @@ class RoadbookHtmlExporter {
                 <div style="font-size: 12px; color: ${exportTheme.textSecondary}; line-height: 1.6; word-break: break-all;">
                     <div>Powered by GitHub: ${githubRepoUrl}</div>
                     ${exportPageUrl ? `<div>Export by: ${escapeHtml(exportPageUrl)}</div>` : ''}
-                    <div style="margin-top: 6px;">提示：此图片可直接导入到原网页中继续编辑</div>
+                    <div style="margin-top: 6px;">${i18next.t('export.import_tip')}</div>
                 </div>
             </div>
         `;
@@ -1197,7 +1197,7 @@ class RoadbookHtmlExporter {
                 const [focusMin, focusMax] = hasFocusRange ? normalizeRange(focusStart, focusEnd) : ['', ''];
                 const isDateKeyInFocus = (dateKey) => {
                     if (!hasFocusRange) return true;
-                    if (!dateKey || dateKey === '未知日期') return false;
+                    if (!dateKey || dateKey === i18next.t('panel.unknown_date')) return false;
                     return dateKey >= focusMin && dateKey <= focusMax;
                 };
 
@@ -1458,7 +1458,7 @@ class RoadbookHtmlExporter {
 
             if (typeof html2canvas === 'undefined') {
                 if (typeof Swal !== 'undefined') Swal.close();
-                alert('缺少 html2canvas 库，无法导出图片。');
+                alert(i18next.t('export.no_html2canvas'));
                 // Cleanup maps
                 mapInstances.forEach(m => m.remove());
                 document.body.removeChild(container);
@@ -1530,14 +1530,14 @@ class RoadbookHtmlExporter {
             const tileFailedCount = tileFailures.length;
             if (ok && tileFailedCount > 0 && typeof Swal !== 'undefined') {
                 setTimeout(() => {
-                    Swal.fire('已导出，但地图可能不完整', `有 ${tileFailedCount} 处瓦片在 15 秒内未加载成功，导出图可能出现空白区域。`, 'warning');
+                    Swal.fire(i18next.t('export.map_incomplete'), i18next.t('export.tile_error', {count: tileFailedCount}), 'warning');
                 }, 0);
             }
 
             // 点位图片（logo）加载失败提示（不影响导出结果，不放占位符）
             if (ok && imgFailures && imgFailures.failedCount > 0 && typeof Swal !== 'undefined') {
                 setTimeout(() => {
-                    Swal.fire('提示', `有 ${imgFailures.failedCount} 张点位图片在导出时加载失败，已跳过显示。`, 'info');
+                    Swal.fire(i18next.t('export.notice'), i18next.t('export.img_error', {count: imgFailures.failedCount}), 'info');
                 }, 0);
             }
 
@@ -1551,16 +1551,16 @@ class RoadbookHtmlExporter {
                 if (!msg && err && err.type === 'error' && err.target && err.target.tagName === 'IMG') {
                     const src = err.target.currentSrc || err.target.src || '';
                     if (src.startsWith('data:image/svg+xml')) {
-                        msg = '导出失败：html2canvas 的 SVG 渲染路径触发了图片加载错误（常见于 file:// 打开页面）。请用 http(s) 方式打开页面再导出。';
+                        msg = i18next.t('export.svg_error');
                     } else {
-                        msg = `存在无法加载的图片资源：${src ? src : '未知图片'}（可能是网络/CORS/被墙导致）。`;
+                        msg = i18next.t('export.img_load_error', {src: src ? src : i18next.t('export.unknown_img')});
                     }
                 }
                 if (!msg && err && err.type === 'error') {
-                    msg = '存在无法加载的图片资源（可能是地图瓦片/点位图片跨域或网络问题）。';
+                    msg = i18next.t('export.img_load_error_gen');
                 }
-                if (!msg) msg = '生成图片时发生错误。';
-                Swal.fire('导出失败', msg, 'error');
+                if (!msg) msg = i18next.t('export.gen_error');
+                Swal.fire(i18next.t('export.export_fail'), msg, 'error');
             }
         }
     }
@@ -1571,13 +1571,13 @@ class RoadbookHtmlExporter {
             image = canvas.toDataURL("image/png");
         } catch (e) {
             // 典型错误：Tainted canvases may not be exported.
-            console.error('导出图片失败：canvas 无法导出（可能是跨域瓦片/CORS 导致）', e);
+            console.error(i18next.t('export.canvas_tainted'), e);
             if (mapInstances) mapInstances.forEach(m => m.remove());
             if (container && container.parentNode) document.body.removeChild(container);
             if (typeof Swal !== 'undefined') {
-                Swal.fire('导出失败', '导出图片被浏览器拦截（跨域瓦片导致 canvas 被污染）。请切换到支持 CORS 的地图源或使用同源瓦片代理。', 'error');
+                Swal.fire(i18next.t('export.export_fail'), i18next.t('export.cors_error_desc'), 'error');
             } else {
-                alert('导出失败：跨域瓦片导致无法生成 PNG（canvas 被污染）。');
+                alert(i18next.t('export.cors_error_alert'));
             }
             return false;
         }
@@ -1593,8 +1593,8 @@ class RoadbookHtmlExporter {
         if (typeof Swal !== 'undefined') {
             Swal.close();
             Swal.fire({
-                title: '导出成功',
-                text: '行程长图已保存到您的设备（此图片支持重新导入）',
+                title: i18next.t('export.export_success'),
+                text: i18next.t('export.export_success_desc'),
                 icon: 'success',
                 timer: 2000,
                 showConfirmButton: false
@@ -1629,9 +1629,9 @@ class RoadbookHtmlExporter {
 
                 if (dataLength <= 0 || dataLength > data.length / 4 / 8) {
                     if (typeof Swal !== 'undefined') {
-                        Swal.fire('错误', '该图片不包含有效的路书数据或数据已损坏！', 'error');
+                        Swal.fire(i18next.t('export.error'), i18next.t('export.invalid_img_data'), 'error');
                     } else {
-                        alert('错误: 该图片不包含有效的路书数据或数据已损坏！');
+                        alert(i18next.t('export.error') + ': ' + i18next.t('export.invalid_img_data'));
                     }
                     return;
                 }
@@ -1686,9 +1686,9 @@ class RoadbookHtmlExporter {
                 } catch (error) {
                     console.error('解析图片内置数据失败:', error);
                     if (typeof Swal !== 'undefined') {
-                        Swal.fire('错误', '图片中的数据格式错误，可能是图片被压缩导致数据丢失。', 'error');
+                        Swal.fire(i18next.t('export.error'), i18next.t('export.img_format_error'), 'error');
                     } else {
-                        alert('错误: 图片中的数据格式错误，可能是图片被压缩导致数据丢失。');
+                        alert(i18next.t('export.error') + ': ' + i18next.t('export.img_format_error'));
                     }
                 }
             };
@@ -1728,7 +1728,7 @@ class RoadbookHtmlExporter {
         events.sort((a, b) => a.time - b.time);
 
         if (events.length === 0) {
-            return "没有有效的行程数据可供导出。";
+            return i18next.t('export.txt_no_data');
         }
 
         // Group events by day
@@ -1805,15 +1805,15 @@ class RoadbookHtmlExporter {
 
     getTransportTypeName(type) {
         const names = {
-            car: '汽车',
-            train: '火车',
-            subway: '地铁',
-            plane: '飞机',
-            walk: '步行',
-            bus: '公交',
-            cruise: '游轮'
+            car: i18next.t('export.trans_car'),
+            train: i18next.t('export.trans_train'),
+            subway: i18next.t('export.trans_subway'),
+            plane: i18next.t('export.trans_plane'),
+            walk: i18next.t('export.trans_walk'),
+            bus: i18next.t('export.trans_bus'),
+            cruise: i18next.t('export.trans_cruise')
         };
-        return names[type] || '其他';
+        return names[type] || i18next.t('export.trans_other');
     }
 
     stripMarkdownLinks(text) {
@@ -1873,7 +1873,7 @@ class RoadbookHtmlExporter {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RoadbookMaker Share - ${new Date().toLocaleDateString('zh-CN')}</title>
+    <title>${i18next.t('export.share_title')} - ${new Date().toLocaleDateString('zh-CN')}</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         ${this.generateCssStyles()}
@@ -1884,7 +1884,7 @@ class RoadbookHtmlExporter {
         <header>
             <div class="header-top">
                 <div style="display: flex; align-items: center; justify-content: center; position: relative; width: 100%;">
-                    <button id="exportHelpBtn" class="help-btn" title="导出界面帮助" style="position: absolute; left: 10px; width: 40px; height: 40px; background: linear-gradient(135deg, #66b3ff 0%, #3a8fd4 100%); border: none; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 18px; color: white; box-shadow: 0 2px 8px rgba(58, 143, 212, 0.4); transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); backdrop-filter: blur(10px); z-index: 1001;">❓</button>
+                    <button id="exportHelpBtn" class="help-btn" title="${i18next.t('export.help_tooltip')}" style="position: absolute; left: 10px; width: 40px; height: 40px; background: linear-gradient(135deg, #66b3ff 0%, #3a8fd4 100%); border: none; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 18px; color: white; box-shadow: 0 2px 8px rgba(58, 143, 212, 0.4); transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); backdrop-filter: blur(10px); z-index: 1001;">❓</button>
                     <h1>RoadbookMaker Share</h1>
                 </div>
             </div>
@@ -1901,12 +1901,12 @@ class RoadbookHtmlExporter {
             <div class="right-panel">
                 <div class="sidebar" id="markerListPanel">
                     <div class="sidebar-header">
-                        <h3>日程列表</h3>
+                        <h3>${i18next.t('panel.schedule_list')}</h3>
                         <button id="closeSidebarBtn" class="close-btn">×</button>
                     </div>
                     <div id="markerList"></div>
                     <div id="totalExpensesContainer" class="total-expenses-container" style="display: none;">
-                        <span>预计总花费:</span>
+                        <span>${i18next.t('panel.total_expense')}</span>
                         <span id="totalExpensesAmount">0</span>
                     </div>
                 </div>
@@ -2237,16 +2237,16 @@ class RoadbookHtmlExporter {
                 // 格式化时间显示，只在小时或分钟不为0时显示时分
                 if (markerData.dateTimes && markerData.dateTimes.length > 0) {
                     const formattedTimes = markerData.dateTimes.map(dt => formatTime(dt));
-                    content += '<p><strong>时间:</strong> ' + formattedTimes.join(', ') + '</p>';
+                    content += '<p><strong>' + i18next.t('panel.time') + '</strong> ' + formattedTimes.join(', ') + '</p>';
                 } else if (markerData.dateTime) {
-                    content += '<p><strong>时间:</strong> ' + formatTime(markerData.dateTime) + '</p>';
+                    content += '<p><strong>' + i18next.t('panel.time') + '</strong> ' + formatTime(markerData.dateTime) + '</p>';
                 }
 
                 if (markerData.labels && markerData.labels.length > 0) {
-                    content += '<p><strong>标注:</strong> ' + convertMarkdownLinksToHtml(markerData.labels.join('; ')) + '</p>';
+                    content += '<p><strong>' + i18next.t('panel.labels') + '</strong> ' + convertMarkdownLinksToHtml(markerData.labels.join('; ')) + '</p>';
                 }
 
-                content += '<p><strong>坐标:</strong> ' + markerData.position[1].toFixed(6) + ', ' + markerData.position[0].toFixed(6) + '</p>';
+                content += '<p><strong>' + i18next.t('panel.coordinates') + '</strong> ' + markerData.position[1].toFixed(6) + ', ' + markerData.position[0].toFixed(6) + '</p>';
                 content += '</div>';
 
                 return content;
@@ -2256,7 +2256,7 @@ class RoadbookHtmlExporter {
             function generateConnectionPopupContent(connData, startMarker, endMarker) {
                 let content = '<div class="popup-content">';
                 content += '<h3>' + startMarker.title + ' → ' + endMarker.title + '</h3>';
-                content += '<p><strong>交通方式:</strong> ' + getTransportIcon(connData.transportType) + ' ' + getTransportTypeName(connData.transportType) + '</p>';
+                content += '<p><strong>' + i18next.t('panel.transport') + '</strong> ' + getTransportIcon(connData.transportType) + ' ' + getTransportTypeName(connData.transportType) + '</p>';
 
                 // 动态计算并显示距离
                 if (startMarker.position && endMarker.position) {
@@ -2267,20 +2267,20 @@ class RoadbookHtmlExporter {
                     } else {
                         distanceStr = Math.round(distance) + ' m';
                     }
-                    content += '<p><strong>距离:</strong> ' + distanceStr + '</p>';
+                    content += '<p><strong>' + i18next.t('export.distance') + '</strong> ' + distanceStr + '</p>';
                 }
 
                 if (connData.duration > 0) {
-                    content += '<p><strong>耗时:</strong> ' + connData.duration + ' 小时</p>';
+                    content += '<p><strong>' + i18next.t('panel.duration') + '</strong> ' + connData.duration + ' ' + i18next.t('export.hours') + '</p>';
                 }
 
                 if (connData.dateTime) {
                     // 使用相同的格式化方式显示时间
-                    content += '<p><strong>时间:</strong> ' + formatTime(connData.dateTime) + '</p>';
+                    content += '<p><strong>' + i18next.t('panel.time') + '</strong> ' + formatTime(connData.dateTime) + '</p>';
                 }
 
                 if (connData.label) {
-                    content += '<p><strong>标注:</strong> ' + convertMarkdownLinksToHtml(connData.label) + '</p>';
+                    content += '<p><strong>' + i18next.t('panel.labels') + '</strong> ' + convertMarkdownLinksToHtml(connData.label) + '</p>';
                 }
 
                 // 添加导航链接
@@ -2288,15 +2288,15 @@ class RoadbookHtmlExporter {
                 const startLng = startMarker.position[1];
                 const endLat = endMarker.position[0];
                 const endLng = endMarker.position[1];
-                const startTitle = startMarker.title || '起点';
-                const endTitle = endMarker.title || '终点';
+                const startTitle = startMarker.title || i18next.t('panel.start_point');
+                const endTitle = endMarker.title || i18next.t('panel.end_point');
 
                 content += '<div class="navigation-links" style="margin-top: 8px; font-size: 0.9rem;">';
-                content += '<p><strong>导航:</strong> ';
-                content += '<a href="http://api.map.baidu.com/direction?origin=latlng:' + startLat + ',' + startLng + '|name:' + encodeURIComponent(startTitle) + '&destination=latlng:' + endLat + ',' + endLng + '|name:' + encodeURIComponent(endTitle) + '&mode=driving&region=中国&output=html&coord_type=gcj02&src=webapp.demo" target="_blank" style="margin: 0 5px; text-decoration: underline;">百度导航</a>';
-                content += '<a href="https://uri.amap.com/navigation?from=' + startLng + ',' + startLat + ',' + encodeURIComponent(startTitle) + '&to=' + endLng + ',' + endLat + ',' + encodeURIComponent(endTitle) + '&mode=car&policy=1&coordinate=gaode" target="_blank" style="margin: 0 5px; text-decoration: underline;">高德导航</a>';
-                content += '<a href="https://apis.map.qq.com/uri/v1/routeplan?type=drive&from=' + encodeURIComponent(startTitle) + '&fromcoord=' + startLat + ',' + startLng + '&to=' + encodeURIComponent(endTitle) + '&tocoord=' + endLat + ',' + endLng + '&referer=myapp" target="_blank" style="margin: 0 5px; text-decoration: underline;">腾讯导航</a>';
-                content += '<a href="https://www.google.com/maps/dir/?api=1&origin=' + startLat + ',' + startLng + '&destination=' + endLat + ',' + endLng + '" target="_blank" style="margin: 0 5px; text-decoration: underline;">Google导航</a>';
+                content += '<p><strong>' + i18next.t('panel.nav_links') + '</strong> ';
+                content += '<a href="http://api.map.baidu.com/direction?origin=latlng:' + startLat + ',' + startLng + '|name:' + encodeURIComponent(startTitle) + '&destination=latlng:' + endLat + ',' + endLng + '|name:' + encodeURIComponent(endTitle) + '&mode=driving&region=中国&output=html&coord_type=gcj02&src=webapp.demo" target="_blank" style="margin: 0 5px; text-decoration: underline;">' + i18next.t('export.nav_baidu') + '</a>';
+                content += '<a href="https://uri.amap.com/navigation?from=' + startLng + ',' + startLat + ',' + encodeURIComponent(startTitle) + '&to=' + endLng + ',' + endLat + ',' + encodeURIComponent(endTitle) + '&mode=car&policy=1&coordinate=gaode" target="_blank" style="margin: 0 5px; text-decoration: underline;">' + i18next.t('export.nav_gaode') + '</a>';
+                content += '<a href="https://apis.map.qq.com/uri/v1/routeplan?type=drive&from=' + encodeURIComponent(startTitle) + '&fromcoord=' + startLat + ',' + startLng + '&to=' + encodeURIComponent(endTitle) + '&tocoord=' + endLat + ',' + endLng + '&referer=myapp" target="_blank" style="margin: 0 5px; text-decoration: underline;">' + i18next.t('export.nav_tencent') + '</a>';
+                content += '<a href="https://www.google.com/maps/dir/?api=1&origin=' + startLat + ',' + startLng + '&destination=' + endLat + ',' + endLng + '" target="_blank" style="margin: 0 5px; text-decoration: underline;">' + i18next.t('export.nav_google') + '</a>';
                 content += '</p>';
                 content += '</div>';
 
@@ -2308,15 +2308,15 @@ class RoadbookHtmlExporter {
             // 获取交通方式类型名称
             function getTransportTypeName(type) {
                 const names = {
-                    car: '汽车',
-                    train: '火车',
-                    subway: '地铁',
-                    plane: '飞机',
-                    walk: '步行',
-                    bus: '公交',
-                    cruise: '游轮'
+                    car: i18next.t('export.trans_car'),
+                    train: i18next.t('export.trans_train'),
+                    subway: i18next.t('export.trans_subway'),
+                    plane: i18next.t('export.trans_plane'),
+                    walk: i18next.t('export.trans_walk'),
+                    bus: i18next.t('export.trans_bus'),
+                    cruise: i18next.t('export.trans_cruise')
                 };
-                return names[type] || '其他';
+                return names[type] || i18next.t('export.trans_other');
             }
 
             // 显示logo预览
@@ -2389,7 +2389,7 @@ class RoadbookHtmlExporter {
                             <span class="expand-toggle">\${expandIcon}</span>
                             \${formatDateHeader(date)}
                         </h4>
-                        <span class="marker-count">\${markers.length} 个地点</span>
+                        <span class="marker-count">\${markers.length} ${i18next.t('export.places_count')}</span>
                     \`;
 
                     // 为日期标题添加展开/收起功能，同时保留筛选功能
@@ -2478,13 +2478,13 @@ class RoadbookHtmlExporter {
                 if (marker.dateTimes && marker.dateTimes.length > 0) {
                     marker.dateTimes.forEach(dateTime => {
                         const dateKey = getDateKey(dateTime);
-                        if (dateKey !== '未知日期') {
+                        if (dateKey !== i18next.t('panel.unknown_date')) {
                             dates.add(dateKey);
                         }
                     });
                 } else if (marker.dateTime) {
                     const dateKey = getDateKey(marker.dateTime);
-                    if (dateKey !== '未知日期') {
+                    if (dateKey !== i18next.t('panel.unknown_date')) {
                         dates.add(dateKey);
                     }
                 }
@@ -2494,23 +2494,23 @@ class RoadbookHtmlExporter {
 
             // 获取日期键（YYYY-MM-DD格式）
             function getDateKey(dateTimeString) {
-                if (!dateTimeString) return '未知日期';
+                if (!dateTimeString) return i18next.t('panel.unknown_date');
                 try {
                     const date = new Date(dateTimeString);
-                    if (isNaN(date.getTime())) return '未知日期';
+                    if (isNaN(date.getTime())) return i18next.t('panel.unknown_date');
                     // 使用本地时区的日期，而不是UTC
                     const year = date.getFullYear();
                     const month = String(date.getMonth() + 1).padStart(2, '0');
                     const day = String(date.getDate()).padStart(2, '0');
                     return year + '-' + month + '-' + day; // YYYY-MM-DD in local timezone
                 } catch (error) {
-                    return '未知日期';
+                    return i18next.t('panel.unknown_date');
                 }
             }
 
             // 格式化日期标题
             function formatDateHeader(dateKey) {
-                if (dateKey === '未知日期') return dateKey;
+                if (dateKey === i18next.t('panel.unknown_date')) return dateKey;
                 try {
                     const date = new Date(dateKey);
                     // 获取今天的日期键（本地时区）
@@ -2523,9 +2523,9 @@ class RoadbookHtmlExporter {
                     const yesterdayKey = getDateKey(yesterday.toISOString());
 
                     if (dateKey === todayKey) {
-                        return '今天';
+                        return i18next.t('panel.today');
                     } else if (dateKey === yesterdayKey) {
-                        return '昨天';
+                        return i18next.t('panel.yesterday');
                     } else {
                         return \`\${date.getMonth() + 1}月\${date.getDate()}日 (\${getWeekdayName(date.getDay())})\`;
                     }
@@ -2536,7 +2536,7 @@ class RoadbookHtmlExporter {
 
             // 获取星期几的中文名称
             function getWeekdayName(day) {
-                const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+                const weekdays = [i18next.t('panel.sun'), i18next.t('panel.mon'), i18next.t('panel.tue'), i18next.t('panel.wed'), i18next.t('panel.thu'), i18next.t('panel.fri'), i18next.t('panel.sat')];
                 return weekdays[day];
             }
 
@@ -2618,7 +2618,7 @@ class RoadbookHtmlExporter {
                 roadbookData.markers.forEach(marker => {
                     const markerDates = getMarkerAllDates(marker);
                     markerDates.forEach(date => {
-                        if (date !== '未知日期') {
+                        if (date !== i18next.t('panel.unknown_date')) {
                             allDates.add(date);
                         }
                     });

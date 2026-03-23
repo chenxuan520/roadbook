@@ -21,6 +21,12 @@
     <meta name="theme-color" content="#667eea">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="style.css">
+    
+    <!-- i18n scripts -->
+    <script src="https://unpkg.com/i18next@23.10.1/i18next.min.js"></script>
+    <script src="https://unpkg.com/loc-i18next/loc-i18next.js"></script>
+    <script src="locales.js"></script>
+    <script src="i18n_init.js"></script>
 </head>
 <body>
     <div class="container">
@@ -29,7 +35,16 @@
                 <h1 id="mainTitle">RoadbookMaker</h1>
                 <div id="onlineModeActions" class="online-mode-actions"></div>
                 <span id="version-display"></span>
-                <div class="theme-toggle-container">
+                <div class="theme-toggle-container" style="display: flex; gap: 10px; align-items: center;">
+                    <div class="dropdown lang-dropdown">
+                        <button id="langDropdownBtn" class="theme-toggle-btn" title="切换语言 / Change Language" style="font-size: 1.2rem; width: auto; padding: 0 10px; border-radius: 20px;">
+                            🌐 <span style="font-size: 0.6rem; margin-left: 2px;">▼</span>
+                        </button>
+                        <div class="dropdown-content" style="min-width: 100px; right: 0; left: auto;">
+                            <button class="dropdown-item" onclick="changeLanguage('zh')">🇨🇳 中文</button>
+                            <button class="dropdown-item" onclick="changeLanguage('en')">🇬🇧 English</button>
+                        </div>
+                    </div>
                     <button id="themeToggleBtn" class="theme-toggle-btn" title="切换主题">
                         <span id="themeIcon">☀️</span>
                     </button>
@@ -38,17 +53,17 @@
             <!-- 日期备注便签 -->
             <div class="search-toolbar">
                 <div class="search-box">
-                    <input type="text" id="searchInput" placeholder="搜索地点...">
+                    <input type="text" id="searchInput" placeholder="搜索地点..." data-i18n="[placeholder]toolbar.search_placeholder">
                     <select id="searchMethodSelect" class="btn" style="background: linear-gradient(135deg, rgba(255,255,255,0.3), rgba(255,255,255,0.15)); color: #fff; border: 2px solid rgba(255,255,255,0.5); padding: 0.6rem 1.2rem; border-radius: 25px; font-size: 0.9rem; font-weight: 600; cursor: pointer; margin-left: 0.5rem;">
-                        <option value="auto">🗺️自动分配搜索</option>
-                        <option value="nominatim">Nominatim搜索</option>
-                        <option value="overpass">Overpass搜索</option>
-                        <option value="mapsearch">MapSearch搜索</option>
-                        <option value="photon">Photon搜索</option>
+                        <option value="auto" data-i18n="search_method.auto">🗺️自动分配搜索</option>
+                        <option value="nominatim" data-i18n="search_method.nominatim">Nominatim搜索</option>
+                        <option value="overpass" data-i18n="search_method.overpass">Overpass搜索</option>
+                        <option value="mapsearch" data-i18n="search_method.mapsearch">MapSearch搜索</option>
+                        <option value="photon" data-i18n="search_method.photon">Photon搜索</option>
                         <!-- fxxk you baidu map -->
-                        <option value="cnsearch" style="display:none;">CNSearch搜索</option>
-                        <option value="gaode">高德搜索</option>
-                        <option value="tiansearch">TianSearch搜索</option>
+                        <option value="cnsearch" style="display:none;" data-i18n="search_method.cnsearch">CNSearch搜索</option>
+                        <option value="gaode" data-i18n="search_method.gaode">高德搜索</option>
+                        <option value="tiansearch" data-i18n="search_method.tiansearch">TianSearch搜索</option>
                     </select>
                     <!-- 搜索结果下拉框 -->
                     <div id="searchResults" class="search-results" style="display: none;">
@@ -56,29 +71,29 @@
                     </div>
                 </div>
                 <div class="toolbar">
-                    <button id="addMarkerBtn" class="btn">📍 标记</button>
-                    <button id="connectMarkersBtn" class="btn">🔗 连线</button>
+                    <button id="addMarkerBtn" class="btn" data-i18n="toolbar.add_marker">📍 标记</button>
+                    <button id="connectMarkersBtn" class="btn" data-i18n="toolbar.connect">🔗 连线</button>
                     <div class="dropdown">
-                        <button id="exportDropdownBtn" class="btn dropdown-btn">📤 导出 <span class="dropdown-arrow">▼</span></button>
+                        <button id="exportDropdownBtn" class="btn dropdown-btn"><span data-i18n="toolbar.export">📤 导出</span> <span class="dropdown-arrow">▼</span></button>
                         <div id="exportDropdownContent" class="dropdown-content">
-                            <button id="exportBtn" class="dropdown-item">📄 导出 JSON</button>
-                            <button id="exportHtmlBtn" class="dropdown-item">🌐 导出 HTML</button>
-                            <button id="exportTxtBtn" class="dropdown-item">📝 导出 TXT</button>
-                            <button id="exportIcsBtn" class="dropdown-item">📅 导出 ICS</button>
-                            <button id="exportImgBtn" class="dropdown-item">🖼️ 导出图片</button>
+                            <button id="exportBtn" class="dropdown-item" data-i18n="toolbar.export_json">📄 导出 JSON</button>
+                            <button id="exportHtmlBtn" class="dropdown-item" data-i18n="toolbar.export_html">🌐 导出 HTML</button>
+                            <button id="exportTxtBtn" class="dropdown-item" data-i18n="toolbar.export_txt">📝 导出 TXT</button>
+                            <button id="exportIcsBtn" class="dropdown-item" data-i18n="toolbar.export_ics">📅 导出 ICS</button>
+                            <button id="exportImgBtn" class="dropdown-item" data-i18n="toolbar.export_img">🖼️ 导出图片</button>
                         </div>
                     </div>
-                    <button id="importBtn" class="btn">📥 导入</button>
-                    <button id="clearCacheBtn" class="btn">🗑️ 清空数据</button>
+                    <button id="importBtn" class="btn" data-i18n="toolbar.import">📥 导入</button>
+                    <button id="clearCacheBtn" class="btn" data-i18n="toolbar.clear">🗑️ 清空数据</button>
                     <select id="mapSourceSelect" class="btn" style="background: linear-gradient(135deg, rgba(255,255,255,0.3), rgba(255,255,255,0.15)); color: #fff; border: 2px solid rgba(255,255,255,0.5); padding: 0.6rem 1.2rem; border-radius: 25px; font-size: 0.9rem; font-weight: 600; cursor: pointer;">
-                        <option value="osm">OpenStreetMap</option>
-                        <option value="satellite">ESRI影像图</option>
-                        <option value="esri_street">ESRI街道图</option>
-                        <option value="gaode">高德地图</option>
-                        <option value="gaode_satellite">高德卫星图</option>
-                        <option value="google">Google地图</option>
-                        <option value="google_satellite">Google卫星图</option>
-                        <option value="tencent">腾讯地图</option>
+                        <option value="osm" data-i18n="map_source.osm">OpenStreetMap</option>
+                        <option value="satellite" data-i18n="map_source.satellite">ESRI影像图</option>
+                        <option value="esri_street" data-i18n="map_source.esri_street">ESRI街道图</option>
+                        <option value="gaode" data-i18n="map_source.gaode">高德地图</option>
+                        <option value="gaode_satellite" data-i18n="map_source.gaode_satellite">高德卫星图</option>
+                        <option value="google" data-i18n="map_source.google">Google地图</option>
+                        <option value="google_satellite" data-i18n="map_source.google_satellite">Google卫星图</option>
+                        <option value="tencent" data-i18n="map_source.tencent">腾讯地图</option>
                     </select>
                     <input type="file" id="importFile" accept=".json,.html,.png" style="display: none;">
                 </div>
@@ -130,95 +145,95 @@
                 <!-- 日程列表 -->
                 <div class="sidebar" id="markerListPanel">
                     <div class="sidebar-header">
-                        <h3>日程列表</h3>
-                        <span class="filter-hint">📅 图标日期均可点</span>
+                        <h3 data-i18n="panel.schedule_list">日程列表</h3>
+                        <span class="filter-hint" data-i18n="panel.filter_hint">📅 图标日期均可点</span>
                     </div>
                     <div id="markerList"></div>
                     <div id="totalExpensesContainer" class="total-expenses-container" style="display: none;">
-                        <span>预计总花费:</span>
+                        <span data-i18n="panel.total_expense">预计总花费:</span>
                         <span id="totalExpensesAmount">0</span>
                     </div>
                 </div>
                 <!-- 标记点详情面板 -->
                 <div class="detail-panel" id="markerDetailPanel" style="display: none;">
                     <div class="detail-header">
-                        <h3 id="detailTitle">标记点详情</h3>
+                        <h3 id="detailTitle" data-i18n="panel.marker_detail">标记点详情</h3>
                         <button class="close-btn" id="closeMarkerDetailBtn">&times;</button>
                     </div>
                     <div class="detail-content">
                         <div class="form-group">
-                            <label>名称:</label>
-                            <input type="text" id="markerNameInput" placeholder="输入标记点名称">
+                            <label data-i18n="panel.name">名称:</label>
+                            <input type="text" id="markerNameInput" placeholder="输入标记点名称" data-i18n="[placeholder]panel.name_placeholder">
                         </div>
                         <div class="form-group">
-                            <label>时间点:</label>
+                            <label data-i18n="panel.time_point">时间点:</label>
                             <div id="dateTimesContainer">
                                 <!-- 时间点列表将在这里动态生成 -->
                             </div>
-                            <button type="button" id="addDateTimeBtn" class="btn btn-secondary" style="margin-top: 0.5rem;">添加时间点</button>
+                            <button type="button" id="addDateTimeBtn" class="btn btn-secondary" style="margin-top: 0.5rem;" data-i18n="panel.add_time">添加时间点</button>
                         </div>
                         <div class="form-group">
-                            <label>坐标:</label>
+                            <label data-i18n="panel.coordinates">坐标:</label>
                             <div id="markerCoords"></div>
                         </div>
                         <div class="form-group">
-                            <label>标记点图标:</label>
+                            <label data-i18n="panel.marker_icon">标记点图标:</label>
                             <div style="display: flex; gap: 10px; align-items: center;">
                                 <div id="currentIconPreview" style="width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 20px; border: 2px solid #667eea;"></div>
-                                <button type="button" id="changeIconBtn" class="btn btn-secondary" style="margin: 0;">更换图标</button>
+                                <button type="button" id="changeIconBtn" class="btn btn-secondary" style="margin: 0;" data-i18n="panel.change_icon">更换图标</button>
                             </div>
                         </div>
                         <div class="form-group">
-                            <label>Logo链接:</label>
-                            <input type="url" id="markerLogoInput" placeholder="输入Logo图片链接，例如：https://example.com/logo.png">
+                            <label data-i18n="panel.logo_link">Logo链接:</label>
+                            <input type="url" id="markerLogoInput" placeholder="输入Logo图片链接，例如：https://example.com/logo.png" data-i18n="[placeholder]panel.logo_placeholder">
                         </div>
                         <div class="form-group">
                             <label style="display: flex; justify-content: space-between; align-items: center;">
-                                标注内容:
+                                <span data-i18n="panel.labels">标注内容:</span>
                                 <button type="button" id="expandMarkerLabelsBtn" class="expand-btn" title="扩大编辑">↔️</button>
                             </label>
-                            <textarea id="markerLabelsInput" rows="6" placeholder="输入标注内容，多个标注用分号隔开"></textarea>
+                            <textarea id="markerLabelsInput" rows="6" placeholder="输入标注内容，多个标注用分号隔开" data-i18n="[placeholder]panel.labels_placeholder"></textarea>
                             <div id="markerLabelsLinks" class="link-preview-container"></div>
                         </div>
                         <div class="form-group" id="hotelSearchSection" style="display: none;">
-                            <label>酒店查询:</label>
+                            <label data-i18n="panel.hotel_search">酒店查询:</label>
                             <div class="hotel-search-links">
                                 <a id="googleHotelsLink" href="#" target="_blank" class="nav-link-btn">🏨 Google酒店搜索</a>
                             </div>
                         </div>
                         <div class="xhs-link-container">
-                            <a id="xiaohongshuMarkerLink" href="#" target="_blank" class="xiaohongshu-link">🔍 去小红书搜一搜</a>
+                            <a id="xiaohongshuMarkerLink" href="#" target="_blank" class="xiaohongshu-link" data-i18n="panel.go_xiaohongshu">🔍 去小红书搜一搜</a>
                         </div>
                         <div class="detail-actions">
-                            <button id="deleteMarkerBtn" class="btn btn-danger">删除</button>
+                            <button id="deleteMarkerBtn" class="btn btn-danger" data-i18n="panel.delete">删除</button>
                         </div>
                     </div>
                 </div>
                 <!-- 连接线详情面板 -->
                 <div class="detail-panel" id="connectionDetailPanel" style="display: none;">
                     <div class="detail-header">
-                        <h3 id="detailTitle">连接线详情</h3>
+                        <h3 id="detailTitle" data-i18n="panel.connection_detail">连接线详情</h3>
                         <button class="close-btn" id="closeConnectionDetailBtn">&times;</button>
                     </div>
                     <div class="detail-content">
                         <div class="form-group">
-                            <label>时间:</label>
+                            <label data-i18n="panel.time">时间:</label>
                             <input type="datetime-local" id="connectionDateInput">
                         </div>
                         <div class="form-group">
-                            <label>耗时 (小时):</label>
-                            <input type="number" id="connectionDuration" min="0" step="0.1" placeholder="请输入连接耗时（小时）">
+                            <label data-i18n="panel.duration">耗时 (小时):</label>
+                            <input type="number" id="connectionDuration" min="0" step="0.1" placeholder="请输入连接耗时（小时）" data-i18n="[placeholder]panel.duration_placeholder">
                         </div>
                         <div class="form-group">
-                            <label>起始标记点:</label>
+                            <label data-i18n="panel.start_marker">起始标记点:</label>
                             <select id="connectionStartMarker"></select>
                         </div>
                         <div class="form-group">
-                            <label>目标标记点:</label>
+                            <label data-i18n="panel.end_marker">目标标记点:</label>
                             <select id="connectionEndMarker"></select>
                         </div>
                         <div class="form-group">
-                            <label>交通方式:</label>
+                            <label data-i18n="panel.transport">交通方式:</label>
                             <div class="transport-buttons">
                                 <button type="button" class="transport-btn" data-transport="car">
                                     <span class="icon">🚗</span>
@@ -252,18 +267,18 @@
                         </div>
                         <div class="form-group">
                             <label style="display: flex; justify-content: space-between; align-items: center;">
-                                标注内容:
+                                <span data-i18n="panel.connection_labels">标注内容:</span>
                                 <button type="button" id="expandConnectionLabelsBtn" class="expand-btn" title="扩大编辑">↔️</button>
                             </label>
-                            <textarea id="connectionLabelsInput" rows="6" placeholder="输入连接线标注内容"></textarea>
+                            <textarea id="connectionLabelsInput" rows="6" placeholder="输入连接线标注内容" data-i18n="[placeholder]panel.connection_labels_placeholder"></textarea>
                             <div id="connectionLabelsLinks" class="link-preview-container"></div>
                         </div>
                         <div class="form-group">
-                            <label>Logo链接:</label>
-                            <input type="url" id="connectionLogoInput" placeholder="输入Logo图片链接，例如：https://example.com/logo.png">
+                            <label data-i18n="panel.logo_link">Logo链接:</label>
+                            <input type="url" id="connectionLogoInput" placeholder="输入Logo图片链接，例如：https://example.com/logo.png" data-i18n="[placeholder]panel.logo_placeholder">
                         </div>
                         <div class="form-group">
-                            <label>导航链接:</label>
+                            <label data-i18n="panel.nav_links">导航链接:</label>
                             <div class="navigation-links">
                                 <a id="baiduNavLink" href="#" target="_blank" class="nav-link-btn">百度导航</a>
                                 <a id="amapNavLink" href="#" target="_blank" class="nav-link-btn">高德导航</a>
@@ -272,17 +287,17 @@
                             </div>
                         </div>
                         <div class="form-group" id="ticketBookingSection" style="display: none;">
-                            <label>购票服务:</label>
+                            <label data-i18n="panel.ticket_service">购票服务:</label>
                             <div class="ticket-booking-links">
                                 <a id="ctripTrainLink" href="#" target="_blank" class="nav-link-btn" style="display: none;">🚄 携程火车票</a>
                                 <button id="planeTicketBtn" class="nav-link-btn" style="display: none;">✈️  携程飞机票</button>
                             </div>
                         </div>
                         <div class="xhs-link-container">
-                            <a id="xiaohongshuConnectionLink" href="#" target="_blank" class="xiaohongshu-link">🔍 去小红书搜一搜</a>
+                            <a id="xiaohongshuConnectionLink" href="#" target="_blank" class="xiaohongshu-link" data-i18n="panel.go_xiaohongshu">🔍 去小红书搜一搜</a>
                         </div>
                         <div class="detail-actions">
-                            <button id="deleteConnectionBtn" class="btn btn-danger">删除</button>
+                            <button id="deleteConnectionBtn" class="btn btn-danger" data-i18n="panel.delete">删除</button>
                         </div>
                     </div>
                 </div>
@@ -290,23 +305,23 @@
                 <!-- 日期详情面板 -->
                 <div class="detail-panel" id="dateDetailPanel" style="display: none;">
                     <div class="detail-header">
-                        <h3 id="dateDetailTitle">日期详情</h3>
+                        <h3 id="dateDetailTitle" data-i18n="panel.date_detail">日期详情</h3>
                         <button class="close-btn" id="closeDateDetailBtn">&times;</button>
                     </div>
                     <div class="detail-content">
                         <div class="form-group">
-                            <label>日期:</label>
+                            <label data-i18n="panel.date">日期:</label>
                             <div id="dateDisplay"></div>
                         </div>
                         <div class="form-group">
                             <label style="display: flex; justify-content: space-between; align-items: center;">
-                                日期备注:
+                                <span data-i18n="panel.date_note">日期备注:</span>
                                 <button type="button" id="expandDateNotesBtn" class="expand-btn" title="扩大编辑">↔️</button>
                             </label>
-                            <textarea id="dateNotesInput" rows="6" placeholder="请输入日期备注信息"></textarea>
+                            <textarea id="dateNotesInput" rows="6" placeholder="请输入日期备注信息" data-i18n="[placeholder]panel.date_note_placeholder"></textarea>
                         </div>
                         <div class="form-group">
-                            <label>预计消费:</label>
+                            <label data-i18n="panel.estimated_expense">预计消费:</label>
                             <ul id="dateExpensesList" class="expenses-list" style="list-style: none; padding: 0; margin-bottom: 10px; max-height: 150px; overflow-y: auto;">
                                 <!-- 动态生成消费项 -->
                             </ul>
@@ -326,17 +341,17 @@
     <div id="connectModal" class="modal">
         <div class="modal-content">
             <span class="close">&times;</span>
-            <h3>连接标记点</h3>
+            <h3 data-i18n="modal.connect_title">连接标记点</h3>
             <div class="form-group">
-                <label>选择起始标记点:</label>
+                <label data-i18n="panel.start_marker">选择起始标记点:</label>
                 <select id="startMarker"></select>
             </div>
             <div class="form-group">
-                <label>选择目标标记点:</label>
+                <label data-i18n="panel.end_marker">选择目标标记点:</label>
                 <select id="endMarker"></select>
             </div>
             <div class="form-group">
-                <label>选择交通方式:</label>
+                <label data-i18n="panel.transport">选择交通方式:</label>
                 <div class="transport-buttons">
                     <button type="button" class="transport-btn active" data-transport="car">
                         <span class="icon">🚗</span>
@@ -369,7 +384,7 @@
                 </div>
                 <input type="hidden" id="transportType" value="car">
             </div>
-            <button id="confirmConnect" class="btn">确认连接</button>
+            <button id="confirmConnect" class="btn" data-i18n="modal.confirm_connect">确认连接</button>
         </div>
     </div>
 
@@ -377,7 +392,7 @@
     <div id="iconModal" class="modal">
         <div class="modal-content">
             <span class="close" onclick="app.closeModals()">&times;</span>
-            <h3>选择标记点图标</h3>
+            <h3 data-i18n="modal.icon_title">选择标记点图标</h3>
             <div class="icon-section">
                 <h4>数字</h4>
                 <div class="icon-grid">
@@ -477,14 +492,14 @@
                 </div>
             </div>
             <div class="form-group">
-                <label>自定义图标 (可选):</label>
-                <input type="text" id="customIcon" placeholder="输入emoji或文字，如：🎯 或 A">
+                <label data-i18n="modal.custom_icon">自定义图标 (可选):</label>
+                <input type="text" id="customIcon" placeholder="输入emoji或文字，如：🎯 或 A" data-i18n="[placeholder]modal.custom_icon_placeholder">
             </div>
             <div class="form-group">
-                <label>图标颜色:</label>
+                <label data-i18n="modal.icon_color">图标颜色:</label>
                 <input type="color" id="iconColor" value="#667eea">
             </div>
-            <button id="confirmIcon" class="btn">确认选择</button>
+            <button id="confirmIcon" class="btn" data-i18n="modal.confirm_icon">确认选择</button>
         </div>
     </div>
 
@@ -494,16 +509,16 @@
             <span class="close" id="closeHelp">&times;</span>
             <div class="help-header">
                 <img src="favicon.png" alt="RoadbookMaker Logo" class="help-logo">
-                <h2>RoadbookMaker - 帮助</h2>
+                <h2 data-i18n="help.title">RoadbookMaker - 帮助</h2>
             </div>
             <div class="help-content">
-                <h3>项目介绍</h3>
-                <p>RoadbookMaker是一个基于网页的地图标记和路线规划工具，允许用户在地图上添加标记点、连接路线，并导出分享您的行程规划。</p>
-                <p>项目地址: <a href="https://github.com/chenxuan520/roadbook" target="_blank" rel="noopener noreferrer">GitHub - chenxuan520/roadbook</a></p>
+                <h3 data-i18n="help.intro_title">项目介绍</h3>
+                <p data-i18n="help.intro_desc">RoadbookMaker是一个基于网页的地图标记和路线规划工具，允许用户在地图上添加标记点、连接路线，并导出分享您的行程规划。</p>
+                <p><span data-i18n="help.github_link">项目地址: </span><a href="https://github.com/chenxuan520/roadbook" target="_blank" rel="noopener noreferrer">GitHub - chenxuan520/roadbook</a></p>
 
                 <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;">
-                    <h4 style="margin: 0;">🎬 视频介绍</h4>
-                    <button id="startHelpTourFromHelpModalBtn" class="btn" style="margin: 0;">▶ 新手引导</button>
+                    <h4 style="margin: 0;" data-i18n="help.video_title">🎬 视频介绍</h4>
+                    <button id="startHelpTourFromHelpModalBtn" class="btn" style="margin: 0;" data-i18n="help.start_tour">▶ 新手引导</button>
                 </div>
                 <hr>
                 <br>
@@ -521,224 +536,224 @@
                     style="width: 100%; height: 400px;"
                 ></iframe>
 
-                <h3>核心优势</h3>
-                <h4>🚀 零门槛使用</h4>
+                <h3 data-i18n="help.core_features">核心优势</h3>
+                <h4 data-i18n="help.zero_barrier">🚀 零门槛使用</h4>
                 <ul>
-                    <li><strong>无需API Key</strong>: 完全免费，不需要任何地图服务商的API密钥</li>
-                    <li><strong>无需科学上网</strong>: 国内网络环境可直接访问，无需翻墙</li>
-                    <li><strong>无需注册登录</strong>: 打开即用，没有任何账户体系和登录步骤</li>
-                    <li><strong>完全离线可用</strong>: 数据本地存储，断网也能正常使用</li>
+                    <li data-i18n="[html]help.no_api_key"><strong>无需API Key</strong>: 完全免费，不需要任何地图服务商的API密钥</li>
+                    <li data-i18n="[html]help.no_vpn"><strong>无需科学上网</strong>: 国内网络环境可直接访问，无需翻墙</li>
+                    <li data-i18n="[html]help.no_login"><strong>无需注册登录</strong>: 打开即用，没有任何账户体系和登录步骤</li>
+                    <li data-i18n="[html]help.offline"><strong>完全离线可用</strong>: 数据本地存储，断网也能正常使用</li>
                 </ul>
-                <h4>📱 极致体验</h4>
+                <h4 data-i18n="help.experience">📱 极致体验</h4>
                 <ul>
-                    <li><strong>高效的键盘工作流</strong>: 提供丰富的快捷键（如 A/C/D/F）与撤销（Ctrl+Z）功能，实现行云流水般的操作体验。</li>
-                    <li><strong>一键系统集成</strong>: 集成携程购票、多种地图导航（百度、高德、腾讯、Google）</li>
-                    <li><strong>开源免费</strong>: 代码完全开源，可自由使用和修改</li>
+                    <li data-i18n="[html]help.shortcuts"><strong>高效的键盘工作流</strong>: 提供丰富的快捷键（如 A/C/D/F）与撤销（Ctrl+Z）功能，实现行云流水般的操作体验。</li>
+                    <li data-i18n="[html]help.integration"><strong>一键系统集成</strong>: 集成携程购票、多种地图导航（百度、高德、腾讯、Google）</li>
+                    <li data-i18n="[html]help.open_source"><strong>开源免费</strong>: 代码完全开源，可自由使用和修改</li>
                 </ul>
-                <h4>🏠 自托管优势</h4>
+                <h4 data-i18n="help.self_host">🏠 自托管优势</h4>
                 <ul>
-                    <li><strong>Docker一键部署</strong>: 支持Docker快速部署，操作简单</li>
-                    <li><strong>完全自托管</strong>: 数据完全掌握在自己手中，隐私安全有保障</li>
-                    <li><strong>在线模式强大</strong>: 自托管在线版功能完整，支持云端同步和分享</li>
-                    <li><strong>部署零依赖</strong>: 不需要复杂的环境配置，一条命令即可运行</li>
-                </ul>
-
-                <h3>基本功能</h3>
-                <ul>
-                    <li><strong>添加标记点</strong> - 在地图上点击或使用快捷键 <kbd>A</kbd> 添加标记点</li>
-                    <li><strong>连接标记点</strong> - 使用快捷键 <kbd>C</kbd> 连接两个标记点</li>
-                    <li><strong>删除元素</strong> - 选中元素后使用快捷键 <kbd>D</kbd>/<kbd>Backspace</kbd>/<kbd>Del</kbd> 删除标记点或连接线</li>
-                    <li><strong>自动调整视窗</strong> - 使用快捷键 <kbd>F</kbd> 自动调整视窗以显示所有元素</li>
-                    <li><strong>拖拽移动</strong> - 点击并拖拽标记点来调整位置</li>
-                    <li><strong>编辑详情</strong> - 点击标记点可查看和编辑详细信息</li>
-                    <li><strong>查看帮助</strong> - 使用快捷键 <kbd>H</kbd> / <kbd>?</kbd> 打开帮助面板</li>
-                    <li><strong>搜索框聚焦</strong> - 使用快捷键 <kbd>/</kbd> 聚焦到搜索框</li>
-                    <li><strong>退出添加状态</strong> - 在添加标记点模式下按 <kbd>ESC</kbd> 键退出添加状态</li>
-                    <li><strong>导入导出</strong> - 保存和加载路书数据</li>
+                    <li data-i18n="[html]help.docker"><strong>Docker一键部署</strong>: 支持Docker快速部署，操作简单</li>
+                    <li data-i18n="[html]help.privacy"><strong>完全自托管</strong>: 数据完全掌握在自己手中，隐私安全有保障</li>
+                    <li data-i18n="[html]help.online_power"><strong>在线模式强大</strong>: 自托管在线版功能完整，支持云端同步和分享</li>
+                    <li data-i18n="[html]help.zero_dep"><strong>部署零依赖</strong>: 不需要复杂的环境配置，一条命令即可运行</li>
                 </ul>
 
-                <h3>交通方式</h3>
-                <p>支持多种交通方式连接标记点：</p>
+                <h3 data-i18n="help.basic_func">基本功能</h3>
                 <ul>
-                    <li>🚗 <strong>汽车</strong> - 自驾出行，红色连接线</li>
-                    <li>🚄 <strong>火车</strong> - 铁路交通，蓝色连接线</li>
-                    <li>🚇 <strong>地铁</strong> - 城市轨道交通，紫色连接线</li>
-                    <li>✈️ <strong>飞机</strong> - 航空出行，绿色连接线</li>
-                    <li>🚌 <strong>公交</strong> - 公共汽车，棕色连接线</li>
-                    <li>🚢 <strong>游轮</strong> - 水上航行，青色连接线</li>
-                    <li>🚶 <strong>步行</strong> - 步行路线，橙色连接线</li>
+                    <li data-i18n="[html]help.add_marker"><strong>添加标记点</strong> - 在地图上点击或使用快捷键 <kbd>A</kbd> 添加标记点</li>
+                    <li data-i18n="[html]help.connect_marker"><strong>连接标记点</strong> - 使用快捷键 <kbd>C</kbd> 连接两个标记点</li>
+                    <li data-i18n="[html]help.delete_item"><strong>删除元素</strong> - 选中元素后使用快捷键 <kbd>D</kbd>/<kbd>Backspace</kbd>/<kbd>Del</kbd> 删除标记点或连接线</li>
+                    <li data-i18n="[html]help.fit_view"><strong>自动调整视窗</strong> - 使用快捷键 <kbd>F</kbd> 自动调整视窗以显示所有元素</li>
+                    <li data-i18n="[html]help.drag_move"><strong>拖拽移动</strong> - 点击并拖拽标记点来调整位置</li>
+                    <li data-i18n="[html]help.edit_detail"><strong>编辑详情</strong> - 点击标记点可查看和编辑详细信息</li>
+                    <li data-i18n="[html]help.view_help"><strong>查看帮助</strong> - 使用快捷键 <kbd>H</kbd> / <kbd>?</kbd> 打开帮助面板</li>
+                    <li data-i18n="[html]help.focus_search"><strong>搜索框聚焦</strong> - 使用快捷键 <kbd>/</kbd> 聚焦到搜索框</li>
+                    <li data-i18n="[html]help.exit_add"><strong>退出添加状态</strong> - 在添加标记点模式下按 <kbd>ESC</kbd> 键退出添加状态</li>
+                    <li data-i18n="[html]help.import_export"><strong>导入导出</strong> - 保存和加载路书数据</li>
                 </ul>
 
-                <h3>快捷键</h3>
+                <h3 data-i18n="help.transport">交通方式</h3>
+                <p data-i18n="help.transport_desc">支持多种交通方式连接标记点：</p>
+                <ul>
+                    <li data-i18n="[html]help.car">🚗 <strong>汽车</strong> - 自驾出行，红色连接线</li>
+                    <li data-i18n="[html]help.train">🚄 <strong>火车</strong> - 铁路交通，蓝色连接线</li>
+                    <li data-i18n="[html]help.subway">🚇 <strong>地铁</strong> - 城市轨道交通，紫色连接线</li>
+                    <li data-i18n="[html]help.plane">✈️ <strong>飞机</strong> - 航空出行，绿色连接线</li>
+                    <li data-i18n="[html]help.bus">🚌 <strong>公交</strong> - 公共汽车，棕色连接线</li>
+                    <li data-i18n="[html]help.cruise">🚢 <strong>游轮</strong> - 水上航行，青色连接线</li>
+                    <li data-i18n="[html]help.walk">🚶 <strong>步行</strong> - 步行路线，橙色连接线</li>
+                </ul>
+
+                <h3 data-i18n="help.shortcuts_title">快捷键</h3>
                 <table class="shortcut-table">
                     <tr>
                         <td><kbd>A</kbd></td>
-                        <td>添加标记点模式</td>
+                        <td data-i18n="help.shortcut_a">添加标记点模式</td>
                     </tr>
                     <tr>
                         <td><kbd>C</kbd></td>
-                        <td>打开连接标记点界面</td>
+                        <td data-i18n="help.shortcut_c">打开连接标记点界面</td>
                     </tr>
                     <tr>
                         <td><kbd>D</kbd>/<kbd>Backspace</kbd>/<kbd>Del</kbd></td>
-                        <td>删除选中的标记点或连接线</td>
+                        <td data-i18n="help.shortcut_d">删除选中的标记点或连接线</td>
                     </tr>
                     <tr>
                         <td><kbd>F</kbd></td>
-                        <td>自动调整视窗以显示所有元素</td>
+                        <td data-i18n="help.shortcut_f">自动调整视窗以显示所有元素</td>
                     </tr>
                     <tr>
                         <td><kbd>H</kbd> / <kbd>?</kbd></td>
-                        <td>显示帮助面板</td>
+                        <td data-i18n="help.shortcut_h">显示帮助面板</td>
                     </tr>
                     <tr>
                         <td><kbd>/</kbd></td>
-                        <td>聚焦到搜索框</td>
+                        <td data-i18n="help.shortcut_slash">聚焦到搜索框</td>
                     </tr>
                     <tr>
                         <td><kbd>Ctrl</kbd> + <kbd>Z</kbd></td>
-                        <td>撤销上一步操作</td>
+                        <td data-i18n="help.shortcut_ctrl_z">撤销上一步操作</td>
                     </tr>
                     <tr>
                         <td><kbd>ESC</kbd></td>
-                        <td>退出添加标记点模式</td>
+                        <td data-i18n="help.shortcut_esc">退出添加标记点模式</td>
                     </tr>
                 </table>
 
-                <h3>详细使用说明</h3>
+                <h3 data-i18n="help.details_title">详细使用说明</h3>
 
-                <h4>🗺️ 地图操作</h4>
+                <h4 data-i18n="help.map_ops">🗺️ 地图操作</h4>
                 <ul>
-                    <li><strong>地图源切换</strong>：支持7种地图源，包括OpenStreetMap、高德地图、Google地图、ESRI影像图、腾讯地图等</li>
-                    <li><strong>缩放和移动</strong>：鼠标滚轮缩放，拖拽移动地图</li>
-                    <li><strong>自动定位</strong>：首次使用会自动获取您的位置（需要授权）</li>
-                    <li><strong>视窗调整</strong>：按 <kbd>F</kbd> 键自动调整视窗显示所有标记点</li>
+                    <li data-i18n="[html]help.map_src"><strong>地图源切换</strong>：支持7种地图源，包括OpenStreetMap、高德地图、Google地图、ESRI影像图、腾讯地图等</li>
+                    <li data-i18n="[html]help.map_zoom"><strong>缩放和移动</strong>：鼠标滚轮缩放，拖拽移动地图</li>
+                    <li data-i18n="[html]help.map_locate"><strong>自动定位</strong>：首次使用会自动获取您的位置（需要授权）</li>
+                    <li data-i18n="[html]help.map_fit"><strong>视窗调整</strong>：按 <kbd>F</kbd> 键自动调整视窗显示所有标记点</li>
                 </ul>
 
-                <h4>📍 标记点管理</h4>
+                <h4 data-i18n="help.marker_mgr">📍 标记点管理</h4>
                 <ol>
-                    <li><strong>添加标记点</strong>：点击"添加标记点"按钮或按 <kbd>A</kbd> 键，然后在地图上点击</li>
-                    <li><strong>编辑标记点</strong>：点击标记点打开详情面板，可修改标题、图标、时间、坐标等</li>
-                    <li><strong>拖拽移动</strong>：直接拖拽标记点到新位置，连接线会自动更新</li>
-                    <li><strong>删除标记点</strong>：选中标记点后按 <kbd>D</kbd> 键或点击删除按钮</li>
-                    <li><strong>右键菜单</strong>：右键点击标记点可显示上下文菜单</li>
-                    <li><strong>多时间点支持</strong>：每个标记点可设置多个时间点，支持按日期分组显示</li>
-                    <li><strong>自定义图标</strong>：支持数字、emoji、自定义图标和颜色</li>
+                    <li data-i18n="[html]help.marker_add"><strong>添加标记点</strong>：点击"添加标记点"按钮或按 <kbd>A</kbd> 键，然后在地图上点击</li>
+                    <li data-i18n="[html]help.marker_edit"><strong>编辑标记点</strong>：点击标记点打开详情面板，可修改标题、图标、时间、坐标等</li>
+                    <li data-i18n="[html]help.marker_drag"><strong>拖拽移动</strong>：直接拖拽标记点到新位置，连接线会自动更新</li>
+                    <li data-i18n="[html]help.marker_del"><strong>删除标记点</strong>：选中标记点后按 <kbd>D</kbd> 键或点击删除按钮</li>
+                    <li data-i18n="[html]help.marker_menu"><strong>右键菜单</strong>：右键点击标记点可显示上下文菜单</li>
+                    <li data-i18n="[html]help.marker_time"><strong>多时间点支持</strong>：每个标记点可设置多个时间点，支持按日期分组显示</li>
+                    <li data-i18n="[html]help.marker_icon"><strong>自定义图标</strong>：支持数字、emoji、自定义图标和颜色</li>
                 </ol>
 
-                <h4>🔗 连接线功能</h4>
+                <h4 data-i18n="help.conn_func">🔗 连接线功能</h4>
                 <ol>
-                    <li><strong>创建连接</strong>：点击"连接标记点"按钮或按 <kbd>C</kbd> 键</li>
-                    <li><strong>选择方式</strong>：在弹出的对话框中选择起始点和目标点</li>
-                    <li><strong>交通方式</strong>：支持汽车、火车、地铁、飞机、公交、游轮、步行等多种方式</li>
-                    <li><strong>连接线样式</strong>：每种交通方式有独特的颜色和图标</li>
-                    <li><strong>详细信息</strong>：点击连接线可编辑标注、耗时、时间等信息</li>
-                    <li><strong>导航集成</strong>：支持生成百度、高德、腾讯导航链接</li>
+                    <li data-i18n="[html]help.conn_create"><strong>创建连接</strong>：点击"连接标记点"按钮或按 <kbd>C</kbd> 键</li>
+                    <li data-i18n="[html]help.conn_select"><strong>选择方式</strong>：在弹出的对话框中选择起始点和目标点</li>
+                    <li data-i18n="[html]help.conn_transport"><strong>交通方式</strong>：支持汽车、火车、地铁、飞机、公交、游轮、步行等多种方式</li>
+                    <li data-i18n="[html]help.conn_style"><strong>连接线样式</strong>：每种交通方式有独特的颜色和图标</li>
+                    <li data-i18n="[html]help.conn_detail"><strong>详细信息</strong>：点击连接线可编辑标注、耗时、时间等信息</li>
+                    <li data-i18n="[html]help.conn_nav"><strong>导航集成</strong>：支持生成百度、高德、腾讯导航链接</li>
                 </ol>
 
-                <h4>🔍 搜索功能</h4>
+                <h4 data-i18n="help.search_func">🔍 搜索功能</h4>
                 <ul>
-                    <li><strong>智能搜索</strong>：在搜索框输入地点名称，支持实时搜索</li>
-                    <li><strong>多搜索源</strong>：支持Photon、Nominatim、Overpass、高德地图、天地图等</li>
-                    <li><strong>搜索方式</strong>：可手动选择搜索源或使用自动分配</li>
-                    <li><strong>结果展示</strong>：搜索结果以下拉列表形式展示，点击可定位</li>
-                    <li><strong>点击图标聚焦</strong>：点击搜索后在地图上出现的临时图标，可将视图聚焦到该点。</li>
+                    <li data-i18n="[html]help.search_smart"><strong>智能搜索</strong>：在搜索框输入地点名称，支持实时搜索</li>
+                    <li data-i18n="[html]help.search_src"><strong>多搜索源</strong>：支持Photon、Nominatim、Overpass、高德地图、天地图等</li>
+                    <li data-i18n="[html]help.search_method"><strong>搜索方式</strong>：可手动选择搜索源或使用自动分配</li>
+                    <li data-i18n="[html]help.search_result"><strong>结果展示</strong>：搜索结果以下拉列表形式展示，点击可定位</li>
+                    <li data-i18n="[html]help.search_focus"><strong>点击图标聚焦</strong>：点击搜索后在地图上出现的临时图标，可将视图聚焦到该点。</li>
                 </ul>
 
-                <h4>📅 日期和时间管理</h4>
+                <h4 data-i18n="help.date_func">📅 日期和时间管理</h4>
                 <ul>
-                    <li><strong>时间规划</strong>：为每个标记点设置具体时间点</li>
-                    <li><strong>多时间支持</strong>：单个标记点可设置多个时间点</li>
-                    <li><strong>日期分组</strong>：标记点按日期自动分组显示</li>
-                    <li><strong>日期筛选</strong>：支持按日期范围筛选显示标记点</li>
-                    <li><strong>日期备注</strong>：可为特定日期添加备注说明</li>
-                    <li><strong>时间线视图</strong>：在侧边栏按时间顺序显示所有标记点</li>
+                    <li data-i18n="[html]help.date_time"><strong>时间规划</strong>：为每个标记点设置具体时间点</li>
+                    <li data-i18n="[html]help.date_multi"><strong>多时间支持</strong>：单个标记点可设置多个时间点</li>
+                    <li data-i18n="[html]help.date_group"><strong>日期分组</strong>：标记点按日期自动分组显示</li>
+                    <li data-i18n="[html]help.date_filter"><strong>日期筛选</strong>：支持按日期范围筛选显示标记点</li>
+                    <li data-i18n="[html]help.date_note"><strong>日期备注</strong>：可为特定日期添加备注说明</li>
+                    <li data-i18n="[html]help.date_timeline"><strong>时间线视图</strong>：在侧边栏按时间顺序显示所有标记点</li>
                 </ul>
 
-                <h4>💾 数据管理</h4>
+                <h4 data-i18n="help.data_func">💾 数据管理</h4>
                 <ul>
-                    <li><strong>本地存储</strong>：自动保存到浏览器本地存储，刷新不丢失</li>
-                    <li><strong>JSON导入/导出</strong>：支持完整数据的导入导出，便于备份</li>
-                    <li><strong>HTML导出</strong>：生成独立HTML文件，包含完整地图和数据</li>
-                    <li><strong>ICS导出</strong>：生成标准日历文件，可导入日历应用进行提醒</li>
-                    <li><strong>分享功能</strong>：生成分享链接，他人可导入您的路书</li>
-                    <li><strong>在线模式</strong>：支持云端保存和管理路书计划（需要登录）</li>
+                    <li data-i18n="[html]help.data_local"><strong>本地存储</strong>：自动保存到浏览器本地存储，刷新不丢失</li>
+                    <li data-i18n="[html]help.data_json"><strong>JSON导入/导出</strong>：支持完整数据的导入导出，便于备份</li>
+                    <li data-i18n="[html]help.data_html"><strong>HTML导出</strong>：生成独立HTML文件，包含完整地图和数据</li>
+                    <li data-i18n="[html]help.data_ics"><strong>ICS导出</strong>：生成标准日历文件，可导入日历应用进行提醒</li>
+                    <li data-i18n="[html]help.data_share"><strong>分享功能</strong>：生成分享链接，他人可导入您的路书</li>
+                    <li data-i18n="[html]help.data_online"><strong>在线模式</strong>：支持云端保存和管理路书计划（需要登录）</li>
                 </ul>
 
-                <h4>⌨️ 快捷键系统</h4>
-                <p>支持丰富的键盘快捷键，提高操作效率：</p>
+                <h4 data-i18n="help.shortcut_sys">⌨️ 快捷键系统</h4>
+                <p data-i18n="help.shortcut_desc">支持丰富的键盘快捷键，提高操作效率：</p>
                 <ul>
-                    <li><strong><kbd>A</kbd></strong> - 进入添加标记点模式</li>
-                    <li><strong><kbd>C</kbd></strong> - 打开连接标记点对话框</li>
-                    <li><strong><kbd>D</kbd>/<kbd>Backspace</kbd>/<kbd>Del</kbd></strong> - 删除选中的标记点或连接线</li>
-                    <li><strong><kbd>F</kbd></strong> - 自动调整视窗显示所有元素</li>
-                    <li><strong><kbd>H</kbd> / <kbd>?</kbd></strong> - 显示帮助面板</li>
-                    <li><strong><kbd>/</kbd></strong> - 聚焦到搜索框</li>
-                    <li><strong><kbd>ESC</kbd></strong> - 退出添加标记点模式</li>
-                    <li><strong><kbd>Ctrl</kbd> + <kbd>Z</kbd></strong> - 撤销上一步操作</li>
+                    <li data-i18n="[html]help.add_marker"><strong><kbd>A</kbd></strong> - 进入添加标记点模式</li>
+                    <li data-i18n="[html]help.connect_marker"><strong><kbd>C</kbd></strong> - 打开连接标记点对话框</li>
+                    <li data-i18n="[html]help.delete_item"><strong><kbd>D</kbd>/<kbd>Backspace</kbd>/<kbd>Del</kbd></strong> - 删除选中的标记点或连接线</li>
+                    <li data-i18n="[html]help.fit_view"><strong><kbd>F</kbd></strong> - 自动调整视窗显示所有元素</li>
+                    <li data-i18n="[html]help.view_help"><strong><kbd>H</kbd> / <kbd>?</kbd></strong> - 显示帮助面板</li>
+                    <li data-i18n="[html]help.focus_search"><strong><kbd>/</kbd></strong> - 聚焦到搜索框</li>
+                    <li data-i18n="[html]help.exit_add"><strong><kbd>ESC</kbd></strong> - 退出添加标记点模式</li>
+                    <li data-i18n="[html]help.shortcut_ctrl_z"><strong><kbd>Ctrl</kbd> + <kbd>Z</kbd></strong> - 撤销上一步操作</li>
                 </ul>
 
-                <h4>🌐 在线模式功能</h4>
+                <h4 data-i18n="help.online_func">🌐 在线模式功能</h4>
                 <ul>
-                    <li><strong>用户认证</strong>：支持用户登录，JWT token认证</li>
-                    <li><strong>云端保存</strong>：路书计划可保存到云端</li>
-                    <li><strong>计划管理</strong>：支持创建、读取、更新、删除路书计划</li>
-                    <li><strong>双击打开计划</strong>：在计划管理界面，双击任意计划项即可快速打开该计划。</li>
-                    <li><strong>自动同步</strong>：在线模式下自动保存编辑内容</li>
-                    <li><strong>内容检查</strong>：定期检查内容变化，提示保存状态</li>
+                    <li data-i18n="[html]help.online_auth"><strong>用户认证</strong>：支持用户登录，JWT token认证</li>
+                    <li data-i18n="[html]help.online_save"><strong>云端保存</strong>：路书计划可保存到云端</li>
+                    <li data-i18n="[html]help.online_mgr"><strong>计划管理</strong>：支持创建、读取、更新、删除路书计划</li>
+                    <li data-i18n="[html]help.online_open"><strong>双击打开计划</strong>：在计划管理界面，双击任意计划项即可快速打开该计划。</li>
+                    <li data-i18n="[html]help.online_sync"><strong>自动同步</strong>：在线模式下自动保存编辑内容</li>
+                    <li data-i18n="[html]help.online_check"><strong>内容检查</strong>：定期检查内容变化，提示保存状态</li>
                 </ul>
 
-                <h4>📱 移动端适配</h4>
+                <h4 data-i18n="help.mobile_func">📱 移动端适配</h4>
                 <ul>
-                    <li><strong>设备检测</strong>：自动检测移动设备并提供相应提示</li>
-                    <li><strong>响应式设计</strong>：界面适配不同屏幕尺寸</li>
-                    <li><strong>触摸优化</strong>：支持触摸操作</li>
+                    <li data-i18n="[html]help.mobile_detect"><strong>设备检测</strong>：自动检测移动设备并提供相应提示</li>
+                    <li data-i18n="[html]help.mobile_resp"><strong>响应式设计</strong>：界面适配不同屏幕尺寸</li>
+                    <li data-i18n="[html]help.mobile_touch"><strong>触摸优化</strong>：支持触摸操作</li>
                 </ul>
 
-                <h4>🔧 高级功能</h4>
+                <h4 data-i18n="help.adv_func">🔧 高级功能</h4>
                 <ul>
-                    <li><strong>撤销重做</strong>：支持操作历史记录，可撤销多步操作</li>
-                    <li><strong>坐标转换</strong>：自动处理中国地图坐标系转换</li>
-                    <li><strong>距离计算</strong>：自动计算连接线距离</li>
-                    <li><strong>导航集成</strong>：一键生成各种导航应用链接</li>
-                    <li><strong>购票服务</strong>：当交通方式为火车或飞机时，可根据路线起终点实时查询并跳转到携程购票页面。</li>
-                    <li><strong>酒店预订</strong>：在标记点详情中，提供Google酒店搜索链接，方便规划住宿。</li>
-                    <li><strong>内容探索</strong>：在标记点和连接线详情中，提供小红书搜索链接，发现更多目的地玩法。</li>
+                    <li data-i18n="[html]help.adv_undo"><strong>撤销重做</strong>：支持操作历史记录，可撤销多步操作</li>
+                    <li data-i18n="[html]help.adv_coord"><strong>坐标转换</strong>：自动处理中国地图坐标系转换</li>
+                    <li data-i18n="[html]help.adv_dist"><strong>距离计算</strong>：自动计算连接线距离</li>
+                    <li data-i18n="[html]help.adv_nav"><strong>导航集成</strong>：一键生成各种导航应用链接</li>
+                    <li data-i18n="[html]help.adv_ticket"><strong>购票服务</strong>：当交通方式为火车或飞机时，可根据路线起终点实时查询并跳转到携程购票页面。</li>
+                    <li data-i18n="[html]help.adv_hotel"><strong>酒店预订</strong>：在标记点详情中，提供Google酒店搜索链接，方便规划住宿。</li>
+                    <li data-i18n="[html]help.adv_explore"><strong>内容探索</strong>：在标记点和连接线详情中，提供小红书搜索链接，发现更多目的地玩法。</li>
                 </ul>
 
-                <h4>🦄 AI 助手 (特色功能)</h4>
-                <p>点击右下角的 🦄 悬浮图标唤起 AI 助手，它能通过自然语言帮您操作地图：</p>
+                <h4 data-i18n="help.ai_func">🦄 AI 助手 (特色功能)</h4>
+                <p data-i18n="help.ai_desc">点击右下角的 🦄 悬浮图标唤起 AI 助手，它能通过自然语言帮您操作地图：</p>
                 <ul>
-                    <li><strong>一键生成行程</strong>：
+                    <li data-i18n="[html]help.ai_gen"><strong>一键生成行程</strong>：
                         <br><code>/generate 北京三日游，要看升旗和故宫</code>
                         <br>AI 会自动搜索地点、规划路线、安排时间并生成每日概览。
                     </li>
-                    <li><strong>自然语言操作</strong>：
+                    <li data-i18n="[html]help.ai_op"><strong>自然语言操作</strong>：
                         <br>“在天安门旁边加个国家博物馆”
                         <br>“把第二天上午的行程改成下午”
                         <br>“删除最后那个标记点”
                     </li>
-                    <li><strong>快捷指令</strong>：
+                    <li><strong data-i18n="help.ai_cmd">快捷指令</strong>：
                         <ul>
-                            <li><code>/generate [提示词]</code> - 根据描述生成完整行程</li>
-                            <li><code>/xiaohongshu [提示词]</code> - 将当前行程导出为小红书文案（可选风格偏好）</li>
-                            <li><code>/clear</code> - 清空对话历史</li>
-                            <li><code>/help</code> - 查看可用指令</li>
+                            <li data-i18n="[html]help.ai_cmd_gen"><code>/generate [提示词]</code> - 根据描述生成完整行程</li>
+                            <li data-i18n="[html]help.ai_cmd_xhs"><code>/xiaohongshu [提示词]</code> - 将当前行程导出为小红书文案（可选风格偏好）</li>
+                            <li data-i18n="[html]help.ai_cmd_clear"><code>/clear</code> - 清空对话历史</li>
+                            <li data-i18n="[html]help.ai_cmd_help"><code>/help</code> - 查看可用指令</li>
                         </ul>
                     </li>
-                    <li><strong>智能辅助</strong>：
+                    <li data-i18n="[html]help.ai_assist"><strong>智能辅助</strong>：
                         <br>遇到模糊地点会自动搜索；可以为每天的行程添加总结备注。
                     </li>
                 </ul>
 
-                <h4>💡 使用技巧</h4>
+                <h4 data-i18n="help.tips_func">💡 使用技巧</h4>
                 <ol>
-                    <li><strong>快速开始</strong>：先添加几个标记点，然后用连接线串联起来</li>
-                    <li><strong>时间规划</strong>：为标记点设置合理的时间，便于行程安排</li>
-                    <li><strong>图标选择</strong>：使用emoji图标让标记点更直观</li>
-                    <li><strong>颜色搭配</strong>：不同交通方式使用不同颜色，便于区分</li>
-                    <li><strong>定期保存</strong>：重要修改后建议手动导出备份</li>
-                    <li><strong>分享协作</strong>：使用分享功能与他人协作编辑路书</li>
+                    <li data-i18n="[html]help.tips_start"><strong>快速开始</strong>：先添加几个标记点，然后用连接线串联起来</li>
+                    <li data-i18n="[html]help.tips_time"><strong>时间规划</strong>：为标记点设置合理的时间，便于行程安排</li>
+                    <li data-i18n="[html]help.tips_icon"><strong>图标选择</strong>：使用emoji图标让标记点更直观</li>
+                    <li data-i18n="[html]help.tips_color"><strong>颜色搭配</strong>：不同交通方式使用不同颜色，便于区分</li>
+                    <li data-i18n="[html]help.tips_save"><strong>定期保存</strong>：重要修改后建议手动导出备份</li>
+                    <li data-i18n="[html]help.tips_share"><strong>分享协作</strong>：使用分享功能与他人协作编辑路书</li>
                 </ol>
             </div>
         </div>
