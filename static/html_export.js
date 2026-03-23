@@ -1045,7 +1045,7 @@ class RoadbookHtmlExporter {
                 <div style="font-size: 12px; color: ${exportTheme.textSecondary}; line-height: 1.6; word-break: break-all;">
                     <div>Powered by GitHub: ${githubRepoUrl}</div>
                     ${exportPageUrl ? `<div>Export by: ${escapeHtml(exportPageUrl)}</div>` : ''}
-                    <div style="margin-top: 6px;">提示：此图片可直接导入到原网页中继续编辑</div>
+                    <div style="margin-top: 6px;">提示：此图片可直接导入到原网页中继续编辑(请使用未压缩的原图)</div>
                 </div>
             </div>
         `;
@@ -1705,9 +1705,9 @@ class RoadbookHtmlExporter {
                 } catch (error) {
                     console.error('解析图片内置数据失败:', error);
                     if (typeof Swal !== 'undefined') {
-                        Swal.fire('错误', '图片中的数据格式错误，可能是图片被压缩导致数据丢失。', 'error');
+                        Swal.fire('错误', '图片中的数据格式错误，可能是图片被压缩导致数据丢失(请务必使用原图)。', 'error');
                     } else {
-                        alert('错误: 图片中的数据格式错误，可能是图片被压缩导致数据丢失。');
+                        alert('错误: 图片中的数据格式错误，可能是图片被压缩导致数据丢失(请务必使用原图)。');
                     }
                 }
             };
