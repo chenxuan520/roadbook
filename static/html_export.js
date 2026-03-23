@@ -700,6 +700,14 @@ class RoadbookHtmlExporter {
         const connections = data.connections || [];
         const dateNotes = data.dateNotes || {};
 
+        let totalPlanCost = 0;
+        dates.forEach(dateStr => {
+            const noteObj = dateNotes[dateStr];
+            if (noteObj && noteObj.expenses && Array.isArray(noteObj.expenses)) {
+                totalPlanCost += noteObj.expenses.reduce((sum, exp) => sum + (parseFloat(exp.cost) || 0), 0);
+            }
+        });
+
         const formatPlanDate = (d) => {
             if (!d) return '';
             if (d.length === 8 && !d.includes('-')) {
@@ -725,9 +733,20 @@ class RoadbookHtmlExporter {
                         <h2 style="margin: 0; font-size: 20px; color: ${exportTheme.textPrimary};">计划总览</h2>
                     </div>
                     <div style="background: ${exportTheme.overviewBg}; border-left: 4px solid ${exportTheme.accent}; padding: 12px; border-radius: 0 8px 8px 0; font-size: 14px; color: ${exportTheme.textPrimary}; white-space: pre-wrap;">${escapeHtml(cloudPlanOverview)}</div>
-                    ${(displayStartTime || displayEndTime) ? `<div style="margin-top: 10px; font-size: 13px; color: ${exportTheme.textSecondary}; font-weight: 600;">行程时间：${displayStartTime || '未定'} 至 ${displayEndTime || '未定'}</div>` : ''}
+                    ${(displayStartTime || displayEndTime) ? `<div style="margin-top: 10px; font-size: 13px; color: ${exportTheme.textSecondary}; font-weight: 600;">📅 行程时间：${displayStartTime || '未定'} 至 ${displayEndTime || '未定'}</div>` : ''}
+                    ${totalPlanCost > 0 ? `<div style="margin-top: 10px; font-size: 13px; color: ${exportTheme.textSecondary}; font-weight: 600;">💰 预计总花费：￥${totalPlanCost.toFixed(2)}</div>` : ''}
+                </div>
+                ` : `
+                ${totalPlanCost > 0 ? `
+                <div style="margin-bottom: 30px;">
+                    <div style="display: flex; align-items: baseline; gap: 10px; margin-bottom: 12px; border-bottom: 2px solid ${exportTheme.border}; padding-bottom: 10px;">
+                        <span style="background: ${exportTheme.badgeInfoBg}; color: white; padding: 4px 10px; border-radius: 999px; font-weight: 700; font-size: 13px; letter-spacing: 0.3px;">INFO</span>
+                        <h2 style="margin: 0; font-size: 20px; color: ${exportTheme.textPrimary};">计划总览</h2>
+                    </div>
+                    <div style="font-size: 13px; color: ${exportTheme.textSecondary}; font-weight: 600;">💰 预计总花费：￥${totalPlanCost.toFixed(2)}</div>
                 </div>
                 ` : ''}
+                `}
 
                 <!-- 总体行程概览地图 -->
                 <div style="margin-bottom: 30px;">
