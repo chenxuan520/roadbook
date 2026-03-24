@@ -28,6 +28,22 @@ export async function prepareApp(page, options = {}) {
 
   const skipHelpTour = options.skipHelpTour !== false;
 
+  // 0) 强制浏览器语言为中文（不写 localStorage，避免影响“首次打开”判定）
+  await page.addInitScript(() => {
+    try {
+      Object.defineProperty(navigator, 'language', {
+        value: 'zh-CN',
+        configurable: true
+      });
+      Object.defineProperty(navigator, 'languages', {
+        value: ['zh-CN', 'zh'],
+        configurable: true
+      });
+    } catch {
+      // ignore
+    }
+  });
+
   // 0) 默认关闭新手引导，避免引导遮罩影响用例（仍可在特定用例里覆盖）
   if (skipHelpTour) {
     await page.addInitScript(() => {
