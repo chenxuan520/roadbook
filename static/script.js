@@ -5929,7 +5929,38 @@ class RoadbookApp {
         const reader = new FileReader();
         reader.onload = (e) => {
             try {
-                const data = JSON.parse(e.target.result);
+                const rawResult = e.target && e.target.result;
+                let text = '';
+                if (typeof rawResult === 'string') {
+                    text = rawResult;
+                } else if (rawResult instanceof ArrayBuffer) {
+                    text = new TextDecoder('utf-8').decode(rawResult);
+                } else if (rawResult && typeof rawResult === 'object' && rawResult.buffer instanceof ArrayBuffer) {
+                    text = new TextDecoder('utf-8').decode(rawResult);
+                }
+
+                const cleanedText = String(text || '').replace(/^\uFEFF/, '').trim();
+                if (!cleanedText) {
+                    throw new Error('导入JSON为空');
+                }
+
+                let data;
+                try {
+                    data = JSON.parse(cleanedText);
+                } catch (parseError) {
+                    const sanitizedText = cleanedText.replace(/\u0000/g, '');
+                    const startIndex = sanitizedText.search(/[\[{]/);
+                    const endIndex = Math.max(sanitizedText.lastIndexOf('}'), sanitizedText.lastIndexOf(']'));
+                    if (startIndex !== -1 && endIndex > startIndex) {
+                        data = JSON.parse(sanitizedText.slice(startIndex, endIndex + 1));
+                    } else {
+                        throw parseError;
+                    }
+                }
+                if (!Array.isArray(data.markers)) data.markers = [];
+                if (!Array.isArray(data.connections)) data.connections = [];
+                if (!Array.isArray(data.labels)) data.labels = [];
+                if (!data.dateNotes || typeof data.dateNotes !== 'object') data.dateNotes = {};
 
                 // 调用loadRoadbook方法加载数据
                 this.loadRoadbook(data, true); // 明确指定这是手动导入
@@ -5954,6 +5985,7 @@ class RoadbookApp {
                 }, 100); // 稍微延时以确保数据加载完成
 
             } catch (error) {
+                console.error('导入JSON失败:', error);
                 this.showSwalAlert(i18next.t("alert.error"), i18next.t("alert.file_format_error"), "error");
             }
         };
@@ -6347,12 +6379,12 @@ class RoadbookApp {
         // 只在手动导入文件时显示提示
         if (isImport) {
             let title = i18next.t('alert.import_success_title');
-            let message = i18next.t('alert.import_success_msg', {markerCount, connCount});
+            let message = i18next.t('alert.import_success_msg', {markerCount, connCount: connectionCount});
             let icon = 'success';
 
             if (versionWarning) {
                 // 如果有版本警告，使用 HTML 显示，并改变样式
-                message = i18next.t('alert.import_success_msg_html', {markerCount, connCount, versionWarning});
+                message = i18next.t('alert.import_success_msg_html', {markerCount, connCount: connectionCount, versionWarning});
             }
 
             if (typeof Swal !== 'undefined') {

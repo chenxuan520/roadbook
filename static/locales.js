@@ -197,7 +197,7 @@ window.roadbookLocales = {
                 start_point: "起点",
                 end_point: "终点",
                 unknown_date: "未知日期",
-                no_expenses: "无消费记录",
+                no_expenses: "暂无消费记录",
                 today: "今天",
                 yesterday: "昨天",
                 sun: "周日", mon: "周一", tue: "周二", wed: "周三", thu: "周四", fri: "周五", sat: "周六",
