@@ -678,6 +678,7 @@ class RoadbookApp {
 
         // 初始化移动端适配
         this.initMobileFeatures();
+        this.preventBrowserZoom();
 
         // 先尝试从本地存储加载设置，以获取保存的地图源和搜索方式
         const cachedData = this.loadSettingsFromCache();
@@ -1228,6 +1229,40 @@ class RoadbookApp {
                 }
             }
         }
+    }
+
+    isBrowserZoomShortcut(event) {
+        if (!event || (!event.ctrlKey && !event.metaKey)) {
+            return false;
+        }
+
+        const key = String(event.key || '').toLowerCase();
+        return ['+', '=', '-', '_', '0'].includes(key);
+    }
+
+    preventBrowserZoom() {
+        if (this.browserZoomPreventionBound) {
+            return;
+        }
+        this.browserZoomPreventionBound = true;
+
+        document.addEventListener('wheel', (e) => {
+            if (e.ctrlKey || e.metaKey) {
+                e.preventDefault();
+            }
+        }, {passive: false, capture: true});
+
+        document.addEventListener('keydown', (e) => {
+            if (this.isBrowserZoomShortcut(e)) {
+                e.preventDefault();
+            }
+        }, true);
+
+        ['gesturestart', 'gesturechange', 'gestureend'].forEach(eventName => {
+            document.addEventListener(eventName, (e) => {
+                e.preventDefault();
+            }, {passive: false, capture: true});
+        });
     }
 
     bindEvents() {

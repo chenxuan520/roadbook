@@ -17,6 +17,7 @@ cloudflare/.wrangler/
 
 # ai
 GEMINI.md
+CLAUDE.md
 .coco
 .gemini
 .claude

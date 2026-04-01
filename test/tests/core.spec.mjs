@@ -10,6 +10,39 @@ test.afterEach(async ({ page }, testInfo) => {
   await maybeStopJSCoverage(page, testInfo);
 });
 
+test('页面禁用浏览器缩放，避免和地图缩放冲突', async ({ page }) => {
+  await prepareApp(page);
+
+  await expect(page.locator('meta[name="viewport"]')).toHaveAttribute(
+    'content',
+    /maximum-scale=1\.0, user-scalable=no/
+  );
+
+  const wheelPrevented = await page.locator('#addMarkerBtn').evaluate((el) => {
+    const event = new WheelEvent('wheel', {
+      ctrlKey: true,
+      deltaY: 120,
+      bubbles: true,
+      cancelable: true
+    });
+    el.dispatchEvent(event);
+    return event.defaultPrevented;
+  });
+  expect(wheelPrevented).toBe(true);
+
+  const keydownPrevented = await page.evaluate(() => {
+    const event = new KeyboardEvent('keydown', {
+      key: '+',
+      ctrlKey: true,
+      bubbles: true,
+      cancelable: true
+    });
+    document.dispatchEvent(event);
+    return event.defaultPrevented;
+  });
+  expect(keydownPrevented).toBe(true);
+});
+
 test('主题切换可用，并能在刷新后保持', async ({ page }) => {
   await prepareApp(page);
 

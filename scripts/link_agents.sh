@@ -15,6 +15,7 @@ LINKS=(
     ".agent:.gemini"
     ".agent:.claude"
     "AGENTS.md:GEMINI.md"
+    "AGENTS.md:CLAUDE.md"
 )
 # ===========================================
 
