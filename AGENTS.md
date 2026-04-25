@@ -9,7 +9,8 @@ RoadbookMaker 是一个基于网页的地图标记与行程规划工具：
 - **前端**：`static/` 下的纯原生 JavaScript + Leaflet，直接在浏览器运行，无构建步骤。核心文件：
   - `static/index.html`：入口 HTML。
   - `static/style.css`：样式定义（含 CSS 变量实现的明亮/暗色模式）。
-  - `static/script.js`：核心地图逻辑、交互与状态管理。
+  - `static/script.js`：`RoadbookApp` 主入口与类骨架，保留全局配置、`constructor`、`init()`、`bindEvents()`、分享导入/移动端/调试等主流程。
+  - `static/app_*.js`：按职责拆分的前端模块，通过 `RoadbookApp.prototype` 扩展主类。当前包含 `app_utils.js`、`app_theme.js`、`app_history.js`、`app_search.js`、`app_ai.js`、`app_date_filter.js`、`app_date_notes.js`、`app_sidebar.js`、`app_detail_panels.js`、`app_tooltips.js`、`app_map.js`、`app_io.js`。
   - `static/help_tour.js`：新手引导（罩子高亮 + tooltip + 自动演示点/线/日程编辑）。
   - `static/online_mode.js`：在线模式 API 交互。
   - `static/ai_assistant.js`：AI 助手功能，实现自然语言驱动的地图操作。
@@ -57,7 +58,9 @@ RoadbookMaker 是一个基于网页的地图标记与行程规划工具：
 
 ### 前端（`static/`）
 
-- 无框架：主要逻辑集中在 `static/script.js`（地图、标记点、连接线、费用记录 `dateNotes`、导入导出等）、`static/online_mode.js`（在线模式/云端保存/登录）与 `static/ai_assistant.js`（AI 助手）。
+- 无框架：主入口是 `static/script.js`，核心业务已拆到 `static/app_*.js`；`static/online_mode.js` 负责在线模式/云端保存/登录，`static/ai_assistant.js` 负责 AI 助手。
+- 前端模块约定：`script.js` 必须先于 `app_*.js` 加载，由 `script.js` 定义 `RoadbookApp`，再由各模块扩展 `RoadbookApp.prototype`。
+- 若修改 `index.html` 脚本顺序，必须保证 `window.app = new RoadbookApp()` 执行前，所有 `app_*.js` 已经完成注册。
 - 新手引导：`static/help_tour.js`（罩子高亮 + 步骤引导；入口在帮助面板 `❓` 内）
 - 调试逻辑独立于 `static/debug.js`，通过 `DebugModule` 类实现，仅在需要时被调用。
 - 在线 token 存储：`localStorage` 的 key 为 `online_token`（见 `static/online_mode.js:6`）。
@@ -194,12 +197,12 @@ Gin 内置了一个“允许来源列表 + 可选 null origin”逻辑：
 
 - 默认只运行**新增/修改的那几个用例文件**，不要一次性跑全量（除非用户明确要求）。
 - 推荐命令：`cd test && npm run test:local -- tests/<your-new>.spec.mjs`
-- 修改前端 JS 后必须做语法检查：`node -c static/script.js`（其它前端文件同理）。
+- 修改前端 JS 后必须做语法检查：`for f in static/script.js static/app_*.js static/html_export.js; do node -c "$f"; done`
 
 ### 代码组织规则
-- **代码组织**: 尽量避免直接向 `static/script.js` 中添加新功能。考虑到该文件已非常庞大，新增逻辑应优先考虑：
-  - 在 `static/` 目录下创建新的 JS 文件（例如 `static/new_feature.js`）来封装新功能。
-  - 或者，将新功能逻辑添加到与该功能最相关的现有 JS 模块中（例如，导出相关的功能应添加到 `html_export.js`）。
+- **代码组织**: `static/script.js` 现在主要承担主入口与类骨架职责。新增前端逻辑时，优先放入最相关的现有 `static/app_*.js` 模块；只有在职责边界明确且现有模块都不合适时，才新增新的模块文件。
+- **入口约束**: `static/script.js` 顶部仍承载 `apiBaseUrl` 与版本号初始化，且 GitHub Pages 工作流会向该文件首行注入 `window.API_BASE_URL`；不要把这段入口逻辑移走。
+- **加载约束**: 若新增新的 `static/app_*.js` 文件，必须同步更新 `static/index.html`、`static/sw.js` 与 `.github/workflows/ci_frontend.yml`。
 
 ## 10. 调试模式 (Debug Mode)
 
@@ -221,10 +224,10 @@ RoadbookMaker 实现了 Progressive Web App (PWA) 支持，提供类原生应用
 ### 核心文件
 
 - **`static/manifest.json`**：Web App Manifest，定义应用名称、图标、主题色及显示模式（Standalone）。
-- **`static/sw.js`**：Service Worker 脚本，实现 Stale-While-Revalidate 缓存策略。
-  - 预缓存列表 (`CACHE_NAME`)：`index.html`, `style.css`, `script.js` 及所有核心 JS 模块。
-  - 外部资源缓存：包括 Leaflet CSS/JS 及图标文件。
-  - 更新机制：Service Worker 更新时会自动清理旧缓存（`activate` 事件）。
+- **`static/sw.js`**：Service Worker 脚本。导航请求走 `Network First`，静态资源走 `Stale-While-Revalidate`。
+  - 预缓存列表：`index.html`, `style.css`, `script.js` 及所有核心 JS 模块。
+  - 运行时缓存：同源静态资源与 `unpkg` CDN 资源按需写入运行时缓存，不再因为外部 CDN 预缓存失败而让安装整体失败。
+  - 更新机制：缓存名由资源清单 + 手动 schema 版本共同生成，`activate` 时仅清理旧的 `roadbook-*` 缓存。
 
 ### 交互逻辑
 
