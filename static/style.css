@@ -2482,6 +2482,38 @@ body.dark-mode .leaflet-tile {
     filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%);
 }
 
+/* 移动端底部抽屉：遮罩、动画与气泡删除按钮（详情面板复用为底部抽屉） */
+.mobile-sheet-overlay {
+    display: none;
+}
+
+@keyframes sheetSlideUp {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+}
+
+/* 标记气泡内的删除按钮（移动端轻量编辑入口） */
+.popup-actions {
+    margin-top: 10px;
+    text-align: center;
+}
+
+.popup-delete-marker {
+    width: 100%;
+    padding: 8px 12px;
+    border: none;
+    border-radius: 8px;
+    background: #e74c3c;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.popup-delete-marker:active {
+    background: #c0392b;
+}
+
 /* 移动端适配样式 */
 @media (max-width: 768px) {
     /* 移动端菜单切换按钮 */
@@ -2650,9 +2682,63 @@ body.dark-mode .leaflet-tile {
         min-width: 120px;
     }
 
-    /* 移动端详情面板样式 */
+    /* 移动端详情面板：底部抽屉呈现（查看 + 轻量编辑） */
     .detail-panel {
         font-size: 0.9rem;
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        top: auto;
+        width: 100%;
+        height: auto;
+        max-height: 85vh;
+        overflow-y: auto;
+        z-index: 2000;
+        border-left: none;
+        border-radius: 18px 18px 0 0;
+        box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.28);
+        -webkit-overflow-scrolling: touch;
+        animation: sheetSlideUp 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    /* 抽屉标题栏吸顶，便于随时关闭 */
+    .detail-panel .detail-header {
+        position: sticky;
+        top: 0;
+        background: var(--bg-secondary);
+        z-index: 1;
+    }
+
+    /* 底部抽屉遮罩层 */
+    .mobile-sheet-overlay {
+        display: block;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.45);
+        z-index: 1500;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.3s ease;
+    }
+
+    .mobile-sheet-overlay.active {
+        opacity: 1;
+        pointer-events: auto;
+    }
+
+    /* 抽屉打开时锁定背景滚动 */
+    body.sheet-open {
+        overflow: hidden;
+    }
+
+    /* 抽屉打开时，让详情面板所在容器整体盖过遮罩，保证面板内可交互
+       （.right-panel 自身 z-index 会形成 stacking context，需高于遮罩） */
+    body.sheet-open .right-panel {
+        z-index: 2000;
     }
 
     .detail-header h3 {

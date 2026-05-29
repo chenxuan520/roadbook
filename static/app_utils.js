@@ -8,6 +8,52 @@ RoadbookApp.prototype.isMobileDevice = function() {
         (window.innerWidth <= 768); // 小屏幕设备也视为移动设备
 };
 
+// 移动端：将详情面板（标记/连接线/日期）以底部抽屉形式呈现，并统一管理遮罩与背景滚动锁
+// 仅监听面板 display 变化，不改动各 show/hide 业务方法，降低耦合与回归风险
+RoadbookApp.prototype.initMobileDetailSheet = function() {
+    const panelIds = ['markerDetailPanel', 'connectionDetailPanel', 'dateDetailPanel'];
+    const panels = panelIds.map(id => document.getElementById(id)).filter(Boolean);
+    if (panels.length === 0) {
+        return;
+    }
+
+    // 遮罩层：点击空白处复用已有的关闭逻辑（保证实时保存等副作用一致）
+    let overlay = document.getElementById('mobileSheetOverlay');
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'mobileSheetOverlay';
+        overlay.className = 'mobile-sheet-overlay';
+        document.body.appendChild(overlay);
+        overlay.addEventListener('click', () => {
+            if (typeof this.hideMarkerDetail === 'function') this.hideMarkerDetail();
+            if (typeof this.hideConnectionDetail === 'function') this.hideConnectionDetail();
+            if (typeof this.closeDateDetail === 'function') this.closeDateDetail();
+        });
+    }
+
+    // 同步遮罩/滚动锁状态：仅在窄屏（与 CSS @media 768 对齐）且有面板打开时启用抽屉态
+    const sync = () => {
+        const isNarrow = window.innerWidth <= 768;
+        const anyOpen = isNarrow && panels.some(p => p.style.display && p.style.display !== 'none');
+        if (anyOpen) {
+            overlay.classList.add('active');
+            document.body.classList.add('sheet-open');
+            // 避免与右侧日程抽屉叠加
+            const rightPanel = document.querySelector('.right-panel');
+            if (rightPanel) rightPanel.classList.remove('active');
+        } else {
+            overlay.classList.remove('active');
+            document.body.classList.remove('sheet-open');
+        }
+    };
+
+    const observer = new MutationObserver(sync);
+    panels.forEach(p => observer.observe(p, { attributes: true, attributeFilter: ['style'] }));
+    window.addEventListener('resize', sync);
+    this.syncMobileDetailSheet = sync;
+    sync();
+};
+
 RoadbookApp.prototype.getIconForName = function(name) {
     const lowerCaseName = name.toLowerCase();
     // 交通类
@@ -120,7 +166,7 @@ RoadbookApp.prototype.convertMarkdownLinksToHtml = function(text) {
 };
 
 // 生成标记点弹窗内容 (只读模式)
-RoadbookApp.prototype.generateMarkerPopupContent = function(markerData) {
+RoadbookApp.prototype.generateMarkerPopupContent = function(markerData, options = {}) {
     let content = '<div class="popup-content">';
     content += '<h3>' + markerData.title + '</h3>';
 
@@ -137,6 +183,11 @@ RoadbookApp.prototype.generateMarkerPopupContent = function(markerData) {
     }
 
     content += '<p><strong>坐标:</strong> ' + markerData.position[1].toFixed(6) + ', ' + markerData.position[0].toFixed(6) + '</p>';
+
+    // 移动端轻量编辑：在只读气泡底部提供删除入口
+    if (options.withDelete) {
+        content += '<div class="popup-actions"><button type="button" class="popup-delete-marker">🗑️ 删除此标记点</button></div>';
+    }
     content += '</div>';
 
     return content;

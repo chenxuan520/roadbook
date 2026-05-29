@@ -123,6 +123,7 @@ class RoadbookApp {
 
         // 初始化移动端适配
         this.initMobileFeatures();
+        this.initMobileDetailSheet();
         this.preventBrowserZoom();
 
         // 先尝试从本地存储加载设置，以获取保存的地图源和搜索方式
@@ -1331,14 +1332,7 @@ class RoadbookApp {
             return; // 非移动设备不执行移动端适配
         }
 
-        // 修改标题为只读模式
-        const titleElement = document.querySelector('header h1');
-        if (titleElement) {
-            titleElement.textContent = `${titleElement.textContent} (只读模式)`;
-        }
-
-        // 显示进入提示
-        alert('当前为移动端只读模式，如需编辑请使用电脑访问。');
+        // 移动端支持查看与轻量编辑（日期备注 / 花销 / 删除标记点），完整行程编辑建议使用电脑
 
         // 初始化移动端菜单功能
         this.initMobileMenu();

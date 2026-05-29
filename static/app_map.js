@@ -286,11 +286,27 @@ RoadbookApp.prototype.createMarkerEntity = function(lat, lng, title = null, id =
     marker.on('click', (e) => {
         L.DomEvent.stopPropagation(e);
         if (this.isMobileDevice()) {
-            const popupContent = this.generateMarkerPopupContent(markerData);
+            const popupContent = this.generateMarkerPopupContent(markerData, { withDelete: true });
             marker.bindPopup(popupContent).openPopup();
         } else {
             this.showMarkerDetail(markerData);
         }
+    });
+
+    // 移动端：标记气泡内提供删除入口（极轻量编辑）
+    marker.on('popupopen', () => {
+        const popup = marker.getPopup();
+        const popupEl = popup && popup.getElement();
+        if (!popupEl) return;
+        const delBtn = popupEl.querySelector('.popup-delete-marker');
+        if (!delBtn) return;
+        delBtn.onclick = async () => {
+            const result = await this.showSwalConfirm('删除确认', `确定要删除标记点"${markerData.title}"吗？`, '删除', '取消');
+            if (result.isConfirmed) {
+                marker.closePopup();
+                this.removeMarker(markerData);
+            }
+        };
     });
 
     // 添加悬浮事件显示标注信息
