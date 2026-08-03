@@ -160,12 +160,13 @@ Gin 内置了一个“允许来源列表 + 可选 null origin”逻辑：
 
 `cloudflare/` 目录包含一个完整的 Cloudflare Worker 实现，可作为 Go 后端（`backend/`）的 **Serverless 替代方案**。
 
-- **功能范围**：覆盖 Go 后端核心能力（JWT 认证、计划 CRUD、搜索代理、KV 数据存储），并支持 Cloudflare Workers AI。
+- **功能范围**：覆盖 Go 后端核心能力（JWT 认证、计划 CRUD、操作式地图编辑 API、搜索代理、KV 数据存储），并支持 Cloudflare Workers AI。
 - **部署与使用**：详情见 `cloudflare/README.md`。
 - **切换方式**：前端通过双击标题配置 BaseURL，可切换到 Worker 后端。
 - **对齐要求（重要）**：
   - `cloudflare/worker.js` 必须与 `backend/` 保持严格的功能对齐。
   - **任何对 Go 后端 API 的修改（路径、请求参数、返回 JSON 结构、字段命名、错误码），都必须同步修改 `cloudflare/worker.js`。**
+  - 本地 Agent 或外部自动化编辑地图时，优先使用 `POST /api/v1/plans/:id/map/actions`，不要让 Agent 用 GET 后手工改 `content` 再 PUT 的方式重写整包数据。
   - KV 存储的 JSON 结构尽量与 Go 后端文件存储兼容（CamelCase 字段名），方便潜在迁移。
   - `TrafficPos` 经纬度顺序（机场：lat,lon；火车站：lon,lat）已对齐；修改时必须保持一致。
 

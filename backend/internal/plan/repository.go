@@ -22,6 +22,7 @@ type Repository interface {
 	Save(plan *Plan) error
 	FindByID(id string) (*Plan, error)
 	FindAll() ([]PlanSummary, error)
+	ApplyMapActions(id string, actions []json.RawMessage, now time.Time) (*Plan, []MapActionResult, error)
 	Delete(id string) error
 }
 
@@ -140,6 +141,46 @@ func (r *fileRepository) FindAll() ([]PlanSummary, error) {
 		})
 	}
 	return summaries, nil
+}
+
+// ApplyMapActions applies map edits under the repository write lock so concurrent
+// requests cannot lose each other's read-modify-write changes.
+func (r *fileRepository) ApplyMapActions(id string, actions []json.RawMessage, now time.Time) (*Plan, []MapActionResult, error) {
+	if filepath.Base(id) != id {
+		return nil, nil, fmt.Errorf("无效的计划ID: %s", id)
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	filePath := filepath.Join(dataDir, id+fileExt)
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil, fmt.Errorf("计划 %s 未找到", id)
+		}
+		return nil, nil, fmt.Errorf("读取计划文件 %s 失败: %w", id, err)
+	}
+
+	var p Plan
+	if err := json.Unmarshal(data, &p); err != nil {
+		return nil, nil, fmt.Errorf("反序列化计划文件 %s 失败: %w", id, err)
+	}
+
+	content, results, err := ApplyMapActions(p.Content, actions, now)
+	if err != nil {
+		return nil, nil, err
+	}
+	p.Content = content
+	p.UpdatedAt = now.UTC()
+
+	updatedData, err := json.MarshalIndent(&p, "", "  ")
+	if err != nil {
+		return nil, nil, fmt.Errorf("序列化计划失败: %w", err)
+	}
+	if err := os.WriteFile(filePath, updatedData, 0644); err != nil {
+		return nil, nil, fmt.Errorf("写入计划文件失败: %w", err)
+	}
+	return &p, results, nil
 }
 
 // Delete 根据ID删除一个计划

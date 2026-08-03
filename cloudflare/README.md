@@ -241,8 +241,9 @@ Worker 实现了以下后端 API：
     *   `POST /api/v1/plans` (创建)
     *   `GET /api/v1/plans/:id` (详情)
     *   `PUT /api/v1/plans/:id` (更新)
+    *   `POST /api/v1/plans/:id/map/actions` (操作式地图编辑)
     *   `DELETE /api/v1/plans/:id` (删除)
-    *   `GET /api/share/plans/:id` (公开分享)
+    *   `GET /api/v1/share/plans/:id` (公开分享)
 *   **搜索代理**：
     *   `GET /api/cnmap/search` (百度搜索)
     *   `GET /api/tianmap/search` (天地图搜索)

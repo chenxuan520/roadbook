@@ -1,0 +1,6 @@
+interface:
+  display_name: "Roadbook Map Editor"
+  short_description: "Edit Roadbook plans through server map actions"
+  default_prompt: "Use $roadbook-map-editor to edit a RoadbookMaker online plan through the map action API."
+policy:
+  allow_implicit_invocation: true

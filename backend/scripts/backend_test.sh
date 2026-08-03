@@ -280,33 +280,73 @@ if [ -n "$JWT_TOKEN" ]; then
             FAIL_COUNT=$((FAIL_COUNT + 1))
         fi
 
-        # Test 10: Delete Plan
-        print_info "Test 10: Testing DELETE /api/v1/plans/${PLAN_ID}..."
+        # Test 10: Apply Map Actions
+        print_info "Test 10: Testing POST /api/v1/plans/${PLAN_ID}/map/actions..."
+        MAP_ACTIONS_PAYLOAD='{"actions":[{"action":"add_marker","id":101,"title":"Start","lat":39.9,"lng":116.4,"dateTime":"2026-10-01 09:00:00"},{"action":"add_marker","id":102,"title":"Museum","lat":39.91,"lng":116.41,"dateTime":"2026-10-01 11:00:00"},{"action":"connect_markers","id":201,"start_id":101,"end_id":102,"transport":"walk","dateTime":"2026-10-01 10:00:00"},{"action":"update_date_note","date":"2026-10-01","note":"Morning route."}]}'
+        MAP_ACTIONS_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "${API_BASE_URL}/api/v1/plans/${PLAN_ID}/map/actions" \
+            -H "Authorization: Bearer ${JWT_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d "$MAP_ACTIONS_PAYLOAD")
+        MAP_ACTIONS_BODY=$(echo "$MAP_ACTIONS_RESPONSE" | head -n -1)
+        MAP_ACTIONS_STATUS=$(echo "$MAP_ACTIONS_RESPONSE" | tail -n 1)
+
+        if [ "$MAP_ACTIONS_STATUS" -eq 200 ]; then
+            if echo "$MAP_ACTIONS_BODY" | jq -e '.results | length == 4 and .content.markers | length == 2' > /dev/null; then
+                print_pass "Test 10: Map actions applied successfully."
+            else
+                print_fail "Test 10: Map actions response content incorrect. Body: $MAP_ACTIONS_BODY"
+                FAIL_COUNT=$((FAIL_COUNT + 1))
+            fi
+        else
+            print_fail "Test 10: Map actions failed with status code ${MAP_ACTIONS_STATUS}. Body: $MAP_ACTIONS_BODY"
+            FAIL_COUNT=$((FAIL_COUNT + 1))
+        fi
+
+        print_info "Test 10.1: Verifying saved map action content..."
+        MAP_VERIFY_RESPONSE=$(curl -s -w "\n%{http_code}" -X GET "${API_BASE_URL}/api/v1/plans/${PLAN_ID}" \
+            -H "Authorization: Bearer ${JWT_TOKEN}")
+        MAP_VERIFY_BODY=$(echo "$MAP_VERIFY_RESPONSE" | head -n -1)
+        MAP_VERIFY_STATUS=$(echo "$MAP_VERIFY_RESPONSE" | tail -n 1)
+
+        if [ "$MAP_VERIFY_STATUS" -eq 200 ]; then
+            if echo "$MAP_VERIFY_BODY" | jq -e '.plan.content.markers | length == 2 and .plan.content.connections | length == 1 and .plan.content.dateNotes["2026-10-01"].notes == "Morning route."' > /dev/null; then
+                print_pass "Test 10.1: Saved map content verified."
+            else
+                print_fail "Test 10.1: Saved map content mismatch. Body: $MAP_VERIFY_BODY"
+                FAIL_COUNT=$((FAIL_COUNT + 1))
+            fi
+        else
+            print_fail "Test 10.1: Failed to reload plan after map actions. Status: $MAP_VERIFY_STATUS"
+            FAIL_COUNT=$((FAIL_COUNT + 1))
+        fi
+
+        # Test 11: Delete Plan
+        print_info "Test 11: Testing DELETE /api/v1/plans/${PLAN_ID}..."
         DELETE_RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -X DELETE "${API_BASE_URL}/api/v1/plans/${PLAN_ID}" \
             -H "Authorization: Bearer ${JWT_TOKEN}")
         if [ "$DELETE_RESPONSE" -eq 200 ]; then
-            print_pass "Test 10: Delete plan successful."
+            print_pass "Test 11: Delete plan successful."
         else
-            print_fail "Test 10: Delete plan failed with status code ${DELETE_RESPONSE}"
+            print_fail "Test 11: Delete plan failed with status code ${DELETE_RESPONSE}"
             FAIL_COUNT=$((FAIL_COUNT + 1))
         fi
 
-        # Test 11: Verify Deletion
-        print_info "Test 11: Verifying deletion of plan ${PLAN_ID}..."
+        # Test 12: Verify Deletion
+        print_info "Test 12: Verifying deletion of plan ${PLAN_ID}..."
         VERIFY_DELETE_RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -X GET "${API_BASE_URL}/api/v1/plans/${PLAN_ID}" \
             -H "Authorization: Bearer ${JWT_TOKEN}")
         if [ "$VERIFY_DELETE_RESPONSE" -eq 404 ]; then
-            print_pass "Test 11: Plan correctly deleted (received 404 Not Found)."
+            print_pass "Test 12: Plan correctly deleted (received 404 Not Found)."
         else
-            print_fail "Test 11: Verification of deletion failed. Expected 404, but got ${VERIFY_DELETE_RESPONSE}"
+            print_fail "Test 12: Verification of deletion failed. Expected 404, but got ${VERIFY_DELETE_RESPONSE}"
             FAIL_COUNT=$((FAIL_COUNT + 1))
         fi
 
-        # Test 12: AI Session Management
+        # Test 13: AI Session Management
         print_step "AI Session Tests"
 
-        # 12.1 Set Session
-        print_info "Test 12.1: POST /api/v1/ai/session..."
+        # 13.1 Set Session
+        print_info "Test 13.1: POST /api/v1/ai/session..."
         SESSION_PAYLOAD='{"messages":[{"role":"user","content":"Hello"},{"role":"assistant","content":"Hi"}]}'
         SET_SESSION_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "${API_BASE_URL}/api/v1/ai/session" \
             -H "Authorization: Bearer ${JWT_TOKEN}" \
@@ -315,14 +355,14 @@ if [ -n "$JWT_TOKEN" ]; then
         SET_SESSION_STATUS=$(echo "$SET_SESSION_RESPONSE" | tail -n 1)
 
         if [ "$SET_SESSION_STATUS" -eq 200 ]; then
-            print_pass "Test 12.1: Session saved successfully."
+            print_pass "Test 13.1: Session saved successfully."
         else
-            print_fail "Test 12.1: Failed to save session. Status: $SET_SESSION_STATUS"
+            print_fail "Test 13.1: Failed to save session. Status: $SET_SESSION_STATUS"
             FAIL_COUNT=$((FAIL_COUNT + 1))
         fi
 
-        # 12.2 Get Session
-        print_info "Test 12.2: GET /api/v1/ai/session..."
+        # 13.2 Get Session
+        print_info "Test 13.2: GET /api/v1/ai/session..."
         GET_SESSION_RESPONSE=$(curl -s -w "\n%{http_code}" -X GET "${API_BASE_URL}/api/v1/ai/session" \
             -H "Authorization: Bearer ${JWT_TOKEN}")
         GET_SESSION_BODY=$(echo "$GET_SESSION_RESPONSE" | head -n -1)
@@ -334,13 +374,13 @@ if [ -n "$JWT_TOKEN" ]; then
             FIRST_ROLE=$(echo "$GET_SESSION_BODY" | jq -r '.messages[0].role')
 
             if [ "$MESSAGE_COUNT" -eq 2 ] && [ "$FIRST_ROLE" = "user" ]; then
-                print_pass "Test 12.2: Session retrieved successfully with correct content."
+                print_pass "Test 13.2: Session retrieved successfully with correct content."
             else
-                print_fail "Test 12.2: Session retrieved but content mismatch. Body: $GET_SESSION_BODY"
+                print_fail "Test 13.2: Session retrieved but content mismatch. Body: $GET_SESSION_BODY"
                 FAIL_COUNT=$((FAIL_COUNT + 1))
             fi
         else
-            print_fail "Test 12.2: Failed to get session. Status: $GET_SESSION_STATUS"
+            print_fail "Test 13.2: Failed to get session. Status: $GET_SESSION_STATUS"
             FAIL_COUNT=$((FAIL_COUNT + 1))
         fi
     fi

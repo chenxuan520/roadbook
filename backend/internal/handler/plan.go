@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"encoding/json"
 	"fmt" // 新增导入
 	"net/http"
 	"time"
@@ -12,6 +13,24 @@ import (
 // PlanHandler 包含了计划相关的处理函数
 type PlanHandler struct {
 	planRepo plan.Repository
+}
+
+type ApplyMapActionsRequest struct {
+	Actions []json.RawMessage `json:"actions"`
+}
+
+type ApplyMapActionsResponse struct {
+	ID        string                 `json:"id"`
+	UpdatedAt time.Time              `json:"updatedAt"`
+	Results   []plan.MapActionResult `json:"results"`
+	Content   json.RawMessage        `json:"content"`
+}
+
+type MapActionErrorResponse struct {
+	Message     string `json:"message"`
+	Code        int    `json:"code"`
+	ActionIndex int    `json:"actionIndex"`
+	Action      string `json:"action,omitempty"`
 }
 
 // NewPlanHandler 创建一个新的 PlanHandler 实例
@@ -185,6 +204,67 @@ func (h *PlanHandler) SavePlanHandler(c *gin.Context) {
 		ID:        existingPlan.ID,
 		Name:      existingPlan.Name,
 		UpdatedAt: existingPlan.UpdatedAt,
+	})
+}
+
+// ApplyMapActionsHandler handles server-side map edit actions for local agents.
+func (h *PlanHandler) ApplyMapActionsHandler(c *gin.Context) {
+	id := c.Param("id")
+	if id == "" {
+		c.JSON(http.StatusBadRequest, ErrorResponse{
+			Message: "计划ID不能为空",
+			Code:    http.StatusBadRequest,
+		})
+		return
+	}
+
+	var req ApplyMapActionsRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, ErrorResponse{
+			Message: "请求参数错误: " + err.Error(),
+			Code:    http.StatusBadRequest,
+		})
+		return
+	}
+	if len(req.Actions) == 0 {
+		c.JSON(http.StatusBadRequest, ErrorResponse{
+			Message: "actions不能为空",
+			Code:    http.StatusBadRequest,
+		})
+		return
+	}
+
+	now := time.Now().UTC()
+	updatedPlan, results, err := h.planRepo.ApplyMapActions(id, req.Actions, now)
+	if err != nil {
+		if actionErr, ok := err.(*plan.MapActionError); ok {
+			c.JSON(http.StatusBadRequest, MapActionErrorResponse{
+				Message:     actionErr.Error(),
+				Code:        http.StatusBadRequest,
+				ActionIndex: actionErr.Index,
+				Action:      actionErr.Action,
+			})
+			return
+		}
+		if err.Error() == fmt.Sprintf("计划 %s 未找到", id) {
+			c.JSON(http.StatusNotFound, ErrorResponse{
+				Message: "要更新的计划未找到",
+				Code:    http.StatusNotFound,
+			})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, ErrorResponse{
+			Message: "地图编辑失败: " + err.Error(),
+			Code:    http.StatusInternalServerError,
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, ApplyMapActionsResponse{
+		ID:        updatedPlan.ID,
+		UpdatedAt: updatedPlan.UpdatedAt,
+		Results:   results,
+		Content:   updatedPlan.Content,
 	})
 }
 

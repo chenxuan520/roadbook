@@ -510,7 +510,98 @@ type SavePlanResponse struct {
 ```
 
 #### 响应体 (错误): `ErrorResponse` (例如：404 未找到)
-### 6. 删除计划
+### 6. 操作式编辑地图内容
+
+为本地 Agent 或外部自动化提供的服务端地图编辑接口。它读取当前计划的 `content`，按顺序应用一组地图操作，然后保存更新后的 `content`。如果任意操作失败，整组操作不会保存，避免半更新状态。Go 文件后端会在仓库写锁内完成这次读改写；Cloudflare Worker 会在同一 isolate 内按计划串行处理，但 KV 本身不提供跨 isolate 事务。
+
+浏览器现有 `PUT /api/v1/plans/{id}` 整包保存接口仍然保留。自动化编辑应优先使用本接口，让服务端校验并应用紧凑的操作批次，避免 Agent 手工重写整份 `content`。
+
+*   **端点:** `POST /api/v1/plans/{id}/map/actions`
+*   **认证:** 需要 (JWT)
+
+#### 请求体
+
+```json
+{
+  "actions": [
+    {
+      "action": "add_marker",
+      "id": 1715000000000,
+      "title": "天安门广场",
+      "lat": 39.9042,
+      "lng": 116.4074,
+      "dateTime": "2026-10-01 09:00:00"
+    },
+    {
+      "action": "connect_markers",
+      "id": 1715000000001,
+      "start_id": 1715000000000,
+      "end_id": 1715000000002,
+      "transport": "walk",
+      "dateTime": "2026-10-01 10:00:00"
+    },
+    {
+      "action": "update_date_note",
+      "date": "2026-10-01",
+      "note": "行程: 上午城市核心区步行。\n注意事项: 提前确认预约和安检时间。"
+    }
+  ]
+}
+```
+
+#### 支持的 actions
+
+- `add_marker`: 新增标记点。字段：`id` 可选但推荐提供，`title` 可选，`lat` 必填，`lng` 必填，`dateTime` 可为字符串或字符串数组。
+- `update_marker`: 更新标记点。字段：`id` 必填；可更新 `title`、`lat`+`lng`、`dateTime`、`labels`、`logo`、`icon`。
+- `remove_marker`: 删除标记点。字段：`id` 必填；会级联删除连接该标记点的连接线。
+- `connect_markers`: 新增连接线。字段：`id` 可选，`start_id` 必填，`end_id` 必填，`transport` 可选，`dateTime` 可选。
+- `update_connection`: 更新连接线。字段：`id` 必填；可更新 `transport`、`dateTime`、`label`、`logo`、`duration`。
+- `remove_connection`: 删除连接线。字段：`id` 必填。
+- `update_date_note`: 更新日期备注。字段：`date` 必填，`note` 必填；日期必须已存在于标记点、连接线或已有日期备注中。
+- `remove_date_note`: 删除日期备注。字段：`date` 必填。
+- `set_map_settings`: 更新地图设置。可更新 `currentLayer`、`currentSearchMethod`、`lastDateRange`。
+
+`transport` 允许值：`car`、`walk`、`train`、`plane`、`subway`、`bus`、`cruise`。
+
+`dateTime` 格式：`YYYY-MM-DD` 或 `YYYY-MM-DD HH:MM:SS`。标记点同一天只保留一个时间点；如果同一天传入多个时间，保留较早时间。
+
+#### 响应体 (成功)
+
+```json
+{
+  "id": "plan-12345",
+  "updatedAt": "2026-08-03T04:30:00Z",
+  "results": [
+    {
+      "index": 0,
+      "action": "add_marker",
+      "status": "applied",
+      "id": 1715000000000
+    }
+  ],
+  "content": {
+    "markers": [],
+    "connections": [],
+    "labels": [],
+    "dateNotes": {}
+  }
+}
+```
+
+#### 响应体 (错误)
+
+失败响应会包含出错的 action 下标与名称，方便 Agent 定位修正。整组操作不会保存。
+
+```json
+{
+  "message": "action 1 (connect_markers) failed: start or end marker not found",
+  "code": 400,
+  "actionIndex": 1,
+  "action": "connect_markers"
+}
+```
+
+### 7. 删除计划
 
 根据计划ID删除路书计划。
 
@@ -537,7 +628,7 @@ type DeletePlanResponse struct {
 ```
 
 #### 响应体 (错误): `ErrorResponse` (例如：404 未找到)
-### 7. 分享计划 (无需授权)
+### 8. 分享计划 (无需授权)
 
 根据计划ID获取计划的完整详细信息和内容，无需认证。
 

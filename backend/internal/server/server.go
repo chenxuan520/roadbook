@@ -84,8 +84,9 @@ func NewRouter(cfg config.Config) *gin.Engine {
 			authenticated.GET("/plans", planHandler.ListPlansHandler)
 			authenticated.GET("/plans/:id", planHandler.GetPlanHandler)
 			authenticated.PUT("/plans/:id", planHandler.SavePlanHandler)
+			authenticated.POST("/plans/:id/map/actions", planHandler.ApplyMapActionsHandler)
 			authenticated.DELETE("/plans/:id", planHandler.DeletePlanHandler)
-			
+
 			// AI routes
 			authenticated.GET("/ai/config", handler.GetAIConfig(&cfg))
 			authenticated.GET("/ai/session", handler.GetAISession)
@@ -126,4 +127,3 @@ func applyAuthMiddleware(loginRequired bool, authService auth.Authenticator, han
 	}
 	return gin.HandlersChain{handler}
 }
-

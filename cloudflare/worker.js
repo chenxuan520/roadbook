@@ -35,6 +35,7 @@ const DEFAULTS = {
 let cachedAirports = null;
 let cachedStations = null;
 let cachedUsers = null;
+const mapActionQueues = new Map();
 
 // --- Main Worker Logic ---
 export default {
@@ -244,7 +245,69 @@ export default {
       }
     }
 
-    // 5. Plan: Detail (GET), Update (PUT), Delete (DELETE)
+    // 5. Plan Map Actions: server-side map edits for local agents
+    const mapActionsMatch = path.match(/^\/api\/v1\/plans\/([a-zA-Z0-9-]+)\/map\/actions$/);
+    if (mapActionsMatch && method === "POST") {
+      if (!(await requireAuth())) return err("Unauthorized", 401);
+      const id = mapActionsMatch[1];
+
+      let body;
+      try {
+        body = await request.json();
+      } catch (e) {
+        return err("Bad Request", 400);
+      }
+      if (!body || !Array.isArray(body.actions) || body.actions.length === 0) {
+        return err("actions must be a non-empty array", 400);
+      }
+
+      const previous = mapActionQueues.get(id) || Promise.resolve();
+      const operation = previous
+        .catch(() => {})
+        .then(async () => {
+          const key = `plan:${id}`;
+          const existing = await env.ROADBOOK_KV.get(key, "json");
+          if (!existing) {
+            const notFound = new Error("Plan not found");
+            notFound.status = 404;
+            throw notFound;
+          }
+          const now = new Date();
+          const { content, results } = applyMapActions(existing.content, body.actions, now);
+          const updated = {
+            ...existing,
+            content,
+            updatedAt: now.toISOString()
+          };
+          const ttl = planTtlHours > 0 ? planTtlHours * 3600 : undefined;
+          await env.ROADBOOK_KV.put(key, JSON.stringify(updated), ttl ? { expirationTtl: ttl } : {});
+          return { updated, results };
+        });
+      const queued = operation.finally(() => {
+        if (mapActionQueues.get(id) === queued) {
+          mapActionQueues.delete(id);
+        }
+      });
+      mapActionQueues.set(id, queued);
+
+      try {
+        const { updated, results } = await operation;
+        return json({ id: updated.id, updatedAt: updated.updatedAt, results, content: updated.content });
+      } catch (e) {
+        if (e && e.isMapActionError) {
+          return json({
+            message: e.message,
+            code: 400,
+            actionIndex: e.index,
+            action: e.action || ""
+          }, 400);
+        }
+        if (e && e.status === 404) return err("Plan not found", 404);
+        return err(`Map edit failed: ${e.message || e}`, 400);
+      }
+    }
+
+    // 6. Plan: Detail (GET), Update (PUT), Delete (DELETE)
     const planMatch = path.match(/^\/api\/v1\/plans\/([a-zA-Z0-9-]+)$/);
     if (planMatch) {
       if (!(await requireAuth())) return err("Unauthorized", 401);
@@ -1195,4 +1258,465 @@ function haversine(lat1, lon1, lat2, lon2) {
             Math.sin(Δλ/2) * Math.sin(Δλ/2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
     return R * c;
+}
+
+const ALLOWED_TRANSPORT_TYPES = new Set(["car", "walk", "train", "plane", "subway", "bus", "cruise"]);
+
+function mapActionError(index, action, msg) {
+    const prefix = action ? `action ${index} (${action}) failed` : `action ${index} failed`;
+    const err = new Error(`${prefix}: ${msg}`);
+    err.isMapActionError = true;
+    err.index = index;
+    err.action = action || "";
+    return err;
+}
+
+function applyMapActions(content, actions, now) {
+    const root = cloneMapContent(content);
+    ensureMapContentShape(root);
+    const results = [];
+
+    actions.forEach((action, index) => {
+        if (!action || typeof action !== "object" || Array.isArray(action)) {
+            throw mapActionError(index, "", "action must be an object");
+        }
+        const actionName = String(action.action || "").trim();
+        if (!actionName) {
+            throw mapActionError(index, "", "action is required");
+        }
+        results.push(applyOneMapAction(root, action, index, actionName, now));
+    });
+
+    root.exportTime = now.toISOString();
+    return { content: root, results };
+}
+
+function cloneMapContent(content) {
+    if (!content || content === null) return {};
+    if (typeof content !== "object" || Array.isArray(content)) {
+        throw mapActionError(-1, "", "plan content must be a JSON object");
+    }
+    return JSON.parse(JSON.stringify(content));
+}
+
+function ensureMapContentShape(root) {
+    if (!Array.isArray(root.markers)) root.markers = [];
+    if (!Array.isArray(root.connections)) root.connections = [];
+    if (!Array.isArray(root.labels)) root.labels = [];
+    if (!root.dateNotes || typeof root.dateNotes !== "object" || Array.isArray(root.dateNotes)) root.dateNotes = {};
+}
+
+function applyOneMapAction(root, action, index, actionName, now) {
+    switch (actionName) {
+        case "add_marker":
+            return applyAddMarker(root, action, index, actionName, now);
+        case "update_marker":
+            return applyUpdateMarker(root, action, index, actionName);
+        case "remove_marker":
+            return applyRemoveMarker(root, action, index, actionName);
+        case "connect_markers":
+            return applyConnectMarkers(root, action, index, actionName, now);
+        case "update_connection":
+            return applyUpdateConnection(root, action, index, actionName);
+        case "remove_connection":
+            return applyRemoveConnection(root, action, index, actionName);
+        case "update_date_note":
+            return applyUpdateDateNote(root, action, index, actionName);
+        case "remove_date_note":
+            return applyRemoveDateNote(root, action, index, actionName);
+        case "set_map_settings":
+            return applySetMapSettings(root, action, index, actionName);
+        default:
+            throw mapActionError(index, actionName, "unsupported action");
+    }
+}
+
+function applyAddMarker(root, action, index, actionName, now) {
+    const lat = requiredNumber(action, "lat", index, actionName);
+    const lng = requiredNumber(action, "lng", index, actionName);
+    if (!validLatLng(lat, lng)) throw mapActionError(index, actionName, "lat/lng out of range");
+
+    const title = String(action.title || "").trim() || `标记点${root.markers.length + 1}`;
+    const { id, generated } = idForAdd(action.id, root.markers, now, index);
+    const dateTimes = markerDateTimesForAdd(action, root.markers, now, index, actionName);
+
+    const marker = {
+        id,
+        position: [lat, lng],
+        title,
+        labels: Array.isArray(action.labels) ? action.labels : [],
+        logo: Object.prototype.hasOwnProperty.call(action, "logo") ? action.logo : null,
+        icon: action.icon || { type: "default", icon: "📍", color: "#667eea" },
+        createdAt: formatDateTimeForRoadbook(now),
+        dateTimes,
+        dateTime: dateTimes[0]
+    };
+    root.markers.push(marker);
+
+    const result = { index, action: actionName, status: "applied", id };
+    if (generated) result.generatedId = id;
+    return result;
+}
+
+function applyUpdateMarker(root, action, index, actionName) {
+    const { value: id, key } = requiredID(action, "id", index, actionName);
+    const marker = root.markers.find(m => idKey(m.id) === key);
+    if (!marker) throw mapActionError(index, actionName, "marker not found");
+
+    let updated = false;
+    let titleChanged = false;
+    if (Object.prototype.hasOwnProperty.call(action, "title")) {
+        const title = String(action.title || "").trim();
+        if (!title) throw mapActionError(index, actionName, "title must not be empty");
+        marker.title = title;
+        updated = true;
+        titleChanged = true;
+    }
+
+    const hasLat = Object.prototype.hasOwnProperty.call(action, "lat");
+    const hasLng = Object.prototype.hasOwnProperty.call(action, "lng");
+    if (hasLat || hasLng) {
+        if (!hasLat || !hasLng) throw mapActionError(index, actionName, "lat and lng must be provided together");
+        const lat = requiredNumber(action, "lat", index, actionName);
+        const lng = requiredNumber(action, "lng", index, actionName);
+        if (!validLatLng(lat, lng)) throw mapActionError(index, actionName, "lat/lng out of range");
+        marker.position = [lat, lng];
+        updated = true;
+    }
+
+    if (Object.prototype.hasOwnProperty.call(action, "dateTime")) {
+        const dateTimes = normalizeMarkerDateTimes(action.dateTime, index, actionName);
+        marker.dateTimes = dateTimes;
+        marker.dateTime = dateTimes[0];
+        updated = true;
+    }
+    ["labels", "logo", "icon"].forEach(field => {
+        if (Object.prototype.hasOwnProperty.call(action, field)) {
+            marker[field] = action[field];
+            updated = true;
+        }
+    });
+    if (!updated) throw mapActionError(index, actionName, "no marker fields to update");
+
+    if (titleChanged) {
+        root.connections.forEach(connection => {
+            if (idKey(connection.startId) === key) connection.startTitle = marker.title;
+            if (idKey(connection.endId) === key) connection.endTitle = marker.title;
+        });
+    }
+    return { index, action: actionName, status: "applied", id };
+}
+
+function applyRemoveMarker(root, action, index, actionName) {
+    const { value: id, key } = requiredID(action, "id", index, actionName);
+    const markerIndex = root.markers.findIndex(m => idKey(m.id) === key);
+    if (markerIndex < 0) throw mapActionError(index, actionName, "marker not found");
+
+    root.markers.splice(markerIndex, 1);
+    adjustLabelsAfterMarkerRemoval(root, markerIndex);
+    const removedConnectionIds = [];
+    root.connections = root.connections.filter(connection => {
+        if (idKey(connection.startId) === key || idKey(connection.endId) === key) {
+            removedConnectionIds.push(connection.id);
+            return false;
+        }
+        return true;
+    });
+    return { index, action: actionName, status: "applied", id, removedConnectionIds };
+}
+
+function applyConnectMarkers(root, action, index, actionName, now) {
+    const { value: startId, key: startKey } = requiredID(action, "start_id", index, actionName);
+    const { value: endId, key: endKey } = requiredID(action, "end_id", index, actionName);
+    if (startKey === endKey) throw mapActionError(index, actionName, "start_id and end_id must be different");
+
+    const startMarker = root.markers.find(m => idKey(m.id) === startKey);
+    const endMarker = root.markers.find(m => idKey(m.id) === endKey);
+    if (!startMarker || !endMarker) throw mapActionError(index, actionName, "start or end marker not found");
+
+    const transport = transportFieldOrDefault(action, "transport", "car", index, actionName);
+    const dateTime = Object.prototype.hasOwnProperty.call(action, "dateTime")
+        ? normalizeConnectionDateTime(action.dateTime, index, actionName)
+        : defaultConnectionDateTime(startMarker, now);
+    const existing = root.connections.find(c => idKey(c.startId) === startKey && idKey(c.endId) === endKey);
+    if (existing) return { index, action: actionName, status: "skipped", id: existing.id };
+
+    const { id, generated } = idForAdd(action.id, root.connections, now, index);
+    const connection = {
+        id,
+        startId: startMarker.id,
+        endId: endMarker.id,
+        transportType: transport,
+        dateTime,
+        label: typeof action.label === "string" ? action.label : "",
+        logo: Object.prototype.hasOwnProperty.call(action, "logo") ? action.logo : null,
+        duration: typeof action.duration === "number" ? action.duration : estimateRoadbookDuration(startMarker, endMarker, transport),
+        startTitle: String(startMarker.title || ""),
+        endTitle: String(endMarker.title || "")
+    };
+    root.connections.push(connection);
+
+    if (Object.prototype.hasOwnProperty.call(action, "dateTime")) {
+        ensureMarkerDateTime(startMarker, dateTime);
+        ensureMarkerDateTime(endMarker, dateTime);
+    }
+
+    const result = { index, action: actionName, status: "applied", id };
+    if (generated) result.generatedId = id;
+    return result;
+}
+
+function applyUpdateConnection(root, action, index, actionName) {
+    const { value: id, key } = requiredID(action, "id", index, actionName);
+    const connection = root.connections.find(c => idKey(c.id) === key);
+    if (!connection) throw mapActionError(index, actionName, "connection not found");
+
+    let updated = false;
+    if (Object.prototype.hasOwnProperty.call(action, "transport")) {
+        const transport = transportFieldOrDefault(action, "transport", "", index, actionName);
+        if (transport) {
+            connection.transportType = transport;
+            updated = true;
+        }
+    }
+    if (Object.prototype.hasOwnProperty.call(action, "dateTime")) {
+        connection.dateTime = normalizeConnectionDateTime(action.dateTime, index, actionName);
+        updated = true;
+    }
+    ["label", "logo", "duration"].forEach(field => {
+        if (Object.prototype.hasOwnProperty.call(action, field)) {
+            connection[field] = action[field];
+            updated = true;
+        }
+    });
+    if (!updated) throw mapActionError(index, actionName, "no connection fields to update");
+    return { index, action: actionName, status: "applied", id };
+}
+
+function applyRemoveConnection(root, action, index, actionName) {
+    const { value: id, key } = requiredID(action, "id", index, actionName);
+    const connectionIndex = root.connections.findIndex(c => idKey(c.id) === key);
+    if (connectionIndex < 0) throw mapActionError(index, actionName, "connection not found");
+    root.connections.splice(connectionIndex, 1);
+    return { index, action: actionName, status: "applied", id };
+}
+
+function applyUpdateDateNote(root, action, index, actionName) {
+    const date = normalizedDateField(action, "date", index, actionName);
+    const note = typeof action.note === "string" ? action.note : "";
+    if (!note.trim()) throw mapActionError(index, actionName, "note must not be empty");
+    if (!dateInItinerary(root, date)) throw mapActionError(index, actionName, "date not found in itinerary");
+
+    const existing = root.dateNotes[date];
+    if (existing && typeof existing === "object" && !Array.isArray(existing)) {
+        existing.notes = note;
+    } else {
+        root.dateNotes[date] = { notes: note, expenses: [] };
+    }
+    return { index, action: actionName, status: "applied", id: date };
+}
+
+function applyRemoveDateNote(root, action, index, actionName) {
+    const date = normalizedDateField(action, "date", index, actionName);
+    if (!Object.prototype.hasOwnProperty.call(root.dateNotes, date)) {
+        throw mapActionError(index, actionName, "date note not found");
+    }
+    delete root.dateNotes[date];
+    return { index, action: actionName, status: "applied", id: date };
+}
+
+function applySetMapSettings(root, action, index, actionName) {
+    let updated = false;
+    ["currentLayer", "currentSearchMethod", "lastDateRange"].forEach(field => {
+        if (Object.prototype.hasOwnProperty.call(action, field)) {
+            root[field] = action[field];
+            updated = true;
+        }
+    });
+    if (!updated) throw mapActionError(index, actionName, "no map settings to update");
+    return { index, action: actionName, status: "applied" };
+}
+
+function adjustLabelsAfterMarkerRemoval(root, removedIndex) {
+    if (!Array.isArray(root.labels)) return;
+    root.labels = root.labels
+        .filter(label => {
+            if (!label || typeof label !== "object" || !Number.isInteger(Number(label.markerIndex))) return true;
+            return Number(label.markerIndex) !== removedIndex;
+        })
+        .map(label => {
+            if (!label || typeof label !== "object" || !Number.isInteger(Number(label.markerIndex))) return label;
+            const markerIndex = Number(label.markerIndex);
+            if (markerIndex > removedIndex) return { ...label, markerIndex: markerIndex - 1 };
+            return label;
+        });
+}
+
+function requiredNumber(object, field, index, actionName) {
+    if (!Object.prototype.hasOwnProperty.call(object, field) || object[field] === null || object[field] === undefined) {
+        throw mapActionError(index, actionName, `${field} is required`);
+    }
+    const value = object[field];
+    if (typeof value !== "number" && typeof value !== "string") {
+        throw mapActionError(index, actionName, `${field} must be a number`);
+    }
+    if (typeof value === "string" && value.trim() === "") {
+        throw mapActionError(index, actionName, `${field} must be a number`);
+    }
+    const n = Number(value);
+    if (!Number.isFinite(n)) throw mapActionError(index, actionName, `${field} must be a number`);
+    return n;
+}
+
+function validLatLng(lat, lng) {
+    return lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
+}
+
+function requiredID(object, field, index, actionName) {
+    if (!Object.prototype.hasOwnProperty.call(object, field) || object[field] === null || object[field] === undefined) {
+        throw mapActionError(index, actionName, `${field} is required`);
+    }
+    const key = idKey(object[field]);
+    if (!key) throw mapActionError(index, actionName, `${field} must be a string or number`);
+    return { value: object[field], key };
+}
+
+function idKey(value) {
+    if (value === null || value === undefined) return "";
+    if (typeof value === "number") {
+        if (!Number.isFinite(value)) return "";
+        return Number.isInteger(value) ? String(value) : String(value);
+    }
+    if (typeof value === "string") return value.trim();
+    return "";
+}
+
+function idForAdd(rawID, objects, now, index) {
+    const key = idKey(rawID);
+    if (key && !objects.some(item => idKey(item.id) === key)) return { id: rawID, generated: false };
+    let generated = now.getTime() + index;
+    while (objects.some(item => idKey(item.id) === String(generated))) generated += 1;
+    return { id: generated, generated: true };
+}
+
+function markerDateTimesForAdd(action, markers, now, index, actionName) {
+    if (Object.prototype.hasOwnProperty.call(action, "dateTime")) {
+        return normalizeMarkerDateTimes(action.dateTime, index, actionName);
+    }
+    if (markers.length > 0) {
+        const last = markers[markers.length - 1];
+        if (Array.isArray(last.dateTimes) && typeof last.dateTimes[0] === "string" && last.dateTimes[0].trim()) return [last.dateTimes[0]];
+        if (typeof last.dateTime === "string" && last.dateTime.trim()) return [last.dateTime];
+    }
+    return [`${now.toISOString().slice(0, 10)} 00:00:00`];
+}
+
+function normalizeMarkerDateTimes(value, index, actionName) {
+    const values = Array.isArray(value) ? value : [value];
+    if (values.length === 0) throw mapActionError(index, actionName, "dateTime must not be empty");
+    const byDay = new Map();
+    values.forEach(raw => {
+        if (typeof raw !== "string") throw mapActionError(index, actionName, "dateTime must be a string or string array");
+        const normalized = normalizeRoadbookDateTime(raw, index, actionName);
+        const day = normalized.slice(0, 10);
+        const existing = byDay.get(day);
+        if (!existing || normalized < existing) byDay.set(day, normalized);
+    });
+    return Array.from(byDay.values()).sort();
+}
+
+function normalizeConnectionDateTime(value, index, actionName) {
+    if (typeof value !== "string") throw mapActionError(index, actionName, "dateTime must be a string");
+    return normalizeRoadbookDateTime(value, index, actionName);
+}
+
+function normalizeRoadbookDateTime(raw, index, actionName) {
+    const s = String(raw || "").trim();
+    if (!s) throw mapActionError(index, actionName, "dateTime must not be empty");
+    let m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (m && validDateParts(m[1], m[2], m[3])) return `${m[1]}-${m[2]}-${m[3]} 00:00:00`;
+    m = s.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})$/);
+    if (m && validDateParts(m[1], m[2], m[3]) && validTimeParts(m[4], m[5], m[6])) {
+        return `${m[1]}-${m[2]}-${m[3]} ${m[4]}:${m[5]}:${m[6]}`;
+    }
+    throw mapActionError(index, actionName, "dateTime must use YYYY-MM-DD or YYYY-MM-DD HH:MM:SS");
+}
+
+function validDateParts(year, month, day) {
+    const d = new Date(`${year}-${month}-${day}T00:00:00Z`);
+    return !Number.isNaN(d.getTime()) &&
+        d.getUTCFullYear() === Number(year) &&
+        d.getUTCMonth() + 1 === Number(month) &&
+        d.getUTCDate() === Number(day);
+}
+
+function validTimeParts(hour, minute, second) {
+    const h = Number(hour), m = Number(minute), s = Number(second);
+    return h >= 0 && h <= 23 && m >= 0 && m <= 59 && s >= 0 && s <= 59;
+}
+
+function normalizedDateField(action, field, index, actionName) {
+    if (!Object.prototype.hasOwnProperty.call(action, field)) throw mapActionError(index, actionName, `${field} is required`);
+    const text = String(action[field] || "").replace(/\u200b/g, "").trim();
+    const m = text.match(/(\d{4}-\d{2}-\d{2})/);
+    if (!m || !validDateParts(m[1].slice(0, 4), m[1].slice(5, 7), m[1].slice(8, 10))) {
+        throw mapActionError(index, actionName, `${field} must contain YYYY-MM-DD`);
+    }
+    return m[1];
+}
+
+function transportFieldOrDefault(action, field, fallback, index, actionName) {
+    const raw = Object.prototype.hasOwnProperty.call(action, field) ? action[field] : fallback;
+    const transport = String(raw || "").trim().toLowerCase();
+    if (!transport) return "";
+    if (!ALLOWED_TRANSPORT_TYPES.has(transport)) throw mapActionError(index, actionName, `${field} is not a supported transport type`);
+    return transport;
+}
+
+function defaultConnectionDateTime(startMarker, now) {
+    if (Array.isArray(startMarker.dateTimes) && typeof startMarker.dateTimes[0] === "string" && startMarker.dateTimes[0].trim()) return startMarker.dateTimes[0];
+    if (typeof startMarker.dateTime === "string" && startMarker.dateTime.trim()) return startMarker.dateTime;
+    return `${now.toISOString().slice(0, 10)} 00:00:00`;
+}
+
+function ensureMarkerDateTime(marker, dateTime) {
+    const normalized = String(dateTime || "").trim();
+    if (!normalized) return;
+    const day = normalized.slice(0, 10);
+    const dateTimes = Array.isArray(marker.dateTimes)
+        ? marker.dateTimes.filter(item => typeof item === "string" && item.trim())
+        : (typeof marker.dateTime === "string" && marker.dateTime.trim() ? [marker.dateTime] : []);
+    if (dateTimes.some(existing => existing.startsWith(day))) return;
+    dateTimes.push(normalized);
+    dateTimes.sort();
+    marker.dateTimes = dateTimes;
+    marker.dateTime = dateTimes[0];
+}
+
+function dateInItinerary(root, date) {
+    if (root.dateNotes && Object.prototype.hasOwnProperty.call(root.dateNotes, date)) return true;
+    if (root.markers.some(marker =>
+        (typeof marker.dateTime === "string" && marker.dateTime.startsWith(date)) ||
+        (Array.isArray(marker.dateTimes) && marker.dateTimes.some(dt => typeof dt === "string" && dt.startsWith(date)))
+    )) return true;
+    return root.connections.some(connection => typeof connection.dateTime === "string" && connection.dateTime.startsWith(date));
+}
+
+function estimateRoadbookDuration(startMarker, endMarker, transport) {
+    if (!Array.isArray(startMarker.position) || !Array.isArray(endMarker.position)) return 0;
+    const lat1 = Number(startMarker.position[0]);
+    const lng1 = Number(startMarker.position[1]);
+    const lat2 = Number(endMarker.position[0]);
+    const lng2 = Number(endMarker.position[1]);
+    if (!validLatLng(lat1, lng1) || !validLatLng(lat2, lng2)) return 0;
+    const distance = haversine(lat1, lng1, lat2, lng2);
+    const speeds = { walk: 5, car: 80, train: 250, plane: 800 };
+    const coefficients = { walk: 1.2, car: 1.4, train: 1.3, plane: 1.1 };
+    const speed = speeds[transport] || 80;
+    const coefficient = coefficients[transport] || 1.4;
+    return Math.round(((distance * coefficient) / 1000) / speed);
+}
+
+function formatDateTimeForRoadbook(date) {
+    return date.toISOString().slice(0, 19).replace("T", " ");
 }

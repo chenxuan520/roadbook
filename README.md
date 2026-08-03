@@ -301,6 +301,10 @@ sudo nginx -t && sudo systemctl reload nginx
 2. 输入您的后端 API 地址（例如 `https://your-worker.workers.dev`）。
 3. 刷新页面即可生效。
 
+### 本地 Agent 编辑地图
+自托管后端和 Cloudflare Worker 都支持操作式地图编辑 API：`POST /api/v1/plans/:id/map/actions`。
+如果希望让本地 Agent 直接创建或编辑在线路书，可安装仓库内的 `skills/roadbook-map-editor` skill；它说明了登录、创建计划、搜索坐标、提交地图 actions、校验结果这几类 HTTP 接口的用途和调用方式。
+
 ### 添加标记点
 1. 点击工具栏"添加标记点"按钮或按 `A` 键
 2. 在地图上点击选择位置
@@ -370,6 +374,7 @@ RoadbookMaker 支持 PWA (Progressive Web App)，您可以将其安装到手机�
 - **用户认证系统**: JWT-based认证，支持用户登录
 - **在线模式**: 支持云端保存和管理路书计划
 - **计划管理**: 创建、读取、更新、删除路书计划
+- **操作式地图编辑**: 支持 Agent 通过服务端 API 批量编辑标记点、连接线、日期备注和地图设置
 - **分享功能**: 生成分享链接，支持公开访问
 - **限流保护**: IP-based请求限流，防止滥用
 - **数据持久化**: 本地文件系统存储，支持并发访问
@@ -400,6 +405,8 @@ roadbook/
 │   ├── configs/            # 配置文件
 │   └── go.mod             # Go模块文件
 ├── docs/                   # 文档
+├── skills/                 # 可安装的 TRAE CLI skills
+│   └── roadbook-map-editor/# Agent 调用服务端地图编辑 API 的 skill
 └── README.md              # 项目说明
 ```
 
@@ -484,6 +491,7 @@ roadbook/
 - `GET /api/v1/plans` - 获取用户计划列表
 - `GET /api/v1/plans/:id` - 获取指定计划详情
 - `PUT /api/v1/plans/:id` - 更新指定计划
+- `POST /api/v1/plans/:id/map/actions` - 操作式编辑地图内容
 - `DELETE /api/v1/plans/:id` - 删除指定计划
 
 ### 分享功能（公开访问）
@@ -509,6 +517,7 @@ roadbook/
 - **列出计划**: `GET /api/v1/plans` - 获取用户的所有路书计划列表
 - **获取计划**: `GET /api/v1/plans/:id` - 获取特定路书计划的详细内容
 - **更新计划**: `PUT /api/v1/plans/:id` - 更新路书计划内容
+- **操作式地图编辑**: `POST /api/v1/plans/:id/map/actions` - 批量编辑标记点、连接线、日期备注和地图设置
 - **删除计划**: `DELETE /api/v1/plans/:id` - 删除路书计划
 
 ### 分享功能
