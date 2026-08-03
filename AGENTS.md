@@ -173,6 +173,7 @@ Gin 内置了一个“允许来源列表 + 可选 null origin”逻辑：
 ## 8. Agent/协作行为准则（CRITICAL）
 
 - **Git 写操作**：除非用户明确要求，否则严禁自动执行 `git add` / `git commit` / `git push` 等。
+- **推送后流水线监控（强制）**：一旦按用户明确要求执行 `git push`，必须立即监控该 push 触发的所有 GitHub Actions。使用 `gh run list`/`gh run view --log-failed` 定位失败 job，修复并重新推送，直到该 commit 或修复 commit 对应的相关流水线全部成功。不得在未确认流水线状态的情况下报告“完成”。
 - **Plan Mode 限制**：严禁使用 `ExitPlanMode` 工具；按用户指令直接执行。
 - **重置/回滚限制（重要）**：任何 `reset` / `checkout` / `restore` / “还原文件”等操作，只允许回滚 **我本次会话里明确修改过的文件**；涉及到非我修改的文件，除非用户明确点名要求，否则一律禁止重置。
 

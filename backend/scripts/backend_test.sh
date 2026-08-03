@@ -291,7 +291,7 @@ if [ -n "$JWT_TOKEN" ]; then
         MAP_ACTIONS_STATUS=$(echo "$MAP_ACTIONS_RESPONSE" | tail -n 1)
 
         if [ "$MAP_ACTIONS_STATUS" -eq 200 ]; then
-            if echo "$MAP_ACTIONS_BODY" | jq -e '.results | length == 4 and .content.markers | length == 2' > /dev/null; then
+            if echo "$MAP_ACTIONS_BODY" | jq -e '(.results | length == 4) and (.content.markers | length == 2)' > /dev/null; then
                 print_pass "Test 10: Map actions applied successfully."
             else
                 print_fail "Test 10: Map actions response content incorrect. Body: $MAP_ACTIONS_BODY"
@@ -309,7 +309,7 @@ if [ -n "$JWT_TOKEN" ]; then
         MAP_VERIFY_STATUS=$(echo "$MAP_VERIFY_RESPONSE" | tail -n 1)
 
         if [ "$MAP_VERIFY_STATUS" -eq 200 ]; then
-            if echo "$MAP_VERIFY_BODY" | jq -e '.plan.content.markers | length == 2 and .plan.content.connections | length == 1 and .plan.content.dateNotes["2026-10-01"].notes == "Morning route."' > /dev/null; then
+            if echo "$MAP_VERIFY_BODY" | jq -e '(.plan.content.markers | length == 2) and (.plan.content.connections | length == 1) and (.plan.content.dateNotes["2026-10-01"].notes == "Morning route.")' > /dev/null; then
                 print_pass "Test 10.1: Saved map content verified."
             else
                 print_fail "Test 10.1: Saved map content mismatch. Body: $MAP_VERIFY_BODY"
