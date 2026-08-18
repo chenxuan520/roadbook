@@ -1,3 +1,5 @@
+
+
 # RoadbookMaker
 
 <p align="center">
@@ -436,7 +438,7 @@ roadbook/
 ### 后端开发
 - 后端代码使用Go语言编写
 - 主要API端点：
-  - `/api/cnmap/search` - ~~百度地图搜索~~ 已弃用
+  - `/api/cnmap/search` - 百度地图搜索
   - `/api/tianmap/search` - 天地图搜索
   - `/api/v1/share/plans/:id` - 分享路书
 
